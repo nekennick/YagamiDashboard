@@ -96,7 +96,19 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             Danh sách sản phẩm đã đồng bộ từ KiotViet, kèm tồn kho tổng theo snapshot mới nhất.
           </p>
         </div>
-        <div className="text-sm text-slate-500">Hiển thị tối đa 80 dòng đầu tiên</div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <a
+            className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+            href={`/api/export/products?${new URLSearchParams({
+              ...(query ? { q: query } : {}),
+              ...(category ? { category } : {}),
+              ...(status !== "all" ? { status } : {})
+            }).toString()}`}
+          >
+            Xuất Excel
+          </a>
+          <div className="text-sm text-slate-500">Hiển thị tối đa 80 dòng đầu tiên</div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
