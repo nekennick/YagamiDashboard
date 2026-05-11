@@ -88,6 +88,30 @@ npm.cmd run prisma:migrate
 npm.cmd run prisma:generate
 ```
 
+## Backup va restore PostgreSQL
+
+Tao backup tu `DATABASE_URL` trong `.env`:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/backup-postgres.ps1
+```
+
+File backup se nam trong thu muc `backups/` va khong duoc commit len Git.
+
+Restore tu mot file backup:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/restore-postgres.ps1 -BackupFile backups/yagami-dashboard-YYYYMMDD-HHMMSS.dump
+```
+
+Restore se hoi xac nhan truoc khi ghi de du lieu. Neu muon chay khong hoi:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/restore-postgres.ps1 -BackupFile backups/yagami-dashboard-YYYYMMDD-HHMMSS.dump -Force
+```
+
+Checklist release MVP nam tai `docs/MVP_RELEASE_CHECKLIST.md`.
+
 ## Ghi chu local
 
 - Lich sync tu dong chi chay khi app local dang mo.

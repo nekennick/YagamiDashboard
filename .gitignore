@@ -11,3 +11,5 @@ prisma/dev.db
 .next-dev.err
 tsconfig.tsbuildinfo
 a.txt
+backups/
+*.dump
