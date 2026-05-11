@@ -101,7 +101,20 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             Tồn kho theo chi nhánh từ snapshot mới nhất đã đồng bộ từ KiotViet.
           </p>
         </div>
-        <div className="text-sm text-slate-500">Snapshot: {formatDateTime(data.snapshotDate)}</div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <a
+            className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+            href={`/api/export/inventory?${new URLSearchParams({
+              ...(query ? { q: query } : {}),
+              ...(branch ? { branch } : {}),
+              ...(category ? { category } : {}),
+              ...(stock !== "all" ? { stock } : {})
+            }).toString()}`}
+          >
+            Xuất Excel
+          </a>
+          <div className="text-sm text-slate-500">Snapshot: {formatDateTime(data.snapshotDate)}</div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
