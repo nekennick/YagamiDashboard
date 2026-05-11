@@ -1,5 +1,247 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { Prisma } from "@prisma/client";
+import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { prisma } from "@/lib/prisma";
 
-export default function CustomersPage() {
-  return <PlaceholderPage title="Khách hàng" phase="Giai đoạn 6" />;
+type CustomersPageProps = {
+  searchParams?: Promise<{
+    q?: string;
+    activity?: string;
+  }>;
+};
+
+const cancelledStatus = "Đã hủy";
+
+export default async function CustomersPage({ searchParams }: CustomersPageProps) {
+  const params = (await searchParams) ?? {};
+  const query = params.q?.trim() ?? "";
+  const activity = params.activity?.trim() ?? "all";
+
+  const customerWhere: Prisma.CustomerWhereInput = query
+    ? {
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { code: { contains: query, mode: "insensitive" } },
+          { contactNumber: { contains: query, mode: "insensitive" } }
+        ]
+      }
+    : {};
+
+  let data;
+
+  try {
+    const matchingCustomers = await prisma.customer.findMany({
+      where: customerWhere,
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        contactNumber: true,
+        address: true
+      }
+    });
+    const customerIds = matchingCustomers.map((customer) => customer.id);
+    const invoiceWhere: Prisma.InvoiceWhereInput = {
+      status: { not: cancelledStatus },
+      customerId: { in: customerIds.length > 0 ? customerIds : [-1] }
+    };
+    const stats = await prisma.invoice.groupBy({
+      by: ["customerId"],
+      where: invoiceWhere,
+      _count: { _all: true },
+      _sum: { total: true },
+      _max: { purchaseDate: true },
+      orderBy: { _sum: { total: "desc" } }
+    });
+    const statsByCustomer = new Map(stats.map((item) => [item.customerId, item]));
+    const rows = matchingCustomers
+      .map((customer) => {
+        const stat = statsByCustomer.get(customer.id);
+        return {
+          ...customer,
+          invoiceCount: stat?._count._all ?? 0,
+          revenue: toNumber(stat?._sum.total),
+          lastPurchaseDate: stat?._max.purchaseDate ?? null
+        };
+      })
+      .filter((customer) => {
+        if (activity === "active") {
+          return customer.invoiceCount > 0;
+        }
+
+        if (activity === "inactive") {
+          return customer.invoiceCount === 0;
+        }
+
+        return true;
+      })
+      .sort((a, b) => b.revenue - a.revenue || b.invoiceCount - a.invoiceCount || a.name.localeCompare(b.name))
+      .slice(0, 100);
+
+    data = {
+      rows,
+      totalCustomers: matchingCustomers.length,
+      activeCustomers: stats.length,
+      totalRevenue: rows.reduce((sum, customer) => sum + customer.revenue, 0),
+      totalInvoices: rows.reduce((sum, customer) => sum + customer.invoiceCount, 0)
+    };
+  } catch (error) {
+    if (isDatabaseConnectionError(error)) {
+      return <DatabaseUnavailable error={error} />;
+    }
+
+    throw error;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-normal">Khách hàng</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Theo dõi khách hàng đã đồng bộ từ KiotViet, doanh thu và tần suất mua dựa trên hóa đơn hiện có.
+          </p>
+        </div>
+        <div className="text-sm text-slate-500">Hiển thị tối đa 100 khách hàng</div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <MetricCard label="Khách khớp lọc" value={formatNumber(data.totalCustomers)} />
+        <MetricCard label="Có mua" value={formatNumber(data.activeCustomers)} />
+        <MetricCard label="Hóa đơn" value={formatNumber(data.totalInvoices)} />
+        <MetricCard label="Doanh thu" value={formatCurrency(data.totalRevenue)} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Bộ lọc</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
+            <input
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+              defaultValue={query}
+              name="q"
+              placeholder="Tìm theo tên, mã hoặc số điện thoại"
+            />
+            <select
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+              defaultValue={activity}
+              name="activity"
+            >
+              <option value="all">Tất cả khách hàng</option>
+              <option value="active">Có mua hàng</option>
+              <option value="inactive">Chưa có hóa đơn</option>
+            </select>
+            <button className="h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
+              Lọc
+            </button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Bảng khách hàng</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[940px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b bg-slate-50 text-left">
+                  <th className="px-3 py-2 font-medium">Mã</th>
+                  <th className="px-3 py-2 font-medium">Khách hàng</th>
+                  <th className="px-3 py-2 font-medium">Liên hệ</th>
+                  <th className="px-3 py-2 text-right font-medium">Hóa đơn</th>
+                  <th className="px-3 py-2 text-right font-medium">Doanh thu</th>
+                  <th className="px-3 py-2 font-medium">Lần mua gần nhất</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-8 text-center text-slate-500" colSpan={6}>
+                      Không có khách hàng phù hợp với bộ lọc.
+                    </td>
+                  </tr>
+                ) : (
+                  data.rows.map((customer) => (
+                    <tr key={customer.id} className="border-b last:border-0">
+                      <td className="px-3 py-2 font-medium text-slate-900">{customer.code ?? "-"}</td>
+                      <td className="px-3 py-2">
+                        <div className="font-medium text-slate-900">{customer.name}</div>
+                        <div className="mt-1 text-xs text-slate-500">{customer.address ?? "Chưa có địa chỉ"}</div>
+                      </td>
+                      <td className="px-3 py-2">{customer.contactNumber ?? "-"}</td>
+                      <td className="px-3 py-2 text-right">{formatNumber(customer.invoiceCount)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(customer.revenue)}</td>
+                      <td className="px-3 py-2">{formatDate(customer.lastPurchaseDate)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-semibold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function toNumber(value: unknown) {
+  if (!value) {
+    return 0;
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return Number(value);
+  }
+
+  if (typeof value === "object" && "toNumber" in value && typeof value.toNumber === "function") {
+    return value.toNumber();
+  }
+
+  return Number(value);
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0
+  }).format(value);
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(value);
+}
+
+function formatDate(date: Date | null) {
+  if (!date) {
+    return "Chưa có";
+  }
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(date);
 }
