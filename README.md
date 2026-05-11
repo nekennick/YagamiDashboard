@@ -10,7 +10,7 @@ Local-first dashboard dung de test va phan tich du lieu KiotViet Public API. Du 
 - Khung shadcn/ui toi thieu
 - Layout co sidebar
 - Dashboard rong
-- Prisma + SQLite config
+- Prisma + PostgreSQL config
 - Trang test KiotViet API tai `/settings/api-test`
 - `.env.example`
 
@@ -29,6 +29,7 @@ Nhung phan tren chi lam sau khi token, san pham, khach hang, hoa don va ton kho 
 ```bash
 npm install
 cp .env.example .env
+npm run prisma:migrate
 npm run prisma:generate
 npm run dev
 ```
@@ -43,7 +44,7 @@ npm.cmd run dev
 ## Bien moi truong
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/yagami_dashboard?schema=public"
 
 KIOTVIET_CLIENT_ID=
 KIOTVIET_CLIENT_SECRET=
@@ -54,10 +55,24 @@ KIOTVIET_API_URL=https://public.kiotapi.com
 
 Khong hardcode API key trong source code.
 
+## PostgreSQL local
+
+Ung dung hien dung PostgreSQL thay cho SQLite de tranh lock khi sync hoa don va dong hoa don lon.
+
+Can tao database truoc khi migrate:
+
+```bash
+createdb yagami_dashboard
+npm run prisma:migrate
+```
+
+Neu PostgreSQL dung user/password khac, cap nhat `DATABASE_URL` trong `.env`.
+
 ## Thu tu lam tiep
 
 1. Dien `.env`.
 2. Chay app va mo `/settings/api-test`.
 3. Test Access Token.
 4. Test products, customers, invoices, inventory.
-5. Khi API thong, moi tao schema database chi tiet va manual sync.
+5. Chay migrate PostgreSQL.
+6. Sync chi nhanh, san pham, khach hang, hoa don 30 ngay, lich su hoa don, ton kho.

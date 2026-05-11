@@ -41,14 +41,14 @@ Không được tự ý thêm tính năng lớn ngoài scope.
 - UI: TailwindCSS + shadcn/ui
 - Table: TanStack Table
 - Chart: Recharts
-- Database local: SQLite
+- Database local: PostgreSQL
 - ORM: Prisma
 - Export Excel: ExcelJS
 - API client: fetch hoặc axios, ưu tiên đơn giản và dễ debug
 
 ## 4. Không sử dụng ở giai đoạn đầu
 
-Không dùng Turborepo, PostgreSQL, Redis, Docker, Kubernetes, microservice, login system, SaaS multi-tenant, AI assistant, hoặc phân tích quy cách thùng/túi/hộp.
+Không dùng Turborepo, Redis, Docker, Kubernetes, microservice, login system, SaaS multi-tenant, AI assistant, hoặc phân tích quy cách thùng/túi/hộp.
 
 ## 5. Cấu trúc thư mục đề xuất
 
@@ -121,7 +121,7 @@ Chưa lưu database ở giai đoạn này. Mục tiêu là xác nhận API thôn
 
 ## 8. Giai đoạn 2 - Database local
 
-Dùng Prisma + SQLite. Các bảng chính:
+Dùng Prisma + PostgreSQL. Các bảng chính:
 
 - Product
 - Customer
@@ -190,7 +190,7 @@ Giao diện sạch, dễ nhìn, responsive, không màu mè, ưu tiên bảng d�
 
 ## 15. Roadmap build
 
-1. Khởi tạo Next.js project, Tailwind, shadcn/ui, Prisma, SQLite
+1. Khởi tạo Next.js project, Tailwind, shadcn/ui, Prisma, PostgreSQL
 2. Làm trang test KiotViet API
 3. Thiết kế database Prisma schema
 4. Làm sync sản phẩm, khách hàng, chi nhánh, hóa đơn, tồn kho
@@ -204,4 +204,4 @@ Giao diện sạch, dễ nhìn, responsive, không màu mè, ưu tiên bảng d�
 
 ## 16. Định nghĩa hoàn thành MVP
 
-MVP hoàn thành khi nhập API key KiotViet được, test token thành công, lấy được sản phẩm, khách hàng, hóa đơn đã bán, tồn kho theo chi nhánh, sync vào SQLite, dashboard hiển thị dữ liệu thật, có analytics, export Excel, sync thủ công và lịch sync tự động khi app đang chạy.
+MVP hoàn thành khi nhập API key KiotViet được, test token thành công, lấy được sản phẩm, khách hàng, hóa đơn đã bán, tồn kho theo chi nhánh, sync vào PostgreSQL, dashboard hiển thị dữ liệu thật, có analytics, export Excel, sync thủ công và lịch sync tự động khi app đang chạy.
