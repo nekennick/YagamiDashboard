@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { prisma } from "@/lib/prisma";
 
 const cancelledStatus = "Đã hủy";
@@ -10,8 +11,10 @@ export default async function DashboardPage() {
     }
   };
 
-  const [invoiceStats, soldQuantity, customerGroups, topProductGroups, latestInventoryDate, recentSyncLogs] =
-    await Promise.all([
+  let dashboardData;
+
+  try {
+    dashboardData = await Promise.all([
       prisma.invoice.aggregate({
         where: invoiceWhere,
         _count: { _all: true },
@@ -57,6 +60,16 @@ export default async function DashboardPage() {
         take: 6
       })
     ]);
+  } catch (error) {
+    if (isDatabaseConnectionError(error)) {
+      return <DatabaseUnavailable error={error} />;
+    }
+
+    throw error;
+  }
+
+  const [invoiceStats, soldQuantity, customerGroups, topProductGroups, latestInventoryDate, recentSyncLogs] =
+    dashboardData;
 
   const topProductIds = topProductGroups.flatMap((item) => (item.productId ? [item.productId] : []));
   const [products, lowInventoryItems] = await Promise.all([

@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 
@@ -15,9 +16,6 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const query = params.q?.trim() ?? "";
   const category = params.category?.trim() ?? "";
   const status = params.status?.trim() ?? "all";
-  const latestInventoryDate = await prisma.inventorySnapshot.aggregate({
-    _max: { snapshotDate: true }
-  });
 
   const productWhere: Prisma.ProductWhereInput = {
     ...(query
@@ -34,32 +32,48 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     ...(status === "inactive" ? { isActive: false } : {})
   };
 
-  const [products, totalProducts, activeProducts, categories, inventoryGroups] = await Promise.all([
-    prisma.product.findMany({
-      where: productWhere,
-      orderBy: [{ isActive: "desc" }, { name: "asc" }],
-      take: 80
-    }),
-    prisma.product.count({ where: productWhere }),
-    prisma.product.count({ where: { ...productWhere, isActive: true } }),
-    prisma.product.groupBy({
-      by: ["categoryName"],
-      _count: { _all: true },
-      orderBy: { _count: { categoryName: "desc" } }
-    }),
-    latestInventoryDate._max.snapshotDate
-      ? prisma.inventorySnapshot.groupBy({
-          by: ["productId"],
-          where: {
-            snapshotDate: latestInventoryDate._max.snapshotDate
-          },
-          _sum: {
-            onHand: true,
-            reserved: true
-          }
-        })
-      : []
-  ]);
+  let productData;
+
+  try {
+    const latestInventoryDate = await prisma.inventorySnapshot.aggregate({
+      _max: { snapshotDate: true }
+    });
+
+    productData = await Promise.all([
+      prisma.product.findMany({
+        where: productWhere,
+        orderBy: [{ isActive: "desc" }, { name: "asc" }],
+        take: 80
+      }),
+      prisma.product.count({ where: productWhere }),
+      prisma.product.count({ where: { ...productWhere, isActive: true } }),
+      prisma.product.groupBy({
+        by: ["categoryName"],
+        _count: { _all: true },
+        orderBy: { _count: { categoryName: "desc" } }
+      }),
+      latestInventoryDate._max.snapshotDate
+        ? prisma.inventorySnapshot.groupBy({
+            by: ["productId"],
+            where: {
+              snapshotDate: latestInventoryDate._max.snapshotDate
+            },
+            _sum: {
+              onHand: true,
+              reserved: true
+            }
+          })
+        : []
+    ]);
+  } catch (error) {
+    if (isDatabaseConnectionError(error)) {
+      return <DatabaseUnavailable error={error} />;
+    }
+
+    throw error;
+  }
+
+  const [products, totalProducts, activeProducts, categories, inventoryGroups] = productData;
 
   const inventoryByProduct = new Map(
     inventoryGroups.map((item) => [
