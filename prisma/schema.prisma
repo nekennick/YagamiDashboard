@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                 Int                 @id @default(autoincrement())
+  kvProductId        Int                 @unique
+  code               String?
+  name               String
+  fullName           String?
+  categoryName       String?
+  basePrice          Decimal?            @default(0)
+  cost               Decimal?            @default(0)
+  unit               String?
+  isActive           Boolean             @default(true)
+  rawJson            String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  invoiceItems       InvoiceItem[]
+  inventorySnapshots InventorySnapshot[]
+
+  @@index([code])
+  @@index([name])
+  @@index([categoryName])
+}
+
+model Customer {
+  id            Int       @id @default(autoincrement())
+  kvCustomerId  Int       @unique
+  code          String?
+  name          String
+  contactNumber String?
+  address       String?
+  rawJson       String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  invoices      Invoice[]
+
+  @@index([code])
+  @@index([name])
+  @@index([contactNumber])
+}
+
+model Branch {
+  id                 Int                 @id @default(autoincrement())
+  kvBranchId         Int                 @unique
+  name               String
+  address            String?
+  rawJson            String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  invoices           Invoice[]
+  inventorySnapshots InventorySnapshot[]
+
+  @@index([name])
+}
+
+model Invoice {
+  id           Int           @id @default(autoincrement())
+  kvInvoiceId  Int           @unique
+  code         String?
+  customerId   Int?
+  branchId     Int?
+  purchaseDate DateTime
+  total        Decimal       @default(0)
+  discount     Decimal       @default(0)
+  status       String?
+  rawJson      String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  customer     Customer?     @relation(fields: [customerId], references: [id])
+  branch       Branch?       @relation(fields: [branchId], references: [id])
+  items        InvoiceItem[]
+
+  @@index([code])
+  @@index([purchaseDate])
+  @@index([customerId])
+  @@index([branchId])
+  @@index([status])
+}
+
+model InvoiceItem {
+  id        Int      @id @default(autoincrement())
+  invoiceId Int
+  productId Int?
+  quantity  Decimal  @default(0)
+  price     Decimal  @default(0)
+  discount  Decimal  @default(0)
+  subtotal  Decimal  @default(0)
+  rawJson   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id])
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model InventorySnapshot {
+  id             Int      @id @default(autoincrement())
+  snapshotDate   DateTime @default(now())
+  productId      Int
+  branchId       Int
+  onHand         Decimal  @default(0)
+  reserved       Decimal  @default(0)
+  actualReserved Decimal  @default(0)
+  rawJson        String
+  createdAt      DateTime @default(now())
+  product        Product  @relation(fields: [productId], references: [id])
+  branch         Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([snapshotDate])
+  @@index([productId])
+  @@index([branchId])
+  @@index([productId, branchId, snapshotDate])
+}
+
+model SyncLog {
+  id           Int       @id @default(autoincrement())
+  syncType     String
+  status       String
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  totalRecords Int       @default(0)
+  errorMessage String?
+
+  @@index([syncType])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model AppSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
