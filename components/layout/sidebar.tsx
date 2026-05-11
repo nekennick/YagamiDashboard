@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AnimatedNavLink } from "@/components/layout/animated-nav-link";
 import {
   BarChart3,
   Boxes,
@@ -39,14 +39,10 @@ export function Sidebar() {
           const Icon = item.icon;
 
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex min-w-max items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
+            <AnimatedNavLink key={item.href} href={item.href}>
               <Icon className="h-4 w-4" aria-hidden="true" />
               <span>{item.label}</span>
-            </Link>
+            </AnimatedNavLink>
           );
         })}
       </nav>
