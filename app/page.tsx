@@ -6,10 +6,27 @@ export const dynamic = "force-dynamic";
 
 const cancelledStatus = "Đã hủy";
 
-export default async function DashboardPage() {
+type DashboardPageProps = {
+  searchParams?: Promise<{
+    range?: string;
+    from?: string;
+    to?: string;
+  }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = (await searchParams) ?? {};
+  const range = params.range?.trim() ?? "30d";
+  const from = params.from?.trim() ?? "";
+  const to = params.to?.trim() ?? "";
+  const dateRange = buildDashboardDateRange(range, from, to);
   const invoiceWhere = {
     status: {
       not: cancelledStatus
+    },
+    purchaseDate: {
+      gte: dateRange.from,
+      lte: dateRange.to
     }
   };
 
@@ -128,13 +145,57 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-normal">Dashboard</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Dữ liệu thật từ SQLite local, cập nhật theo các lần đồng bộ KiotViet gần nhất.
+            Dữ liệu thật từ PostgreSQL local, cập nhật theo các lần đồng bộ KiotViet gần nhất.
           </p>
         </div>
         <div className="text-sm text-slate-500">
-          Dữ liệu hóa đơn: {formatDate(invoiceStats._min.purchaseDate)} - {formatDate(invoiceStats._max.purchaseDate)}
+          Kỳ đang xem: {formatDate(dateRange.from)} - {formatDate(dateRange.to)}
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Bộ lọc thời gian</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="grid gap-3 xl:grid-cols-[220px_180px_180px_auto]">
+            <select
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+              defaultValue={range}
+              name="range"
+            >
+              <option value="today">Hôm nay</option>
+              <option value="7d">7 ngày</option>
+              <option value="30d">30 ngày</option>
+              <option value="thisMonth">Tháng này</option>
+              <option value="lastMonth">Tháng trước</option>
+              <option value="3m">3 tháng</option>
+              <option value="6m">6 tháng</option>
+              <option value="year">Năm nay</option>
+              <option value="custom">Tùy chọn</option>
+            </select>
+            <input
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+              defaultValue={from}
+              name="from"
+              type="date"
+            />
+            <input
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+              defaultValue={to}
+              name="to"
+              type="date"
+            />
+            <button className="h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
+              Lọc
+            </button>
+          </form>
+          <div className="mt-3 text-xs text-slate-500">
+            Dữ liệu hóa đơn hiện có trong kỳ: {formatDate(invoiceStats._min.purchaseDate)} -{" "}
+            {formatDate(invoiceStats._max.purchaseDate)}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => (
@@ -166,16 +227,24 @@ export default async function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {topProducts.map((item, index) => (
-                    <tr key={`${item.product?.code ?? "unknown"}-${index}`} className="border-b last:border-0">
-                      <td className="px-3 py-2">
-                        <div className="font-medium text-slate-900">{item.product?.name ?? "Chưa khớp sản phẩm"}</div>
-                        <div className="text-xs text-slate-500">{item.product?.code ?? "Không có mã"}</div>
+                  {topProducts.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-8 text-center text-slate-500" colSpan={3}>
+                        Không có sản phẩm bán trong kỳ này.
                       </td>
-                      <td className="px-3 py-2 text-right">{formatNumber(item.quantity)}</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(item.revenue)}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    topProducts.map((item, index) => (
+                      <tr key={`${item.product?.code ?? "unknown"}-${index}`} className="border-b last:border-0">
+                        <td className="px-3 py-2">
+                          <div className="font-medium text-slate-900">{item.product?.name ?? "Chưa khớp sản phẩm"}</div>
+                          <div className="text-xs text-slate-500">{item.product?.code ?? "Không có mã"}</div>
+                        </td>
+                        <td className="px-3 py-2 text-right">{formatNumber(item.quantity)}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(item.revenue)}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -232,25 +301,25 @@ export default async function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {recentSyncLogs.map((log) => (
-                  <tr key={log.id} className="border-b last:border-0">
-                    <td className="px-3 py-2">{syncTypeLabel(log.syncType)}</td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={
-                          log.status === "success"
-                            ? "rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
-                            : "rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700"
-                        }
-                      >
-                        {log.status === "success" ? "Thành công" : "Lỗi"}
-                      </span>
+                {recentSyncLogs.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-8 text-center text-slate-500" colSpan={5}>
+                      Chưa có log đồng bộ.
                     </td>
-                    <td className="px-3 py-2 text-right">{formatNumber(log.totalRecords)}</td>
-                    <td className="px-3 py-2">{formatDateTime(log.startedAt)}</td>
-                    <td className="px-3 py-2">{formatDateTime(log.finishedAt)}</td>
                   </tr>
-                ))}
+                ) : (
+                  recentSyncLogs.map((log) => (
+                    <tr key={log.id} className="border-b last:border-0">
+                      <td className="px-3 py-2">{syncTypeLabel(log.syncType)}</td>
+                      <td className="px-3 py-2">
+                        <span className={syncStatusClassName(log.status)}>{syncStatusLabel(log.status)}</span>
+                      </td>
+                      <td className="px-3 py-2 text-right">{formatNumber(log.totalRecords)}</td>
+                      <td className="px-3 py-2">{formatDateTime(log.startedAt)}</td>
+                      <td className="px-3 py-2">{formatDateTime(log.finishedAt)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -258,6 +327,78 @@ export default async function DashboardPage() {
       </Card>
     </div>
   );
+}
+
+function buildDashboardDateRange(range: string, from: string, to: string) {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+
+  if (range === "custom") {
+    return {
+      from: from ? startOfDay(new Date(`${from}T00:00:00.000+07:00`)) : addDays(todayStart, -30),
+      to: to ? endOfDay(new Date(`${to}T00:00:00.000+07:00`)) : todayEnd
+    };
+  }
+
+  if (range === "today") {
+    return { from: todayStart, to: todayEnd };
+  }
+
+  if (range === "7d") {
+    return { from: addDays(todayStart, -6), to: todayEnd };
+  }
+
+  if (range === "thisMonth") {
+    return { from: startOfMonth(now), to: todayEnd };
+  }
+
+  if (range === "lastMonth") {
+    const lastMonth = addMonths(startOfMonth(now), -1);
+    return { from: lastMonth, to: endOfDay(addDays(startOfMonth(now), -1)) };
+  }
+
+  if (range === "3m") {
+    return { from: addMonths(todayStart, -3), to: todayEnd };
+  }
+
+  if (range === "6m") {
+    return { from: addMonths(todayStart, -6), to: todayEnd };
+  }
+
+  if (range === "year") {
+    return { from: new Date(now.getFullYear(), 0, 1), to: todayEnd };
+  }
+
+  return { from: addDays(todayStart, -29), to: todayEnd };
+}
+
+function startOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function endOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(23, 59, 59, 999);
+  return next;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date: Date, months: number) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
 }
 
 function toNumber(value: unknown) {
@@ -278,6 +419,30 @@ function toNumber(value: unknown) {
   }
 
   return Number(value);
+}
+
+function syncStatusLabel(status: string) {
+  if (status === "success") {
+    return "Thành công";
+  }
+
+  if (status === "running") {
+    return "Đang chạy";
+  }
+
+  return "Lỗi";
+}
+
+function syncStatusClassName(status: string) {
+  if (status === "success") {
+    return "rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700";
+  }
+
+  if (status === "running") {
+    return "rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700";
+  }
+
+  return "rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700";
 }
 
 function formatCurrency(value: number) {
