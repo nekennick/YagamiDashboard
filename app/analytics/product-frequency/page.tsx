@@ -149,7 +149,19 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
             Xếp hạng sản phẩm theo doanh thu, số lượng bán, số lần xuất hiện trong hóa đơn và khách hàng đã mua.
           </p>
         </div>
-        <div className="text-sm text-slate-500">Hiển thị tối đa 100 sản phẩm</div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <a
+            className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+            href={`/api/export/analytics/product-frequency?${new URLSearchParams({
+              ...(query ? { q: query } : {}),
+              ...(category ? { category } : {}),
+              ...(sort !== "revenue" ? { sort } : {})
+            }).toString()}`}
+          >
+            Xuất Excel
+          </a>
+          <div className="text-sm text-slate-500">Hiển thị tối đa 100 sản phẩm</div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">

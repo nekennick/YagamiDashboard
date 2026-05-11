@@ -98,7 +98,18 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
             Xếp hạng khách hàng theo số lần mua, doanh thu và khoảng cách trung bình giữa các lần mua.
           </p>
         </div>
-        <div className="text-sm text-slate-500">Hiển thị tối đa 100 khách hàng</div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <a
+            className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+            href={`/api/export/analytics/customer-frequency?${new URLSearchParams({
+              ...(query ? { q: query } : {}),
+              ...(segment !== "all" ? { segment } : {})
+            }).toString()}`}
+          >
+            Xuất Excel
+          </a>
+          <div className="text-sm text-slate-500">Hiển thị tối đa 100 khách hàng</div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
