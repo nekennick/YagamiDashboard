@@ -3,6 +3,7 @@ import {
   BarChart3,
   Boxes,
   ChartNoAxesCombined,
+  Clock3,
   DatabaseZap,
   FileText,
   Gauge,
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/analytics/customer-frequency", label: "Phân tích khách hàng", icon: BarChart3 },
   { href: "/analytics/product-frequency", label: "Phân tích sản phẩm", icon: ChartNoAxesCombined },
   { href: "/settings/sync", label: "Đồng bộ dữ liệu", icon: DatabaseZap },
+  { href: "/settings/schedule", label: "Lịch đồng bộ", icon: Clock3 },
   { href: "/settings/api-test", label: "Cài đặt API", icon: Settings }
 ];
 

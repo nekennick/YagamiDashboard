@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 const cancelledStatus = "Đã hủy";
 
 export default async function DashboardPage() {

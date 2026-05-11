@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/app-shell";
+import { ensureAutoSyncScheduler } from "@/lib/schedule";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,6 +13,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  ensureAutoSyncScheduler();
+
   return (
     <html lang="vi">
       <body>
