@@ -214,7 +214,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                     return (
                       <AnimatedTableRow
                         key={item.id}
-                        className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                        className="border-b last:border-0"
                         delay={Math.min(index, 12) * 0.015}
                       >
                         <td className="px-3 py-2">

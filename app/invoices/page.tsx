@@ -195,7 +195,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                   data.invoices.map((invoice, index) => (
                     <AnimatedTableRow
                       key={invoice.id}
-                      className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                      className="border-b last:border-0"
                       delay={Math.min(index, 12) * 0.015}
                     >
                       <td className="px-3 py-2 font-medium text-slate-900">{invoice.code ?? "-"}</td>

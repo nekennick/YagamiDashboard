@@ -59,7 +59,7 @@ export default async function SchedulePage() {
                       recentLogs.map((log, index) => (
                         <AnimatedTableRow
                           key={log.id}
-                          className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                          className="border-b last:border-0"
                           delay={Math.min(index, 12) * 0.015}
                         >
                           <td className="px-3 py-2">{syncTypeLabel(log.syncType)}</td>

@@ -243,7 +243,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       topProducts.map((item, index) => (
                         <AnimatedTableRow
                           key={`${item.product?.code ?? "unknown"}-${index}`}
-                          className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                          className="border-b last:border-0"
                           delay={index * 0.025}
                         >
                           <td className="px-3 py-2">
@@ -276,7 +276,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <StaggerContainer className="space-y-3">
                   {lowInventoryItems.map((item) => (
                     <StaggerItem key={`${item.productId}-${item.branchId}`} className="border-b pb-3 last:border-0 last:pb-0">
-                      <div className="flex items-start justify-between gap-3 rounded-md transition-colors hover:bg-slate-50">
+                      <div className="flex items-start justify-between gap-3 rounded-md">
                         <div>
                           <div className="font-medium text-slate-900">{item.product.name}</div>
                           <div className="mt-1 text-xs text-slate-500">
@@ -325,7 +325,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     recentSyncLogs.map((log, index) => (
                       <AnimatedTableRow
                         key={log.id}
-                        className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                        className="border-b last:border-0"
                         delay={index * 0.025}
                       >
                         <td className="px-3 py-2">{syncTypeLabel(log.syncType)}</td>

@@ -244,7 +244,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
                   data.rows.map((row, index) => (
                     <AnimatedTableRow
                       key={`${row.product?.id ?? "unknown"}-${index}`}
-                      className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                      className="border-b last:border-0"
                       delay={Math.min(index, 12) * 0.015}
                     >
                       <td className="px-3 py-2">
