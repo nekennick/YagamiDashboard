@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid, StaggerContainer, StaggerItem } from "@/components/ui/motion-primitives";
+import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
 
 type CustomerFrequencyPageProps = {
@@ -90,6 +91,18 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
     throw error;
   }
 
+  const searchSuggestions = data.rows.flatMap((row) =>
+    row.customer
+      ? [
+          {
+            label: row.customer.name,
+            value: row.customer.name,
+            meta: `${row.customer.code ?? "Không có mã"} · ${row.customer.contactNumber ?? "Không có SĐT"}`
+          }
+        ]
+      : []
+  );
+
   return (
     <div className="space-y-6">
       <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -143,11 +156,13 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
           </CardHeader>
           <CardContent>
           <form className="grid gap-3 lg:grid-cols-[1fr_240px_auto]">
-            <input
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              defaultValue={query}
-              name="q"
+            <TableSearch
+              baseParams={{
+                ...(segment !== "all" ? { segment } : {})
+              }}
               placeholder="Tìm theo tên, mã hoặc số điện thoại"
+              suggestions={searchSuggestions}
+              value={query}
             />
             <select
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"

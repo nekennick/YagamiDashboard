@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
+import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
 
 type ProductsPageProps = {
@@ -88,6 +89,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   );
 
   const totalOnHand = products.reduce((sum, product) => sum + (inventoryByProduct.get(product.id)?.onHand ?? 0), 0);
+  const searchSuggestions = products.map((product) => ({
+    label: product.name,
+    value: product.name,
+    meta: `${product.code ?? "Không có mã"} · ${product.categoryName ?? "Chưa phân nhóm"}`
+  }));
 
   return (
     <div className="space-y-6">
@@ -126,11 +132,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </CardHeader>
           <CardContent>
           <form className="grid gap-3 lg:grid-cols-[1fr_220px_180px_auto]">
-            <input
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              defaultValue={query}
-              name="q"
+            <TableSearch
+              baseParams={{
+                ...(category ? { category } : {}),
+                ...(status !== "all" ? { status } : {})
+              }}
               placeholder="Tìm theo tên hoặc mã sản phẩm"
+              suggestions={searchSuggestions}
+              value={query}
             />
             <select
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"

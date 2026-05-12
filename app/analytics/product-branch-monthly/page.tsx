@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
+import { TableSearch } from "@/components/ui/table-search";
 import {
   formatMonthLabel,
   getProductBranchMonthlyRows,
@@ -69,6 +70,11 @@ export default async function ProductBranchMonthlyPage({ searchParams }: Product
     const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
     const soldProductCount = new Set(rows.map((row) => row.productId)).size;
     const strongestBranch = getStrongestBranch(rows);
+    const searchSuggestions = pivotRows.map((row) => ({
+      label: row.productName,
+      value: row.productName,
+      meta: `${row.productCode ?? "Không có mã"} · ${row.categoryName ?? "Chưa phân nhóm"}`
+    }));
 
     return (
       <div className="space-y-6">
@@ -112,11 +118,16 @@ export default async function ProductBranchMonthlyPage({ searchParams }: Product
             </CardHeader>
             <CardContent>
               <form className="grid gap-3 xl:grid-cols-[1fr_170px_170px_220px_220px_auto]">
-                <input
-                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                  defaultValue={query}
-                  name="q"
+                <TableSearch
+                  baseParams={{
+                    fromMonth: monthRange.fromMonthValue,
+                    toMonth: monthRange.toMonthValue,
+                    ...(branch ? { branch } : {}),
+                    ...(category ? { category } : {})
+                  }}
                   placeholder="Tìm theo tên hoặc mã sản phẩm"
+                  suggestions={searchSuggestions}
+                  value={query}
                 />
                 <input
                   className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"

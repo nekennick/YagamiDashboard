@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
+import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
 
 type InventoryPageProps = {
@@ -93,6 +94,12 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
     throw error;
   }
 
+  const searchSuggestions = data.items.map((item) => ({
+    label: item.product.name,
+    value: item.product.name,
+    meta: `${item.product.code ?? "Không có mã"} · ${item.branch.name} · ${item.product.categoryName ?? "Chưa phân nhóm"}`
+  }));
+
   return (
     <div className="space-y-6">
       <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -132,11 +139,15 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           </CardHeader>
           <CardContent>
           <form className="grid gap-3 xl:grid-cols-[1fr_220px_220px_180px_auto]">
-            <input
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              defaultValue={query}
-              name="q"
+            <TableSearch
+              baseParams={{
+                ...(branch ? { branch } : {}),
+                ...(category ? { category } : {}),
+                ...(stock !== "all" ? { stock } : {})
+              }}
               placeholder="Tìm theo tên hoặc mã sản phẩm"
+              suggestions={searchSuggestions}
+              value={query}
             />
             <select
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"

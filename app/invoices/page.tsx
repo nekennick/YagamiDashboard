@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
+import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
 
 type InvoicesPageProps = {
@@ -84,6 +85,12 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
     throw error;
   }
 
+  const searchSuggestions = data.invoices.map((invoice) => ({
+    label: invoice.code ?? "Không có mã hóa đơn",
+    value: invoice.code ?? invoice.customer?.name ?? "",
+    meta: `${invoice.customer?.name ?? "Khách lẻ"} · ${invoice.customer?.code ?? "Không có mã khách"}`
+  }));
+
   return (
     <div className="space-y-6">
       <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -123,11 +130,15 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
           </CardHeader>
           <CardContent>
           <form className="grid gap-3 xl:grid-cols-[1fr_180px_170px_170px_auto]">
-            <input
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              defaultValue={query}
-              name="q"
+            <TableSearch
+              baseParams={{
+                ...(status !== "all" ? { status } : {}),
+                ...(from ? { from } : {}),
+                ...(to ? { to } : {})
+              }}
               placeholder="Tìm theo mã hóa đơn hoặc khách hàng"
+              suggestions={searchSuggestions}
+              value={query}
             />
             <select
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
