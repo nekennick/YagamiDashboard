@@ -18,8 +18,7 @@ type ProductDetailPageProps = {
   searchParams?: Promise<{
     fromMonth?: string;
     toMonth?: string;
-    invoiceMonth?: string;
-    invoiceBranch?: string;
+    invoiceCustomer?: string;
     invoiceQ?: string;
   }>;
 };
@@ -36,11 +35,9 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
 
   const query = (await searchParams) ?? {};
   const monthRange = parseMonthRange(query.fromMonth?.trim() ?? "", query.toMonth?.trim() ?? "");
-  const invoiceMonth = query.invoiceMonth?.trim() ?? "";
-  const invoiceBranch = query.invoiceBranch?.trim() ?? "";
-  const invoiceBranchId = invoiceBranch ? Number(invoiceBranch) : undefined;
+  const invoiceCustomer = query.invoiceCustomer?.trim() ?? "";
+  const invoiceCustomerId = invoiceCustomer ? Number(invoiceCustomer) : undefined;
   const invoiceKeyword = query.invoiceQ?.trim() ?? "";
-  const invoiceTableRange = invoiceMonth ? parseMonthRange(invoiceMonth, invoiceMonth) : monthRange;
 
   try {
     const product = await prisma.product.findUnique({
@@ -57,10 +54,10 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
     const relatedInvoiceWhere = {
       status: { not: cancelledStatus },
       purchaseDate: {
-        gte: invoiceTableRange.fromDate,
-        lt: invoiceTableRange.toDate
+        gte: monthRange.fromDate,
+        lt: monthRange.toDate
       },
-      ...(invoiceBranchId ? { branchId: invoiceBranchId } : {}),
+      ...(invoiceCustomerId ? { customerId: invoiceCustomerId } : {}),
       ...(invoiceKeyword
         ? {
             OR: [
@@ -72,8 +69,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
         : {})
     };
 
-    const [branches, salesRows, periodInvoiceCustomers, relatedItems, inventoryRows] = await Promise.all([
-      prisma.branch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    const [salesRows, periodInvoiceCustomers, customerSourceInvoices, relatedItems, inventoryRows] = await Promise.all([
       getProductBranchMonthlyRows({
         productId,
         fromDate: monthRange.fromDate,
@@ -93,6 +89,21 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
           id: true,
           customerId: true
         }
+      }),
+      prisma.invoice.findMany({
+        where: {
+          status: { not: cancelledStatus },
+          purchaseDate: {
+            gte: monthRange.fromDate,
+            lt: monthRange.toDate
+          },
+          items: { some: { productId } },
+          customerId: { not: null }
+        },
+        select: {
+          customer: { select: { id: true, code: true, name: true } }
+        },
+        orderBy: { customer: { name: "asc" } }
       }),
       prisma.invoiceItem.findMany({
         where: {
@@ -127,7 +138,8 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
     ]);
     const branchSummary = summarizeByBranch(salesRows);
     const monthSummary = summarizeByMonth(salesRows);
-    const relatedBranchSummary = summarizeInvoiceItemsByBranch(relatedItems);
+    const customerOptions = uniqueCustomers(customerSourceInvoices);
+    const relatedCustomerSummary = summarizeInvoiceItemsByCustomer(relatedItems);
     const totalQuantity = salesRows.reduce((sum, row) => sum + row.quantity, 0);
     const totalRevenue = salesRows.reduce((sum, row) => sum + row.revenue, 0);
     const invoiceCount = new Set(periodInvoiceCustomers.map((item) => item.id)).size;
@@ -316,29 +328,20 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
               <CardTitle>Hóa đơn liên quan</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <form className="grid gap-3 lg:grid-cols-[170px_220px_minmax(220px,1fr)_auto]">
+              <form className="grid gap-3 lg:grid-cols-[260px_minmax(220px,1fr)_auto]">
                 <input name="fromMonth" type="hidden" value={monthRange.fromMonthValue} />
                 <input name="toMonth" type="hidden" value={monthRange.toMonthValue} />
                 <label className="grid gap-1 text-sm">
-                  <span className="text-xs font-medium text-slate-600">Tháng hóa đơn</span>
-                  <input
-                    className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                    defaultValue={invoiceMonth}
-                    name="invoiceMonth"
-                    type="month"
-                  />
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span className="text-xs font-medium text-slate-600">Chi nhánh</span>
+                  <span className="text-xs font-medium text-slate-600">Khách hàng</span>
                   <select
                     className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                    defaultValue={invoiceBranch}
-                    name="invoiceBranch"
+                    defaultValue={invoiceCustomer}
+                    name="invoiceCustomer"
                   >
-                    <option value="">Tất cả chi nhánh</option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
+                    <option value="">Tất cả khách hàng</option>
+                    {customerOptions.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name} {customer.code ? `(${customer.code})` : ""}
                       </option>
                     ))}
                   </select>
@@ -359,33 +362,40 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
 
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                 <div className="text-sm font-medium text-slate-900">
-                  Bảng bên dưới đang lấy hóa đơn từ {formatDate(invoiceTableRange.fromDate)} đến {formatDate(addDays(invoiceTableRange.toDate, -1))}
-                  {invoiceBranchId ? `, chi nhánh ${branches.find((branch) => branch.id === invoiceBranchId)?.name ?? "đã chọn"}` : ", tất cả chi nhánh"}.
+                  Bảng bên dưới dùng cùng kỳ phân tích: từ {formatDate(monthRange.fromDate)} đến {formatDate(addDays(monthRange.toDate, -1))}
+                  {invoiceCustomerId
+                    ? `, khách hàng ${customerOptions.find((customer) => customer.id === invoiceCustomerId)?.name ?? "đã chọn"}`
+                    : ", tất cả khách hàng"}.
                 </div>
-                <div className="mt-1 text-xs text-slate-600">Hiển thị tối đa 120 dòng gần nhất để bảng vẫn phản hồi nhanh.</div>
+                <div className="mt-1 text-xs text-slate-600">
+                  Có thể lọc theo khách hàng để xem khách đó đã mua tổng bao nhiêu trong kỳ. Hiển thị tối đa 120 dòng gần nhất để bảng vẫn phản hồi nhanh.
+                </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-slate-50 text-left">
-                      <th className="px-3 py-2 font-medium">Chi nhánh</th>
+                      <th className="px-3 py-2 font-medium">Khách hàng</th>
                       <th className="px-3 py-2 text-right font-medium">Số lượng trong bảng lọc</th>
                       <th className="px-3 py-2 text-right font-medium">Doanh thu</th>
                       <th className="px-3 py-2 text-right font-medium">Hóa đơn</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {relatedBranchSummary.length === 0 ? (
+                    {relatedCustomerSummary.length === 0 ? (
                       <tr>
                         <td className="px-3 py-6 text-center text-slate-500" colSpan={4}>
-                          Không có dữ liệu tóm tắt theo chi nhánh với bộ lọc hiện tại.
+                          Không có dữ liệu tóm tắt theo khách hàng với bộ lọc hiện tại.
                         </td>
                       </tr>
                     ) : (
-                      relatedBranchSummary.map((row, index) => (
-                        <AnimatedTableRow key={row.branchName} className="border-b last:border-0" delay={index * 0.02}>
-                          <td className="px-3 py-2 font-medium text-slate-900">{row.branchName}</td>
+                      relatedCustomerSummary.map((row, index) => (
+                        <AnimatedTableRow key={row.customerKey} className="border-b last:border-0" delay={index * 0.02}>
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-slate-900">{row.customerName}</div>
+                            <div className="mt-1 text-xs text-slate-500">{row.customerCode ?? "Không có mã khách"}</div>
+                          </td>
                           <td className="px-3 py-2 text-right">{formatNumber(row.quantity)}</td>
                           <td className="px-3 py-2 text-right">{formatCurrency(row.revenue)}</td>
                           <td className="px-3 py-2 text-right">{formatNumber(row.invoiceCount)}</td>
@@ -480,23 +490,73 @@ function summarizeByMonth(rows: Awaited<ReturnType<typeof getProductBranchMonthl
   return [...map.values()].sort((a, b) => b.month.getTime() - a.month.getTime());
 }
 
-function summarizeInvoiceItemsByBranch(
-  rows: Awaited<ReturnType<typeof prisma.invoiceItem.findMany<{ include: { invoice: { select: { branch: { select: { name: true } } } } } }>>>
-) {
-  const map = new Map<string, { branchName: string; quantity: number; revenue: number; invoiceIds: Set<number> }>();
+type CustomerOption = {
+  id: number;
+  code: string | null;
+  name: string;
+};
+
+type CustomerSourceInvoice = {
+  customer: CustomerOption | null;
+};
+
+type RelatedInvoiceItem = {
+  invoiceId: number;
+  quantity: unknown;
+  subtotal: unknown;
+  invoice: {
+    customer: CustomerOption | null;
+  };
+};
+
+function uniqueCustomers(rows: CustomerSourceInvoice[]) {
+  const map = new Map<number, CustomerOption>();
 
   for (const row of rows) {
-    const branchName = row.invoice.branch?.name ?? "Không rõ chi nhánh";
-    const current = map.get(branchName) ?? { branchName, quantity: 0, revenue: 0, invoiceIds: new Set<number>() };
+    if (row.customer) {
+      map.set(row.customer.id, row.customer);
+    }
+  }
+
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "vi"));
+}
+
+function summarizeInvoiceItemsByCustomer(rows: RelatedInvoiceItem[]) {
+  const map = new Map<
+    string,
+    {
+      customerKey: string;
+      customerName: string;
+      customerCode: string | null;
+      quantity: number;
+      revenue: number;
+      invoiceIds: Set<number>;
+    }
+  >();
+
+  for (const row of rows) {
+    const customerKey = row.invoice.customer?.id ? String(row.invoice.customer.id) : "walk-in";
+    const customerName = row.invoice.customer?.name ?? "Khách lẻ";
+    const customerCode = row.invoice.customer?.code ?? null;
+    const current = map.get(customerKey) ?? {
+      customerKey,
+      customerName,
+      customerCode,
+      quantity: 0,
+      revenue: 0,
+      invoiceIds: new Set<number>()
+    };
     current.quantity += toNumber(row.quantity);
     current.revenue += toNumber(row.subtotal);
     current.invoiceIds.add(row.invoiceId);
-    map.set(branchName, current);
+    map.set(customerKey, current);
   }
 
   return [...map.values()]
     .map((row) => ({
-      branchName: row.branchName,
+      customerKey: row.customerKey,
+      customerName: row.customerName,
+      customerCode: row.customerCode,
       quantity: row.quantity,
       revenue: row.revenue,
       invoiceCount: row.invoiceIds.size
