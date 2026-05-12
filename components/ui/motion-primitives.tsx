@@ -73,7 +73,6 @@ export function AnimatedPanel({ children, className, delay = 0 }: FadeInProps) {
       className={cn("will-change-transform", className)}
       initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.988, filter: "blur(4px)" }}
       transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1], delay }}
-      whileHover={reduceMotion ? undefined : { y: -3, scale: 1.003 }}
     >
       {children}
     </motion.div>
