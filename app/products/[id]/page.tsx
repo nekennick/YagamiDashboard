@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
+import { CustomerInvoiceSearch } from "@/components/products/customer-invoice-search";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import {
@@ -387,38 +388,14 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
               <CardTitle>Hóa đơn liên quan</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <form className="grid gap-3 lg:grid-cols-[260px_minmax(220px,1fr)_auto]">
-                <input name="period" type="hidden" value={analysisRange.period} />
-                <input name="fromDate" type="hidden" value={analysisRange.fromDateValue} />
-                <input name="toDate" type="hidden" value={analysisRange.toDateValue} />
-                <label className="grid gap-1 text-sm">
-                  <span className="text-xs font-medium text-slate-600">Khách hàng</span>
-                  <select
-                    className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                    defaultValue={invoiceCustomer}
-                    name="invoiceCustomer"
-                  >
-                    <option value="">Tất cả khách hàng</option>
-                    {customerOptions.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name} {customer.code ? `(${customer.code})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1 text-sm">
-                  <span className="text-xs font-medium text-slate-600">Tìm hóa đơn/khách</span>
-                  <input
-                    className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                    defaultValue={invoiceKeyword}
-                    name="invoiceQ"
-                    placeholder="Mã hóa đơn, mã khách, tên khách"
-                  />
-                </label>
-                <button className="h-10 self-end rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
-                  Lọc bảng
-                </button>
-              </form>
+              <CustomerInvoiceSearch
+                customers={customerOptions}
+                fromDate={analysisRange.fromDateValue}
+                keyword={invoiceKeyword}
+                period={analysisRange.period}
+                selectedCustomerId={invoiceCustomer}
+                toDate={analysisRange.toDateValue}
+              />
 
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                 <div className="text-sm font-medium text-slate-900">
