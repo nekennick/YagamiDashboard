@@ -74,7 +74,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
         : {})
     };
 
-    const [salesRows, periodInvoiceCustomers, customerSourceInvoices, relatedItems, inventoryRows] = await Promise.all([
+    const [salesRows, periodInvoiceCustomers, customerSourceInvoices, relatedSummaryItems, relatedItems, inventoryRows] = await Promise.all([
       getProductBranchMonthlyRows({
         productId,
         fromDate: analysisRange.fromDate,
@@ -115,6 +115,22 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
           productId,
           invoice: relatedInvoiceWhere
         },
+        select: {
+          invoiceId: true,
+          quantity: true,
+          subtotal: true,
+          invoice: {
+            select: {
+              customer: { select: { id: true, code: true, name: true } }
+            }
+          }
+        }
+      }),
+      prisma.invoiceItem.findMany({
+        where: {
+          productId,
+          invoice: relatedInvoiceWhere
+        },
         orderBy: { invoice: { purchaseDate: "desc" } },
         take: 120,
         include: {
@@ -144,7 +160,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
     const branchSummary = summarizeByBranch(salesRows);
     const monthSummary = summarizeByMonth(salesRows);
     const customerOptions = uniqueCustomers(customerSourceInvoices);
-    const relatedCustomerSummary = summarizeInvoiceItemsByCustomer(relatedItems);
+    const relatedCustomerSummary = summarizeInvoiceItemsByCustomer(relatedSummaryItems);
     const totalQuantity = salesRows.reduce((sum, row) => sum + row.quantity, 0);
     const totalRevenue = salesRows.reduce((sum, row) => sum + row.revenue, 0);
     const invoiceCount = new Set(periodInvoiceCustomers.map((item) => item.id)).size;
@@ -412,7 +428,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                     : ", tất cả khách hàng"}.
                 </div>
                 <div className="mt-1 text-xs text-slate-600">
-                  Có thể lọc theo khách hàng để xem khách đó đã mua tổng bao nhiêu trong kỳ. Hiển thị tối đa 120 dòng gần nhất để bảng vẫn phản hồi nhanh.
+                  Bảng tóm tắt phía trên tính trên toàn bộ dữ liệu trong kỳ. Bảng hóa đơn chi tiết bên dưới chỉ hiển thị tối đa 120 dòng gần nhất để vẫn phản hồi nhanh.
                 </div>
               </div>
 
@@ -421,7 +437,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                   <thead>
                     <tr className="border-b bg-slate-50 text-left">
                       <th className="px-3 py-2 font-medium">Khách hàng</th>
-                      <th className="px-3 py-2 text-right font-medium">Số lượng trong bảng lọc</th>
+                      <th className="px-3 py-2 text-right font-medium">Tổng số lượng trong kỳ</th>
                       <th className="px-3 py-2 text-right font-medium">Doanh thu</th>
                       <th className="px-3 py-2 text-right font-medium">Hóa đơn</th>
                     </tr>
