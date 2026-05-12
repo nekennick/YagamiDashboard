@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { CustomerInvoiceSearch } from "@/components/products/customer-invoice-search";
+import { CustomerInvoiceSummaryTable } from "@/components/products/customer-invoice-summary-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import {
@@ -161,7 +162,8 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
     const branchSummary = summarizeByBranch(salesRows);
     const monthSummary = summarizeByMonth(salesRows);
     const customerOptions = uniqueCustomers(customerSourceInvoices);
-    const relatedCustomerSummary = summarizeInvoiceItemsByCustomer(relatedSummaryItems);
+    const invoicesByCustomer = groupInvoiceDetailsByCustomer(relatedItems);
+    const relatedCustomerSummary = summarizeInvoiceItemsByCustomer(relatedSummaryItems, invoicesByCustomer);
     const totalQuantity = salesRows.reduce((sum, row) => sum + row.quantity, 0);
     const totalRevenue = salesRows.reduce((sum, row) => sum + row.revenue, 0);
     const invoiceCount = new Set(periodInvoiceCustomers.map((item) => item.id)).size;
@@ -405,85 +407,11 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                     : ", tất cả khách hàng"}.
                 </div>
                 <div className="mt-1 text-xs text-slate-600">
-                  Bảng tóm tắt phía trên tính trên toàn bộ dữ liệu trong kỳ. Bảng hóa đơn chi tiết bên dưới chỉ hiển thị tối đa 120 dòng gần nhất để vẫn phản hồi nhanh.
+                  Bảng tóm tắt tính trên toàn bộ dữ liệu trong kỳ. Bấm “Xem hóa đơn chi tiết” ở từng khách để đối soát tối đa 120 hóa đơn gần nhất đang khớp bộ lọc.
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-slate-50 text-left">
-                      <th className="px-3 py-2 font-medium">Khách hàng</th>
-                      <th className="px-3 py-2 text-right font-medium">Tổng số lượng trong kỳ</th>
-                      <th className="px-3 py-2 text-right font-medium">Doanh thu</th>
-                      <th className="px-3 py-2 text-right font-medium">Hóa đơn</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {relatedCustomerSummary.length === 0 ? (
-                      <tr>
-                        <td className="px-3 py-6 text-center text-slate-500" colSpan={4}>
-                          Không có dữ liệu tóm tắt theo khách hàng với bộ lọc hiện tại.
-                        </td>
-                      </tr>
-                    ) : (
-                      relatedCustomerSummary.map((row, index) => (
-                        <AnimatedTableRow key={row.customerKey} className="border-b last:border-0" delay={index * 0.02}>
-                          <td className="px-3 py-2">
-                            <div className="font-medium text-slate-900">{row.customerName}</div>
-                            <div className="mt-1 text-xs text-slate-500">{row.customerCode ?? "Không có mã khách"}</div>
-                          </td>
-                          <td className="px-3 py-2 text-right">{formatNumber(row.quantity)}</td>
-                          <td className="px-3 py-2 text-right">{formatCurrency(row.revenue)}</td>
-                          <td className="px-3 py-2 text-right">{formatNumber(row.invoiceCount)}</td>
-                        </AnimatedTableRow>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[980px] border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-slate-50 text-left">
-                      <th className="px-3 py-2 font-medium">Hóa đơn</th>
-                      <th className="px-3 py-2 font-medium">Ngày</th>
-                      <th className="px-3 py-2 font-medium">Khách hàng</th>
-                      <th className="px-3 py-2 font-medium">Chi nhánh</th>
-                      <th className="px-3 py-2 text-right font-medium">SL</th>
-                      <th className="px-3 py-2 text-right font-medium">Đơn giá</th>
-                      <th className="px-3 py-2 text-right font-medium">Giảm giá</th>
-                      <th className="px-3 py-2 text-right font-medium">Thành tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {relatedItems.length === 0 ? (
-                      <tr>
-                        <td className="px-3 py-8 text-center text-slate-500" colSpan={8}>
-                          Không có hóa đơn liên quan với bộ lọc hiện tại.
-                        </td>
-                      </tr>
-                    ) : (
-                      relatedItems.map((item, index) => (
-                        <AnimatedTableRow key={item.id} className="border-b last:border-0" delay={Math.min(index, 12) * 0.015}>
-                          <td className="px-3 py-2 font-medium text-slate-900">{item.invoice.code ?? "-"}</td>
-                          <td className="px-3 py-2">{formatDate(item.invoice.purchaseDate)}</td>
-                          <td className="px-3 py-2">
-                            <div>{item.invoice.customer?.name ?? "Khách lẻ"}</div>
-                            <div className="mt-1 text-xs text-slate-500">{item.invoice.customer?.code ?? "Không có mã khách"}</div>
-                          </td>
-                          <td className="px-3 py-2">{item.invoice.branch?.name ?? "-"}</td>
-                          <td className="px-3 py-2 text-right">{formatNumber(toNumber(item.quantity))}</td>
-                          <td className="px-3 py-2 text-right">{formatCurrency(toNumber(item.price))}</td>
-                          <td className="px-3 py-2 text-right">{formatCurrency(toNumber(item.discount))}</td>
-                          <td className="px-3 py-2 text-right">{formatCurrency(toNumber(item.subtotal))}</td>
-                        </AnimatedTableRow>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <CustomerInvoiceSummaryTable rows={relatedCustomerSummary} />
             </CardContent>
           </Card>
         </AnimatedPanel>
@@ -639,7 +567,63 @@ function uniqueCustomers(rows: CustomerSourceInvoice[]) {
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "vi"));
 }
 
-function summarizeInvoiceItemsByCustomer(rows: RelatedInvoiceItem[]) {
+type RelatedDisplayInvoiceItem = {
+  id: number;
+  invoiceId: number;
+  quantity: unknown;
+  price: unknown;
+  discount: unknown;
+  subtotal: unknown;
+  invoice: {
+    code: string | null;
+    purchaseDate: Date;
+    customer: CustomerOption | null;
+    branch: { name: string } | null;
+  };
+};
+
+function groupInvoiceDetailsByCustomer(rows: RelatedDisplayInvoiceItem[]) {
+  const map = new Map<
+    string,
+    {
+      id: number;
+      code: string;
+      date: string;
+      customerName: string;
+      customerCode: string | null;
+      branchName: string;
+      quantity: string;
+      price: string;
+      discount: string;
+      subtotal: string;
+    }[]
+  >();
+
+  for (const row of rows) {
+    const customerKey = row.invoice.customer?.id ? String(row.invoice.customer.id) : "walk-in";
+    const current = map.get(customerKey) ?? [];
+    current.push({
+      id: row.id,
+      code: row.invoice.code ?? "-",
+      date: formatDate(row.invoice.purchaseDate),
+      customerName: row.invoice.customer?.name ?? "Khách lẻ",
+      customerCode: row.invoice.customer?.code ?? null,
+      branchName: row.invoice.branch?.name ?? "-",
+      quantity: formatNumber(toNumber(row.quantity)),
+      price: formatCurrency(toNumber(row.price)),
+      discount: formatCurrency(toNumber(row.discount)),
+      subtotal: formatCurrency(toNumber(row.subtotal))
+    });
+    map.set(customerKey, current);
+  }
+
+  return map;
+}
+
+function summarizeInvoiceItemsByCustomer(
+  rows: RelatedInvoiceItem[],
+  invoicesByCustomer: ReturnType<typeof groupInvoiceDetailsByCustomer>
+) {
   const map = new Map<
     string,
     {
@@ -677,7 +661,8 @@ function summarizeInvoiceItemsByCustomer(rows: RelatedInvoiceItem[]) {
       customerCode: row.customerCode,
       quantity: row.quantity,
       revenue: row.revenue,
-      invoiceCount: row.invoiceIds.size
+      invoiceCount: row.invoiceIds.size,
+      invoices: invoicesByCustomer.get(row.customerKey) ?? []
     }))
     .sort((a, b) => b.quantity - a.quantity);
 }
