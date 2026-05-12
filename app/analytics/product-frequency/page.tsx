@@ -52,9 +52,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
       _count: { _all: true },
       _sum: { quantity: true, subtotal: true }
     });
-    const sortedProductGroups = productGroups
-      .sort((a, b) => sortProductGroups(a, b, sort))
-      .slice(0, 100);
+    const sortedProductGroups = productGroups.sort((a, b) => sortProductGroups(a, b, sort));
     const shownProductIds = sortedProductGroups.flatMap((item) => (item.productId ? [item.productId] : []));
     const [customerCounts, branchGroups, categories] = await Promise.all([
       prisma.invoiceItem.findMany({
@@ -175,7 +173,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
           >
             Xuất Excel
           </a>
-          <div className="text-sm text-slate-500">Hiển thị tối đa 100 sản phẩm</div>
+          <div className="text-sm text-slate-500">Hiển thị đầy đủ {formatNumber(data.productCount)} sản phẩm có bán</div>
         </div>
       </FadeIn>
 
