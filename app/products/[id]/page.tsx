@@ -134,7 +134,6 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
           invoice: relatedInvoiceWhere
         },
         orderBy: { invoice: { purchaseDate: "desc" } },
-        take: 120,
         include: {
           invoice: {
             select: {
@@ -407,7 +406,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                     : ", tất cả khách hàng"}.
                 </div>
                 <div className="mt-1 text-xs text-slate-600">
-                  Bảng tóm tắt tính trên toàn bộ dữ liệu trong kỳ. Bấm “Xem hóa đơn chi tiết” ở từng khách để đối soát tối đa 120 hóa đơn gần nhất đang khớp bộ lọc.
+                  Bảng tóm tắt tính trên toàn bộ dữ liệu trong kỳ. Bấm “Xem hóa đơn chi tiết” ở từng khách để đối soát đầy đủ các hóa đơn đang khớp bộ lọc.
                 </div>
               </div>
 
