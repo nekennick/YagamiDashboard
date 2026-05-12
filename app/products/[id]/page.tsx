@@ -26,7 +26,7 @@ type ProductDetailPageProps = {
 };
 
 const cancelledStatus = "Đã hủy";
-type AnalysisPeriod = "month" | "week" | "custom";
+type AnalysisPeriod = "month" | "previousMonth" | "week" | "custom";
 
 export default async function ProductDetailPage({ params, searchParams }: ProductDetailPageProps) {
   const { id } = await params;
@@ -205,6 +205,14 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                     value="month"
                   >
                     Tháng này
+                  </button>
+                  <button
+                    className={periodButtonClass(analysisRange.period === "previousMonth")}
+                    name="period"
+                    type="submit"
+                    value="previousMonth"
+                  >
+                    Tháng trước
                   </button>
                   <button
                     className={periodButtonClass(analysisRange.period === "week")}
@@ -483,9 +491,15 @@ function parseAnalysisRange({
   toDate?: string;
 }) {
   const today = startOfDay(new Date());
-  const selectedPeriod: AnalysisPeriod = period === "week" || period === "custom" ? period : "month";
+  const selectedPeriod: AnalysisPeriod =
+    period === "previousMonth" || period === "week" || period === "custom" ? period : "month";
   let start = startOfMonth(today);
   let endInclusive = today;
+
+  if (selectedPeriod === "previousMonth") {
+    start = startOfMonth(addMonths(today, -1));
+    endInclusive = addDays(startOfMonth(today), -1);
+  }
 
   if (selectedPeriod === "week") {
     start = startOfWeek(today);
@@ -530,6 +544,10 @@ function startOfDay(date: Date) {
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, date.getDate());
 }
 
 function startOfWeek(date: Date) {
