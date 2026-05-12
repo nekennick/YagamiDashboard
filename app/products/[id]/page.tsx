@@ -6,7 +6,6 @@ import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetric
 import {
   formatMonthLabel,
   getProductBranchMonthlyRows,
-  parseMonthRange,
   toNumber
 } from "@/lib/analytics/product-branch-monthly";
 import { prisma } from "@/lib/prisma";
@@ -16,14 +15,16 @@ export const dynamic = "force-dynamic";
 type ProductDetailPageProps = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{
-    fromMonth?: string;
-    toMonth?: string;
+    period?: string;
+    fromDate?: string;
+    toDate?: string;
     invoiceCustomer?: string;
     invoiceQ?: string;
   }>;
 };
 
 const cancelledStatus = "Đã hủy";
+type AnalysisPeriod = "month" | "week" | "custom";
 
 export default async function ProductDetailPage({ params, searchParams }: ProductDetailPageProps) {
   const { id } = await params;
@@ -34,7 +35,11 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
   }
 
   const query = (await searchParams) ?? {};
-  const monthRange = parseMonthRange(query.fromMonth?.trim() ?? "", query.toMonth?.trim() ?? "");
+  const analysisRange = parseAnalysisRange({
+    period: query.period?.trim(),
+    fromDate: query.fromDate?.trim(),
+    toDate: query.toDate?.trim()
+  });
   const invoiceCustomer = query.invoiceCustomer?.trim() ?? "";
   const invoiceCustomerId = invoiceCustomer ? Number(invoiceCustomer) : undefined;
   const invoiceKeyword = query.invoiceQ?.trim() ?? "";
@@ -54,8 +59,8 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
     const relatedInvoiceWhere = {
       status: { not: cancelledStatus },
       purchaseDate: {
-        gte: monthRange.fromDate,
-        lt: monthRange.toDate
+        gte: analysisRange.fromDate,
+        lt: analysisRange.toDate
       },
       ...(invoiceCustomerId ? { customerId: invoiceCustomerId } : {}),
       ...(invoiceKeyword
@@ -72,16 +77,16 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
     const [salesRows, periodInvoiceCustomers, customerSourceInvoices, relatedItems, inventoryRows] = await Promise.all([
       getProductBranchMonthlyRows({
         productId,
-        fromDate: monthRange.fromDate,
-        toDate: monthRange.toDate,
+        fromDate: analysisRange.fromDate,
+        toDate: analysisRange.toDate,
         limit: 600
       }),
       prisma.invoice.findMany({
         where: {
           status: { not: cancelledStatus },
           purchaseDate: {
-            gte: monthRange.fromDate,
-            lt: monthRange.toDate
+            gte: analysisRange.fromDate,
+            lt: analysisRange.toDate
           },
           items: { some: { productId } }
         },
@@ -94,8 +99,8 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
         where: {
           status: { not: cancelledStatus },
           purchaseDate: {
-            gte: monthRange.fromDate,
-            lt: monthRange.toDate
+            gte: analysisRange.fromDate,
+            lt: analysisRange.toDate
           },
           items: { some: { productId } },
           customerId: { not: null }
@@ -170,26 +175,64 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-sm text-slate-600">
-                Đang tính số liệu từ <span className="font-medium text-slate-900">{formatDate(monthRange.fromDate)}</span> đến{" "}
-                <span className="font-medium text-slate-900">{formatDate(addDays(monthRange.toDate, -1))}</span>. Mốc kết thúc được tính hết ngày cuối
-                của tháng đã chọn.
+                Đang tính số liệu từ <span className="font-medium text-slate-900">{formatDate(analysisRange.fromDate)}</span> đến{" "}
+                <span className="font-medium text-slate-900">{formatDate(analysisRange.toDateInclusive)}</span>. Mặc định lấy từ đầu tháng hiện tại đến hôm nay.
               </p>
-              <form className="grid gap-3 sm:grid-cols-[180px_180px_auto]">
-                <input
-                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                  defaultValue={monthRange.fromMonthValue}
-                  name="fromMonth"
-                  type="month"
-                />
-                <input
-                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                  defaultValue={monthRange.toMonthValue}
-                  name="toMonth"
-                  type="month"
-                />
-                <button className="h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
-                  Lọc
-                </button>
+              <form className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className={periodButtonClass(analysisRange.period === "month")}
+                    name="period"
+                    type="submit"
+                    value="month"
+                  >
+                    Tháng này
+                  </button>
+                  <button
+                    className={periodButtonClass(analysisRange.period === "week")}
+                    name="period"
+                    type="submit"
+                    value="week"
+                  >
+                    Tuần này
+                  </button>
+                  <button
+                    className={periodButtonClass(analysisRange.period === "custom")}
+                    name="period"
+                    type="submit"
+                    value="custom"
+                  >
+                    Tùy chọn ngày
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[180px_180px_auto]">
+                  <label className="grid gap-1 text-sm">
+                    <span className="text-xs font-medium text-slate-600">Ngày đầu</span>
+                    <input
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                      defaultValue={analysisRange.fromDateValue}
+                      name="fromDate"
+                      type="date"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-sm">
+                    <span className="text-xs font-medium text-slate-600">Ngày cuối</span>
+                    <input
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                      defaultValue={analysisRange.toDateValue}
+                      name="toDate"
+                      type="date"
+                    />
+                  </label>
+                  <button
+                    className="h-10 self-end rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+                    name="period"
+                    type="submit"
+                    value="custom"
+                  >
+                    Áp dụng ngày
+                  </button>
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -329,8 +372,9 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
             </CardHeader>
             <CardContent className="space-y-5">
               <form className="grid gap-3 lg:grid-cols-[260px_minmax(220px,1fr)_auto]">
-                <input name="fromMonth" type="hidden" value={monthRange.fromMonthValue} />
-                <input name="toMonth" type="hidden" value={monthRange.toMonthValue} />
+                <input name="period" type="hidden" value={analysisRange.period} />
+                <input name="fromDate" type="hidden" value={analysisRange.fromDateValue} />
+                <input name="toDate" type="hidden" value={analysisRange.toDateValue} />
                 <label className="grid gap-1 text-sm">
                   <span className="text-xs font-medium text-slate-600">Khách hàng</span>
                   <select
@@ -362,7 +406,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
 
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                 <div className="text-sm font-medium text-slate-900">
-                  Bảng bên dưới dùng cùng kỳ phân tích: từ {formatDate(monthRange.fromDate)} đến {formatDate(addDays(monthRange.toDate, -1))}
+                  Bảng bên dưới dùng cùng kỳ phân tích: từ {formatDate(analysisRange.fromDate)} đến {formatDate(analysisRange.toDateInclusive)}
                   {invoiceCustomerId
                     ? `, khách hàng ${customerOptions.find((customer) => customer.id === invoiceCustomerId)?.name ?? "đã chọn"}`
                     : ", tất cả khách hàng"}.
@@ -508,6 +552,87 @@ type RelatedInvoiceItem = {
     customer: CustomerOption | null;
   };
 };
+
+function parseAnalysisRange({
+  period,
+  fromDate,
+  toDate
+}: {
+  period?: string;
+  fromDate?: string;
+  toDate?: string;
+}) {
+  const today = startOfDay(new Date());
+  const selectedPeriod: AnalysisPeriod = period === "week" || period === "custom" ? period : "month";
+  let start = startOfMonth(today);
+  let endInclusive = today;
+
+  if (selectedPeriod === "week") {
+    start = startOfWeek(today);
+  }
+
+  if (selectedPeriod === "custom") {
+    start = parseDateInput(fromDate) ?? startOfMonth(today);
+    endInclusive = parseDateInput(toDate) ?? today;
+
+    if (endInclusive < start) {
+      endInclusive = start;
+    }
+  }
+
+  return {
+    period: selectedPeriod,
+    fromDate: start,
+    toDate: addDays(endInclusive, 1),
+    toDateInclusive: endInclusive,
+    fromDateValue: formatDateInput(start),
+    toDateValue: formatDateInput(endInclusive)
+  };
+}
+
+function parseDateInput(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day || month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+
+  return startOfDay(new Date(year, month - 1, day));
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function startOfWeek(date: Date) {
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  return addDays(startOfDay(date), mondayOffset);
+}
+
+function formatDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function periodButtonClass(active: boolean) {
+  const base =
+    "inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors duration-200";
+
+  return active
+    ? `${base} border-slate-900 bg-slate-900 text-white`
+    : `${base} border-slate-200 bg-white text-slate-700 hover:bg-slate-50`;
+}
 
 function uniqueCustomers(rows: CustomerSourceInvoice[]) {
   const map = new Map<number, CustomerOption>();
