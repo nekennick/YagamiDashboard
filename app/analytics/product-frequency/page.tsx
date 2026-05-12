@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -248,7 +249,13 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
                       delay={Math.min(index, 12) * 0.015}
                     >
                       <td className="px-3 py-2">
-                        <div className="font-medium text-slate-900">{row.product?.name ?? "Không rõ sản phẩm"}</div>
+                        {row.product ? (
+                          <Link className="font-medium text-slate-900 underline-offset-2 hover:underline" href={`/products/${row.product.id}`}>
+                            {row.product.name}
+                          </Link>
+                        ) : (
+                          <div className="font-medium text-slate-900">Không rõ sản phẩm</div>
+                        )}
                         <div className="mt-1 text-xs text-slate-500">
                           {row.product?.code ?? "Không có mã"} · {row.product?.unit ?? "Chưa có đơn vị"}
                         </div>

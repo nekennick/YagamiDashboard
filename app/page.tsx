@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, StaggerContainer, StaggerItem } from "@/components/ui/motion-primitives";
@@ -247,7 +248,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                           delay={index * 0.025}
                         >
                           <td className="px-3 py-2">
-                            <div className="font-medium text-slate-900">{item.product?.name ?? "Chưa khớp sản phẩm"}</div>
+                            {item.product ? (
+                              <Link className="font-medium text-slate-900 underline-offset-2 hover:underline" href={`/products/${item.product.id}`}>
+                                {item.product.name}
+                              </Link>
+                            ) : (
+                              <div className="font-medium text-slate-900">Chưa khớp sản phẩm</div>
+                            )}
                             <div className="text-xs text-slate-500">{item.product?.code ?? "Không có mã"}</div>
                           </td>
                           <td className="px-3 py-2 text-right">{formatNumber(item.quantity)}</td>

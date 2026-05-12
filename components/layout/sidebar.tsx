@@ -20,6 +20,7 @@ const navItems = [
   { href: "/inventory", label: "Tồn kho", icon: Boxes },
   { href: "/analytics/customer-frequency", label: "Phân tích khách hàng", icon: BarChart3 },
   { href: "/analytics/product-frequency", label: "Phân tích sản phẩm", icon: ChartNoAxesCombined },
+  { href: "/analytics/product-branch-monthly", label: "SP theo chi nhánh", icon: ChartNoAxesCombined },
   { href: "/settings/sync", label: "Đồng bộ dữ liệu", icon: DatabaseZap },
   { href: "/settings/schedule", label: "Lịch đồng bộ", icon: Clock3 },
   { href: "/settings/api-test", label: "Cài đặt API", icon: Settings }

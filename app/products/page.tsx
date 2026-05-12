@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -198,7 +199,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                       >
                         <td className="px-3 py-2 font-medium text-slate-900">{product.code ?? "-"}</td>
                         <td className="px-3 py-2">
-                          <div className="font-medium text-slate-900">{product.name}</div>
+                          <Link className="font-medium text-slate-900 underline-offset-2 hover:underline" href={`/products/${product.id}`}>
+                            {product.name}
+                          </Link>
                           <div className="mt-1 text-xs text-slate-500">{product.unit ?? "Chưa có đơn vị"}</div>
                         </td>
                         <td className="px-3 py-2">{product.categoryName ?? "Chưa phân nhóm"}</td>
