@@ -17,10 +17,10 @@ export function FadeIn({ children, className, delay = 0 }: FadeInProps) {
 
   return (
     <motion.div
-      animate={{ opacity: 1 }}
+      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, filter: "blur(0px)" }}
       className={className}
-      initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
-      transition={{ duration: 0.28, ease: "easeOut", delay }}
+      initial={reduceMotion ? { opacity: 1 } : { opacity: 0, filter: "blur(4px)" }}
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1], delay }}
     >
       {children}
     </motion.div>
@@ -38,7 +38,7 @@ export function StaggerContainer({ children, className }: MotionContainerProps) 
       variants={{
         hidden: {},
         show: {
-          transition: reduceMotion ? {} : { staggerChildren: 0.055, delayChildren: 0.04 }
+          transition: reduceMotion ? {} : { staggerChildren: 0.07, delayChildren: 0.05 }
         }
       }}
     >
@@ -54,10 +54,10 @@ export function StaggerItem({ children, className }: MotionContainerProps) {
     <motion.div
       className={className}
       variants={{
-        hidden: reduceMotion ? { opacity: 1 } : { opacity: 0 },
-        show: { opacity: 1 }
+        hidden: reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.985, filter: "blur(3px)" },
+        show: reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, filter: "blur(0px)" }
       }}
-      transition={{ duration: 0.28, ease: "easeOut" }}
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>
@@ -69,11 +69,11 @@ export function AnimatedPanel({ children, className, delay = 0 }: FadeInProps) {
 
   return (
     <motion.div
-      animate={{ opacity: 1 }}
+      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, filter: "blur(0px)" }}
       className={cn("will-change-transform", className)}
-      initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
-      transition={{ duration: 0.32, ease: "easeOut", delay }}
-      whileHover={reduceMotion ? undefined : { y: -2 }}
+      initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.988, filter: "blur(4px)" }}
+      transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1], delay }}
+      whileHover={reduceMotion ? undefined : { y: -3, scale: 1.003 }}
     >
       {children}
     </motion.div>
@@ -85,10 +85,10 @@ export function AnimatedTableRow({ children, className, delay = 0 }: FadeInProps
 
   return (
     <motion.tr
-      animate={{ opacity: 1 }}
+      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, filter: "blur(0px)" }}
       className={className}
-      initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
-      transition={{ duration: 0.22, ease: "easeOut", delay }}
+      initial={reduceMotion ? { opacity: 1 } : { opacity: 0, filter: "blur(2px)" }}
+      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1], delay }}
     >
       {children}
     </motion.tr>
