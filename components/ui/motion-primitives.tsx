@@ -94,3 +94,15 @@ export function AnimatedTableRow({ children, className, delay = 0 }: FadeInProps
     </motion.tr>
   );
 }
+
+export function MotionMetricGrid({ children, className }: MotionContainerProps) {
+  return <StaggerContainer className={cn("grid gap-4", className)}>{children}</StaggerContainer>;
+}
+
+export function MotionMetricCard({ children, className }: MotionContainerProps) {
+  return (
+    <StaggerItem>
+      <div className={className}>{children}</div>
+    </StaggerItem>
+  );
+}

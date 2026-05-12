@@ -1,5 +1,6 @@
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AnimatedPanel, AnimatedTableRow, FadeIn } from "@/components/ui/motion-primitives";
 import { getScheduleSettings } from "@/lib/schedule";
 import { prisma } from "@/lib/prisma";
 import { SchedulePanel } from "@/app/settings/schedule/panel";
@@ -18,21 +19,24 @@ export default async function SchedulePage() {
 
     return (
       <div className="space-y-6">
-        <div>
+        <FadeIn>
           <h1 className="text-2xl font-semibold tracking-normal">Lịch đồng bộ tự động</h1>
           <p className="mt-2 text-sm text-slate-600">
             Bật lịch sync local khi app đang chạy, chọn chu kỳ và nhóm dữ liệu cần đồng bộ.
           </p>
-        </div>
+        </FadeIn>
 
         <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
-          <SchedulePanel initialSettings={settings} />
+          <AnimatedPanel delay={0.04}>
+            <SchedulePanel initialSettings={settings} />
+          </AnimatedPanel>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Sync gần đây</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <AnimatedPanel delay={0.08}>
+            <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+              <CardHeader>
+                <CardTitle>Sync gần đây</CardTitle>
+              </CardHeader>
+              <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[680px] border-collapse text-sm">
                   <thead>
@@ -52,21 +56,26 @@ export default async function SchedulePage() {
                         </td>
                       </tr>
                     ) : (
-                      recentLogs.map((log) => (
-                        <tr key={log.id} className="border-b last:border-0">
+                      recentLogs.map((log, index) => (
+                        <AnimatedTableRow
+                          key={log.id}
+                          className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                          delay={Math.min(index, 12) * 0.015}
+                        >
                           <td className="px-3 py-2">{syncTypeLabel(log.syncType)}</td>
                           <td className="px-3 py-2">{statusLabel(log.status)}</td>
                           <td className="px-3 py-2 text-right">{formatNumber(log.totalRecords)}</td>
                           <td className="px-3 py-2">{formatDateTime(log.startedAt)}</td>
                           <td className="px-3 py-2">{formatDateTime(log.finishedAt)}</td>
-                        </tr>
+                        </AnimatedTableRow>
                       ))
                     )}
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </AnimatedPanel>
         </div>
       </div>
     );

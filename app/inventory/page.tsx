@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { prisma } from "@/lib/prisma";
 
 type InventoryPageProps = {
@@ -94,7 +95,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-normal">Tồn kho</h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -115,20 +116,21 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           </a>
           <div className="text-sm text-slate-500">Snapshot: {formatDateTime(data.snapshotDate)}</div>
         </div>
-      </div>
+      </FadeIn>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <MotionMetricGrid className="md:grid-cols-4">
         <MetricCard label="Dòng tồn kho" value={formatNumber(data.stats._count._all)} />
         <MetricCard label="Tổng tồn" value={formatNumber(toNumber(data.stats._sum.onHand))} />
         <MetricCard label="Đặt giữ" value={formatNumber(toNumber(data.stats._sum.reserved))} />
         <MetricCard label="Tồn âm / hết" value={`${formatNumber(data.negativeCount)} / ${formatNumber(data.zeroCount)}`} />
-      </div>
+      </MotionMetricGrid>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bộ lọc</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AnimatedPanel delay={0.04}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Bộ lọc</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form className="grid gap-3 xl:grid-cols-[1fr_220px_220px_180px_auto]">
             <input
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
@@ -175,14 +177,16 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
               Lọc
             </button>
           </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bảng tồn kho</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AnimatedPanel delay={0.08}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Bảng tồn kho</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1060px] border-collapse text-sm">
               <thead>
@@ -204,11 +208,15 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                     </td>
                   </tr>
                 ) : (
-                  data.items.map((item) => {
+                  data.items.map((item, index) => {
                     const onHand = toNumber(item.onHand);
 
                     return (
-                      <tr key={item.id} className="border-b last:border-0">
+                      <AnimatedTableRow
+                        key={item.id}
+                        className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                        delay={Math.min(index, 12) * 0.015}
+                      >
                         <td className="px-3 py-2">
                           <div className="font-medium text-slate-900">{item.product.name}</div>
                           <div className="mt-1 text-xs text-slate-500">
@@ -223,29 +231,32 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                         <td className="px-3 py-2">
                           <StockBadge onHand={onHand} />
                         </td>
-                      </tr>
+                      </AnimatedTableRow>
                     );
                   })
                 )}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
     </div>
   );
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-semibold">{value}</div>
-      </CardContent>
-    </Card>
+    <MotionMetricCard>
+      <Card className="h-full shadow-sm transition-shadow duration-200 hover:shadow-md">
+        <CardHeader>
+          <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-semibold">{value}</div>
+        </CardContent>
+      </Card>
+    </MotionMetricCard>
   );
 }
 

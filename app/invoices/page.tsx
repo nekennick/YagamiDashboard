@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { prisma } from "@/lib/prisma";
 
 type InvoicesPageProps = {
@@ -85,7 +86,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-normal">Hóa đơn</h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -106,20 +107,21 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
           </a>
           <div className="text-sm text-slate-500">Hiển thị tối đa 100 hóa đơn mới nhất</div>
         </div>
-      </div>
+      </FadeIn>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <MotionMetricGrid className="md:grid-cols-4">
         <MetricCard label="Hóa đơn khớp lọc" value={formatNumber(data.invoiceStats._count._all)} />
         <MetricCard label="Doanh thu" value={formatCurrency(toNumber(data.invoiceStats._sum.total))} />
         <MetricCard label="Dòng hóa đơn" value={formatNumber(data.itemStats._count._all)} />
         <MetricCard label="Số lượng bán" value={formatNumber(toNumber(data.itemStats._sum.quantity))} />
-      </div>
+      </MotionMetricGrid>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bộ lọc</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AnimatedPanel delay={0.04}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Bộ lọc</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form className="grid gap-3 xl:grid-cols-[1fr_180px_170px_170px_auto]">
             <input
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
@@ -159,14 +161,16 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
             Khoảng dữ liệu hiện có: {formatDate(data.invoiceStats._min.purchaseDate)} -{" "}
             {formatDate(data.invoiceStats._max.purchaseDate)}
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bảng hóa đơn</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AnimatedPanel delay={0.08}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Bảng hóa đơn</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1040px] border-collapse text-sm">
               <thead>
@@ -188,8 +192,12 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                     </td>
                   </tr>
                 ) : (
-                  data.invoices.map((invoice) => (
-                    <tr key={invoice.id} className="border-b last:border-0">
+                  data.invoices.map((invoice, index) => (
+                    <AnimatedTableRow
+                      key={invoice.id}
+                      className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                      delay={Math.min(index, 12) * 0.015}
+                    >
                       <td className="px-3 py-2 font-medium text-slate-900">{invoice.code ?? "-"}</td>
                       <td className="px-3 py-2">{formatDateTime(invoice.purchaseDate)}</td>
                       <td className="px-3 py-2">
@@ -202,28 +210,31 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                       <td className="px-3 py-2">
                         <StatusBadge status={invoice.status} />
                       </td>
-                    </tr>
+                    </AnimatedTableRow>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
     </div>
   );
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-semibold">{value}</div>
-      </CardContent>
-    </Card>
+    <MotionMetricCard>
+      <Card className="h-full shadow-sm transition-shadow duration-200 hover:shadow-md">
+        <CardHeader>
+          <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-semibold">{value}</div>
+        </CardContent>
+      </Card>
+    </MotionMetricCard>
   );
 }
 

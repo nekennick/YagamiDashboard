@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { prisma } from "@/lib/prisma";
 
 type ProductFrequencyPageProps = {
@@ -142,7 +143,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-normal">Phân tích tần suất sản phẩm</h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -162,20 +163,21 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
           </a>
           <div className="text-sm text-slate-500">Hiển thị tối đa 100 sản phẩm</div>
         </div>
-      </div>
+      </FadeIn>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <MotionMetricGrid className="md:grid-cols-4">
         <MetricCard label="Sản phẩm có bán" value={formatNumber(data.productCount)} />
         <MetricCard label="Doanh thu" value={formatCurrency(data.totalRevenue)} />
         <MetricCard label="Số lượng bán" value={formatNumber(data.totalQuantity)} />
         <MetricCard label="Lượt xuất hiện" value={formatNumber(data.totalAppearances)} />
-      </div>
+      </MotionMetricGrid>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bộ lọc</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AnimatedPanel delay={0.04}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Bộ lọc</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form className="grid gap-3 xl:grid-cols-[1fr_240px_220px_auto]">
             <input
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
@@ -208,14 +210,16 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
               Lọc
             </button>
           </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bảng tần suất sản phẩm</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AnimatedPanel delay={0.08}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Bảng tần suất sản phẩm</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] border-collapse text-sm">
               <thead>
@@ -238,7 +242,11 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
                   </tr>
                 ) : (
                   data.rows.map((row, index) => (
-                    <tr key={`${row.product?.id ?? "unknown"}-${index}`} className="border-b last:border-0">
+                    <AnimatedTableRow
+                      key={`${row.product?.id ?? "unknown"}-${index}`}
+                      className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                      delay={Math.min(index, 12) * 0.015}
+                    >
                       <td className="px-3 py-2">
                         <div className="font-medium text-slate-900">{row.product?.name ?? "Không rõ sản phẩm"}</div>
                         <div className="mt-1 text-xs text-slate-500">
@@ -251,28 +259,31 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
                       <td className="px-3 py-2 text-right">{formatCurrency(row.revenue)}</td>
                       <td className="px-3 py-2 text-right">{formatNumber(row.customerCount)}</td>
                       <td className="px-3 py-2">{row.bestBranch}</td>
-                    </tr>
+                    </AnimatedTableRow>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
     </div>
   );
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-semibold">{value}</div>
-      </CardContent>
-    </Card>
+    <MotionMetricCard>
+      <Card className="h-full shadow-sm transition-shadow duration-200 hover:shadow-md">
+        <CardHeader>
+          <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-semibold">{value}</div>
+        </CardContent>
+      </Card>
+    </MotionMetricCard>
   );
 }
 

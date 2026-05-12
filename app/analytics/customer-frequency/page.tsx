@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid, StaggerContainer, StaggerItem } from "@/components/ui/motion-primitives";
 import { prisma } from "@/lib/prisma";
 
 type CustomerFrequencyPageProps = {
@@ -91,7 +92,7 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-normal">Phân tích tần suất khách hàng</h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -110,34 +111,37 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
           </a>
           <div className="text-sm text-slate-500">Hiển thị tối đa 100 khách hàng</div>
         </div>
-      </div>
+      </FadeIn>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <MotionMetricGrid className="md:grid-cols-4">
         <MetricCard label="Khách có mua" value={formatNumber(data.totalCustomers)} />
         <MetricCard label="Hóa đơn trong danh sách" value={formatNumber(data.totalInvoices)} />
         <MetricCard label="Doanh thu trong danh sách" value={formatCurrency(data.totalRevenue)} />
         <MetricCard label="Rất thường xuyên" value={formatNumber(data.veryFrequentCount)} />
-      </div>
+      </MotionMetricGrid>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Phân nhóm</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-4">
+      <AnimatedPanel delay={0.04}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Phân nhóm</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StaggerContainer className="grid gap-3 sm:grid-cols-4">
             <SegmentBox label="Rất thường xuyên" value={data.veryFrequentCount} tone="emerald" />
             <SegmentBox label="Thường xuyên" value={data.frequentCount} tone="blue" />
             <SegmentBox label="Thỉnh thoảng" value={data.occasionalCount} tone="amber" />
             <SegmentBox label="Mới / ít dữ liệu" value={data.newCount} tone="slate" />
-          </div>
-        </CardContent>
-      </Card>
+            </StaggerContainer>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bộ lọc</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AnimatedPanel delay={0.08}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Bộ lọc</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form className="grid gap-3 lg:grid-cols-[1fr_240px_auto]">
             <input
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
@@ -160,14 +164,16 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
               Lọc
             </button>
           </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bảng tần suất</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AnimatedPanel delay={0.12}>
+        <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Bảng tần suất</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1080px] border-collapse text-sm">
               <thead>
@@ -189,8 +195,12 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
                     </td>
                   </tr>
                 ) : (
-                  data.rows.map((row) => (
-                    <tr key={row.customer?.id ?? row.customer?.code ?? row.lastPurchaseDate?.toISOString()} className="border-b last:border-0">
+                  data.rows.map((row, index) => (
+                    <AnimatedTableRow
+                      key={row.customer?.id ?? row.customer?.code ?? row.lastPurchaseDate?.toISOString()}
+                      className="border-b transition-colors hover:bg-slate-50 last:border-0"
+                      delay={Math.min(index, 12) * 0.015}
+                    >
                       <td className="px-3 py-2">
                         <div className="font-medium text-slate-900">{row.customer?.name ?? "Không rõ khách hàng"}</div>
                         <div className="mt-1 text-xs text-slate-500">
@@ -207,28 +217,31 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
                       <td className="px-3 py-2">
                         <FrequencyBadge label={row.segment.label} tone={row.segment.tone} />
                       </td>
-                    </tr>
+                    </AnimatedTableRow>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </AnimatedPanel>
     </div>
   );
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-semibold">{value}</div>
-      </CardContent>
-    </Card>
+    <MotionMetricCard>
+      <Card className="h-full shadow-sm transition-shadow duration-200 hover:shadow-md">
+        <CardHeader>
+          <CardTitle className="text-sm text-slate-600">{label}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-semibold">{value}</div>
+        </CardContent>
+      </Card>
+    </MotionMetricCard>
   );
 }
 
@@ -241,10 +254,12 @@ function SegmentBox({ label, value, tone }: { label: string; value: number; tone
   };
 
   return (
-    <div className={`rounded-md border px-4 py-3 ${colors[tone]}`}>
-      <div className="text-sm font-medium">{label}</div>
-      <div className="mt-1 text-2xl font-semibold">{formatNumber(value)}</div>
-    </div>
+    <StaggerItem>
+      <div className={`rounded-md border px-4 py-3 ${colors[tone]}`}>
+        <div className="text-sm font-medium">{label}</div>
+        <div className="mt-1 text-2xl font-semibold">{formatNumber(value)}</div>
+      </div>
+    </StaggerItem>
   );
 }
 
