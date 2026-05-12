@@ -186,7 +186,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
         <MetricCard label="Lượt xuất hiện" value={formatNumber(data.totalAppearances)} />
       </MotionMetricGrid>
 
-      <AnimatedPanel delay={0.04}>
+      <AnimatedPanel className="relative z-20" delay={0.04}>
         <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
             <CardTitle>Bộ lọc</CardTitle>
@@ -231,7 +231,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
         </Card>
       </AnimatedPanel>
 
-      <AnimatedPanel delay={0.08}>
+      <AnimatedPanel className="relative z-10" delay={0.08}>
         <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
             <CardTitle>Bảng tần suất sản phẩm</CardTitle>

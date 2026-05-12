@@ -43,7 +43,7 @@ export function TableSearch({
   }, [query, suggestions]);
 
   return (
-    <label className={className ?? "relative grid gap-1 text-sm"}>
+    <label className={className ?? "relative z-30 grid gap-1 text-sm"}>
       {label ? <span className="text-xs font-medium text-slate-600">{label}</span> : null}
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -72,7 +72,7 @@ export function TableSearch({
       </div>
       {isOpen ? (
         <div
-          className={`absolute left-0 right-0 z-20 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg ${
+          className={`absolute left-0 right-0 z-50 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl ${
             label ? "top-[68px]" : "top-[44px]"
           }`}
         >

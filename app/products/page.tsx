@@ -125,7 +125,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         <MetricCard label="Tồn kho trong danh sách" value={formatNumber(totalOnHand)} />
       </MotionMetricGrid>
 
-      <AnimatedPanel delay={0.04}>
+      <AnimatedPanel className="relative z-20" delay={0.04}>
         <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
             <CardTitle>Bộ lọc</CardTitle>
@@ -170,7 +170,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         </Card>
       </AnimatedPanel>
 
-      <AnimatedPanel delay={0.08}>
+      <AnimatedPanel className="relative z-10" delay={0.08}>
         <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
             <CardTitle>Bảng sản phẩm</CardTitle>

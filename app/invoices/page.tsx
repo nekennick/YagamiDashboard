@@ -123,7 +123,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
         <MetricCard label="Số lượng bán" value={formatNumber(toNumber(data.itemStats._sum.quantity))} />
       </MotionMetricGrid>
 
-      <AnimatedPanel delay={0.04}>
+      <AnimatedPanel className="relative z-20" delay={0.04}>
         <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
             <CardTitle>Bộ lọc</CardTitle>
@@ -176,7 +176,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
         </Card>
       </AnimatedPanel>
 
-      <AnimatedPanel delay={0.08}>
+      <AnimatedPanel className="relative z-10" delay={0.08}>
         <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
             <CardTitle>Bảng hóa đơn</CardTitle>
