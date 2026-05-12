@@ -34,7 +34,7 @@ export function CustomerInvoiceSearch({
     const normalizedQuery = normalizeText(customerQuery);
 
     if (!normalizedQuery) {
-      return customers.slice(0, 8);
+      return [];
     }
 
     return customers
@@ -59,9 +59,8 @@ export function CustomerInvoiceSearch({
             onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
             onChange={(event) => {
               setCustomerQuery(event.target.value);
-              setIsOpen(true);
+              setIsOpen(event.target.value.trim().length > 0);
             }}
-            onFocus={() => setIsOpen(true)}
             placeholder="Gõ tên hoặc mã khách"
             type="search"
             value={customerQuery}
