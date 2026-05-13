@@ -1,0 +1,109 @@
+"use client";
+
+import { Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
+
+export type ProductSwitchOption = {
+  id: number;
+  code: string | null;
+  name: string;
+  categoryName: string | null;
+  unit: string | null;
+};
+
+type ProductSwitcherProps = {
+  currentProductId: number;
+  fromDate: string;
+  period: string;
+  products: ProductSwitchOption[];
+  toDate: string;
+};
+
+export function ProductSwitcher({ currentProductId, fromDate, period, products, toDate }: ProductSwitcherProps) {
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const suggestions = useMemo(() => {
+    const normalizedQuery = normalizeText(query);
+
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return products
+      .filter((product) => product.id !== currentProductId)
+      .filter((product) => normalizeText(`${product.name} ${product.code ?? ""} ${product.categoryName ?? ""}`).includes(normalizedQuery))
+      .slice(0, 8);
+  }, [currentProductId, products, query]);
+
+  return (
+    <div className="relative z-30 w-full sm:w-[360px]">
+      <label className="grid gap-1 text-sm">
+        <span className="text-xs font-medium text-slate-600">Đổi sản phẩm</span>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            autoComplete="off"
+            className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-10 text-sm outline-none transition-colors duration-200 focus:border-slate-400"
+            onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setIsOpen(event.target.value.trim().length > 0);
+            }}
+            placeholder="Gõ tên hoặc mã sản phẩm"
+            type="search"
+            value={query}
+          />
+          {query ? (
+            <button
+              aria-label="Xóa tìm kiếm sản phẩm"
+              className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900"
+              onClick={() => {
+                setQuery("");
+                setIsOpen(false);
+              }}
+              type="button"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+      </label>
+      {isOpen ? (
+        <div className="absolute left-0 right-0 top-[68px] z-50 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
+          {suggestions.length === 0 ? (
+            <div className="px-3 py-3 text-sm text-slate-500">Không tìm thấy sản phẩm phù hợp.</div>
+          ) : (
+            suggestions.map((product) => (
+              <a
+                className="block px-3 py-2 transition-colors duration-200 hover:bg-slate-50"
+                href={buildProductHref(product.id, { period, fromDate, toDate })}
+                key={product.id}
+              >
+                <div className="text-sm font-medium text-slate-900">{product.name}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {product.code ?? "Không có mã"} · {product.categoryName ?? "Chưa phân nhóm"} · {product.unit ?? "Chưa có đơn vị"}
+                </div>
+              </a>
+            ))
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function buildProductHref(productId: number, params: { period: string; fromDate: string; toDate: string }) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("period", params.period);
+  searchParams.set("fromDate", params.fromDate);
+  searchParams.set("toDate", params.toDate);
+  return `/products/${productId}?${searchParams.toString()}`;
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}

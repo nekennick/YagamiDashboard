@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { CustomerInvoiceSearch } from "@/components/products/customer-invoice-search";
 import { CustomerInvoiceSummaryTable } from "@/components/products/customer-invoice-summary-table";
+import { ProductSwitcher } from "@/components/products/product-switcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import {
@@ -76,7 +77,11 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
         : {})
     };
 
-    const [salesRows, periodInvoiceCustomers, customerSourceInvoices, relatedSummaryItems, relatedItems, inventoryRows] = await Promise.all([
+    const [productOptions, salesRows, periodInvoiceCustomers, customerSourceInvoices, relatedSummaryItems, relatedItems, inventoryRows] = await Promise.all([
+      prisma.product.findMany({
+        orderBy: [{ isActive: "desc" }, { name: "asc" }],
+        select: { id: true, code: true, name: true, categoryName: true, unit: true }
+      }),
       getProductBranchMonthlyRows({
         productId,
         fromDate: analysisRange.fromDate,
@@ -178,12 +183,21 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
               Hồ sơ sản phẩm: doanh số theo tháng, chi nhánh, hóa đơn liên quan và tồn kho hiện tại.
             </p>
           </div>
-          <Link
-            className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 hover:bg-slate-50"
-            href="/analytics/product-branch-monthly"
-          >
-            Xem phân tích chi nhánh
-          </Link>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <ProductSwitcher
+              currentProductId={productId}
+              fromDate={analysisRange.fromDateValue}
+              period={analysisRange.period}
+              products={productOptions}
+              toDate={analysisRange.toDateValue}
+            />
+            <Link
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 hover:bg-slate-50"
+              href="/analytics/product-branch-monthly"
+            >
+              Xem phân tích chi nhánh
+            </Link>
+          </div>
         </FadeIn>
 
         <AnimatedPanel delay={0.04}>
