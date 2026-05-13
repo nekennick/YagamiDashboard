@@ -42,9 +42,10 @@ export function CustomerInvoiceSummaryTable({ rows }: CustomerInvoiceSummaryTabl
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] border-collapse text-sm">
+      <table className="w-full min-w-[960px] border-collapse text-sm">
         <thead>
           <tr className="border-b bg-slate-50 text-left">
+            <th className="px-3 py-2 font-medium">STT</th>
             <th className="px-3 py-2 font-medium">Khách hàng</th>
             <th className="px-3 py-2 text-right font-medium">Tổng số lượng trong kỳ</th>
             <th className="px-3 py-2 text-right font-medium">Doanh thu</th>
@@ -53,12 +54,13 @@ export function CustomerInvoiceSummaryTable({ rows }: CustomerInvoiceSummaryTabl
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             const isOpen = openKey === row.customerKey;
 
             return (
               <Fragment key={row.customerKey}>
                 <tr className="border-b last:border-0">
+                  <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                   <td className="px-3 py-2">
                     <div className="font-medium text-slate-900">{row.customerName}</div>
                     <div className="mt-1 text-xs text-slate-500">{row.customerCode ?? "Không có mã khách"}</div>
@@ -78,11 +80,12 @@ export function CustomerInvoiceSummaryTable({ rows }: CustomerInvoiceSummaryTabl
                 </tr>
                 {isOpen ? (
                   <tr className="border-b bg-slate-50/60">
-                    <td className="px-3 py-3" colSpan={5}>
+                    <td className="px-3 py-3" colSpan={6}>
                       <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
-                        <table className="w-full min-w-[980px] border-collapse text-xs">
+                        <table className="w-full min-w-[1040px] border-collapse text-xs">
                           <thead>
                             <tr className="border-b bg-slate-50 text-left">
+                              <th className="px-3 py-2 font-medium">STT</th>
                               <th className="px-3 py-2 font-medium">Hóa đơn</th>
                               <th className="px-3 py-2 font-medium">Ngày</th>
                               <th className="px-3 py-2 font-medium">Khách hàng</th>
@@ -96,13 +99,14 @@ export function CustomerInvoiceSummaryTable({ rows }: CustomerInvoiceSummaryTabl
                           <tbody>
                             {row.invoices.length === 0 ? (
                               <tr>
-                                <td className="px-3 py-6 text-center text-slate-500" colSpan={8}>
+                                <td className="px-3 py-6 text-center text-slate-500" colSpan={9}>
                                   Không có hóa đơn chi tiết cho khách này.
                                 </td>
                               </tr>
                             ) : (
-                              row.invoices.map((invoice) => (
+                              row.invoices.map((invoice, invoiceIndex) => (
                                 <tr className="border-b last:border-0" key={invoice.id}>
+                                  <td className="px-3 py-2 text-slate-500">{invoiceIndex + 1}</td>
                                   <td className="px-3 py-2 font-medium text-slate-900">{invoice.code}</td>
                                   <td className="px-3 py-2">{invoice.date}</td>
                                   <td className="px-3 py-2">

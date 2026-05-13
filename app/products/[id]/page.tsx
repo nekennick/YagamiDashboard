@@ -294,6 +294,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                   <table className="w-full min-w-[560px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b bg-slate-50 text-left">
+                        <th className="px-3 py-2 font-medium">STT</th>
                         <th className="px-3 py-2 font-medium">Chi nhánh</th>
                         <th className="px-3 py-2 text-right font-medium">Số lượng</th>
                         <th className="px-3 py-2 text-right font-medium">Doanh thu</th>
@@ -303,13 +304,14 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                     <tbody>
                       {branchSummary.length === 0 ? (
                         <tr>
-                          <td className="px-3 py-8 text-center text-slate-500" colSpan={4}>
+                          <td className="px-3 py-8 text-center text-slate-500" colSpan={5}>
                             Không có dữ liệu bán theo chi nhánh trong kỳ.
                           </td>
                         </tr>
                       ) : (
                         branchSummary.map((row, index) => (
                           <AnimatedTableRow key={row.branchName} className="border-b last:border-0" delay={index * 0.02}>
+                            <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                             <td className="px-3 py-2 font-medium text-slate-900">{row.branchName}</td>
                             <td className="px-3 py-2 text-right">{formatNumber(row.quantity)}</td>
                             <td className="px-3 py-2 text-right">{formatCurrency(row.revenue)}</td>
@@ -334,6 +336,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                   <table className="w-full min-w-[520px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b bg-slate-50 text-left">
+                        <th className="px-3 py-2 font-medium">STT</th>
                         <th className="px-3 py-2 font-medium">Tháng</th>
                         <th className="px-3 py-2 text-right font-medium">Số lượng</th>
                         <th className="px-3 py-2 text-right font-medium">Doanh thu</th>
@@ -342,13 +345,14 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                     <tbody>
                       {monthSummary.length === 0 ? (
                         <tr>
-                          <td className="px-3 py-8 text-center text-slate-500" colSpan={3}>
+                          <td className="px-3 py-8 text-center text-slate-500" colSpan={4}>
                             Không có dữ liệu bán theo tháng trong kỳ.
                           </td>
                         </tr>
                       ) : (
                         monthSummary.map((row, index) => (
                           <AnimatedTableRow key={row.month.toISOString()} className="border-b last:border-0" delay={index * 0.02}>
+                            <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                             <td className="px-3 py-2">{formatMonthLabel(row.month)}</td>
                             <td className="px-3 py-2 text-right">{formatNumber(row.quantity)}</td>
                             <td className="px-3 py-2 text-right">{formatCurrency(row.revenue)}</td>
@@ -374,6 +378,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                   <table className="w-full min-w-[520px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b bg-slate-50 text-left">
+                        <th className="px-3 py-2 font-medium">STT</th>
                         <th className="px-3 py-2 font-medium">Chi nhánh</th>
                         <th className="px-3 py-2 text-right font-medium">Tồn</th>
                         <th className="px-3 py-2 text-right font-medium">Đặt giữ</th>
@@ -382,13 +387,14 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                     <tbody>
                       {inventoryRows.length === 0 ? (
                         <tr>
-                          <td className="px-3 py-8 text-center text-slate-500" colSpan={3}>
+                          <td className="px-3 py-8 text-center text-slate-500" colSpan={4}>
                             Chưa có snapshot tồn kho cho sản phẩm này.
                           </td>
                         </tr>
                       ) : (
                         inventoryRows.map((row, index) => (
                           <AnimatedTableRow key={row.id} className="border-b last:border-0" delay={index * 0.02}>
+                            <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                             <td className="px-3 py-2">{row.branch.name}</td>
                             <td className="px-3 py-2 text-right font-medium">{formatNumber(toNumber(row.onHand))}</td>
                             <td className="px-3 py-2 text-right">{formatNumber(toNumber(row.reserved))}</td>

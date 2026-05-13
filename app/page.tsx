@@ -228,6 +228,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <table className="w-full min-w-[560px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-slate-50 text-left">
+                      <th className="px-3 py-2 font-medium">STT</th>
                       <th className="px-3 py-2 font-medium">Sản phẩm</th>
                       <th className="px-3 py-2 text-right font-medium">Số lượng</th>
                       <th className="px-3 py-2 text-right font-medium">Doanh thu</th>
@@ -236,7 +237,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   <tbody>
                     {topProducts.length === 0 ? (
                       <tr>
-                        <td className="px-3 py-8 text-center text-slate-500" colSpan={3}>
+                        <td className="px-3 py-8 text-center text-slate-500" colSpan={4}>
                           Không có sản phẩm bán trong kỳ này.
                         </td>
                       </tr>
@@ -247,6 +248,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                           className="border-b last:border-0"
                           delay={index * 0.025}
                         >
+                          <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                           <td className="px-3 py-2">
                             {item.product ? (
                               <Link className="font-medium text-slate-900 underline-offset-2 hover:underline" href={`/products/${item.product.id}`}>
@@ -314,6 +316,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <table className="w-full min-w-[680px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b bg-slate-50 text-left">
+                    <th className="px-3 py-2 font-medium">STT</th>
                     <th className="px-3 py-2 font-medium">Loại</th>
                     <th className="px-3 py-2 font-medium">Trạng thái</th>
                     <th className="px-3 py-2 text-right font-medium">Bản ghi</th>
@@ -324,7 +327,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <tbody>
                   {recentSyncLogs.length === 0 ? (
                     <tr>
-                      <td className="px-3 py-8 text-center text-slate-500" colSpan={5}>
+                      <td className="px-3 py-8 text-center text-slate-500" colSpan={6}>
                         Chưa có log đồng bộ.
                       </td>
                     </tr>
@@ -335,6 +338,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                         className="border-b last:border-0"
                         delay={index * 0.025}
                       >
+                        <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                         <td className="px-3 py-2">{syncTypeLabel(log.syncType)}</td>
                         <td className="px-3 py-2">
                           <span className={syncStatusClassName(log.status)}>{syncStatusLabel(log.status)}</span>

@@ -41,6 +41,7 @@ export default async function SchedulePage() {
                 <table className="w-full min-w-[680px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-slate-50 text-left">
+                      <th className="px-3 py-2 font-medium">STT</th>
                       <th className="px-3 py-2 font-medium">Loại</th>
                       <th className="px-3 py-2 font-medium">Trạng thái</th>
                       <th className="px-3 py-2 text-right font-medium">Bản ghi</th>
@@ -51,7 +52,7 @@ export default async function SchedulePage() {
                   <tbody>
                     {recentLogs.length === 0 ? (
                       <tr>
-                        <td className="px-3 py-8 text-center text-slate-500" colSpan={5}>
+                        <td className="px-3 py-8 text-center text-slate-500" colSpan={6}>
                           Chưa có log đồng bộ.
                         </td>
                       </tr>
@@ -62,6 +63,7 @@ export default async function SchedulePage() {
                           className="border-b last:border-0"
                           delay={Math.min(index, 12) * 0.015}
                         >
+                          <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                           <td className="px-3 py-2">{syncTypeLabel(log.syncType)}</td>
                           <td className="px-3 py-2">{statusLabel(log.status)}</td>
                           <td className="px-3 py-2 text-right">{formatNumber(log.totalRecords)}</td>

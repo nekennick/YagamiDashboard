@@ -101,6 +101,7 @@ export function SyncPanel() {
               <table className="w-full min-w-[620px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b bg-slate-50 text-left">
+                    <th className="px-3 py-2 font-medium">STT</th>
                     <th className="px-3 py-2 font-medium">Loại</th>
                     <th className="px-3 py-2 font-medium">Trạng thái</th>
                     <th className="px-3 py-2 font-medium">Tổng bản ghi</th>
@@ -109,8 +110,9 @@ export function SyncPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((result) => (
+                  {results.map((result, index) => (
                     <tr key={result.syncType} className="border-b">
+                      <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                       <td className="px-3 py-2">{syncTypeLabels[result.syncType]}</td>
                       <td className="px-3 py-2">
                         <span className="inline-flex items-center gap-2">

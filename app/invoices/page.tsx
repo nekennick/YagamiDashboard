@@ -186,6 +186,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
             <table className="w-full min-w-[1040px] border-collapse text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left">
+                  <th className="px-3 py-2 font-medium">STT</th>
                   <th className="px-3 py-2 font-medium">Mã hóa đơn</th>
                   <th className="px-3 py-2 font-medium">Ngày mua</th>
                   <th className="px-3 py-2 font-medium">Khách hàng</th>
@@ -198,7 +199,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
               <tbody>
                 {data.invoices.length === 0 ? (
                   <tr>
-                    <td className="px-3 py-8 text-center text-slate-500" colSpan={7}>
+                    <td className="px-3 py-8 text-center text-slate-500" colSpan={8}>
                       Không có hóa đơn phù hợp với bộ lọc.
                     </td>
                   </tr>
@@ -209,6 +210,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                       className="border-b last:border-0"
                       delay={Math.min(index, 12) * 0.015}
                     >
+                      <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                       <td className="px-3 py-2 font-medium text-slate-900">{invoice.code ?? "-"}</td>
                       <td className="px-3 py-2">{formatDateTime(invoice.purchaseDate)}</td>
                       <td className="px-3 py-2">

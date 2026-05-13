@@ -183,6 +183,7 @@ export default async function ProductBranchMonthlyPage({ searchParams }: Product
                 <table className="w-full min-w-[1080px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-slate-50 text-left">
+                      <th className="px-3 py-2 font-medium">STT</th>
                       <th className="px-3 py-2 font-medium">Tháng</th>
                       <th className="px-3 py-2 font-medium">Sản phẩm</th>
                       <th className="px-3 py-2 font-medium">Nhóm hàng</th>
@@ -199,13 +200,14 @@ export default async function ProductBranchMonthlyPage({ searchParams }: Product
                   <tbody>
                     {pivotRows.length === 0 ? (
                       <tr>
-                        <td className="px-3 py-8 text-center text-slate-500" colSpan={visibleBranches.length + 6}>
+                        <td className="px-3 py-8 text-center text-slate-500" colSpan={visibleBranches.length + 7}>
                           Không có dữ liệu bán ra phù hợp với bộ lọc.
                         </td>
                       </tr>
                     ) : (
                       pivotRows.map((row, index) => (
                         <AnimatedTableRow key={row.key} className="border-b last:border-0" delay={Math.min(index, 12) * 0.015}>
+                          <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                           <td className="px-3 py-2">{formatMonthLabel(row.month)}</td>
                           <td className="px-3 py-2">
                             <Link className="font-medium text-slate-900 underline-offset-2 hover:underline" href={`/products/${row.productId}`}>

@@ -239,6 +239,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
             <table className="w-full min-w-[1120px] border-collapse text-sm">
               <thead>
                 <tr className="border-b bg-slate-50 text-left">
+                  <th className="px-3 py-2 font-medium">STT</th>
                   <th className="px-3 py-2 font-medium">Sản phẩm</th>
                   <th className="px-3 py-2 font-medium">Nhóm hàng</th>
                   <th className="px-3 py-2 text-right font-medium">Số lượng</th>
@@ -251,7 +252,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
               <tbody>
                 {data.rows.length === 0 ? (
                   <tr>
-                    <td className="px-3 py-8 text-center text-slate-500" colSpan={7}>
+                    <td className="px-3 py-8 text-center text-slate-500" colSpan={8}>
                       Không có sản phẩm phù hợp với bộ lọc.
                     </td>
                   </tr>
@@ -262,6 +263,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
                       className="border-b last:border-0"
                       delay={Math.min(index, 12) * 0.015}
                     >
+                      <td className="px-3 py-2 text-slate-500">{index + 1}</td>
                       <td className="px-3 py-2">
                         {row.product ? (
                           <Link className="font-medium text-slate-900 underline-offset-2 hover:underline" href={`/products/${row.product.id}`}>
