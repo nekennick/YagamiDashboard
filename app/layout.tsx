@@ -4,8 +4,8 @@ import { ensureAutoSyncScheduler } from "@/lib/schedule";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "KiotViet Local Dashboard",
-  description: "Dashboard phân tích dữ liệu KiotViet chạy local"
+  title: "Yagami Dashboard",
+  description: "Dashboard phân tích dữ liệu Yagami chạy local"
 };
 
 export default function RootLayout({

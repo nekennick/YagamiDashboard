@@ -31,8 +31,7 @@ export function Sidebar() {
     <aside className="border-b border-slate-200 bg-white lg:min-h-screen lg:border-b-0 lg:border-r">
       <div className="flex h-16 items-center border-b border-slate-200 px-5">
         <div>
-          <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">KiotViet</div>
-          <div className="text-base font-semibold">Local Analytics</div>
+          <div className="text-base font-semibold text-slate-950">Yagami Dashboard</div>
         </div>
       </div>
       <nav className="flex gap-1 overflow-x-auto p-3 lg:block lg:space-y-1">
