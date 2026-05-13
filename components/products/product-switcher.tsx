@@ -13,19 +13,20 @@ export type ProductSwitchOption = {
 
 type ProductSwitcherProps = {
   currentProductId: number;
+  currentProductName: string;
   fromDate: string;
   period: string;
   products: ProductSwitchOption[];
   toDate: string;
 };
 
-export function ProductSwitcher({ currentProductId, fromDate, period, products, toDate }: ProductSwitcherProps) {
-  const [query, setQuery] = useState("");
+export function ProductSwitcher({ currentProductId, currentProductName, fromDate, period, products, toDate }: ProductSwitcherProps) {
+  const [query, setQuery] = useState(currentProductName);
   const [isOpen, setIsOpen] = useState(false);
   const suggestions = useMemo(() => {
     const normalizedQuery = normalizeText(query);
 
-    if (!normalizedQuery) {
+    if (!normalizedQuery || query === currentProductName) {
       return [];
     }
 
@@ -33,32 +34,32 @@ export function ProductSwitcher({ currentProductId, fromDate, period, products, 
       .filter((product) => product.id !== currentProductId)
       .filter((product) => normalizeText(`${product.name} ${product.code ?? ""} ${product.categoryName ?? ""}`).includes(normalizedQuery))
       .slice(0, 8);
-  }, [currentProductId, products, query]);
+  }, [currentProductId, currentProductName, products, query]);
 
   return (
-    <div className="relative z-30 w-full sm:w-[360px]">
-      <label className="grid gap-1 text-sm">
-        <span className="text-xs font-medium text-slate-600">Đổi sản phẩm</span>
+    <div className="relative z-30 w-full max-w-3xl">
+      <label className="grid gap-1">
+        <span className="sr-only">Đổi sản phẩm</span>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input
             autoComplete="off"
-            className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-10 text-sm outline-none transition-colors duration-200 focus:border-slate-400"
+            className="w-full rounded-md border border-transparent bg-transparent py-1 pl-0 pr-10 text-2xl font-semibold tracking-normal text-slate-900 outline-none transition-colors duration-200 hover:border-slate-200 hover:bg-white focus:border-slate-300 focus:bg-white focus:px-3 focus:pr-10"
             onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
             onChange={(event) => {
               setQuery(event.target.value);
-              setIsOpen(event.target.value.trim().length > 0);
+              setIsOpen(event.target.value.trim().length > 0 && event.target.value !== currentProductName);
             }}
             placeholder="Gõ tên hoặc mã sản phẩm"
             type="search"
             value={query}
           />
-          {query ? (
+          {query !== currentProductName ? (
             <button
               aria-label="Xóa tìm kiếm sản phẩm"
               className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900"
               onClick={() => {
-                setQuery("");
+                setQuery(currentProductName);
                 setIsOpen(false);
               }}
               type="button"
@@ -69,7 +70,7 @@ export function ProductSwitcher({ currentProductId, fromDate, period, products, 
         </div>
       </label>
       {isOpen ? (
-        <div className="absolute left-0 right-0 top-[68px] z-50 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
+        <div className="absolute left-0 right-0 top-[48px] z-50 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
           {suggestions.length === 0 ? (
             <div className="px-3 py-3 text-sm text-slate-500">Không tìm thấy sản phẩm phù hợp.</div>
           ) : (

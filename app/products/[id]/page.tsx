@@ -178,26 +178,24 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
         <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="text-sm text-slate-500">{product.code ?? "Không có mã"}</div>
-            <h1 className="text-2xl font-semibold tracking-normal">{product.name}</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Hồ sơ sản phẩm: doanh số theo tháng, chi nhánh, hóa đơn liên quan và tồn kho hiện tại.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:items-end">
             <ProductSwitcher
               currentProductId={productId}
+              currentProductName={product.name}
               fromDate={analysisRange.fromDateValue}
               period={analysisRange.period}
               products={productOptions}
               toDate={analysisRange.toDateValue}
             />
-            <Link
-              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 hover:bg-slate-50"
-              href="/analytics/product-branch-monthly"
-            >
-              Xem phân tích chi nhánh
-            </Link>
+            <p className="mt-2 text-sm text-slate-600">
+              Hồ sơ sản phẩm: doanh số theo tháng, chi nhánh, hóa đơn liên quan và tồn kho hiện tại.
+            </p>
           </div>
+          <Link
+            className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 hover:bg-slate-50"
+            href="/analytics/product-branch-monthly"
+          >
+            Xem phân tích chi nhánh
+          </Link>
         </FadeIn>
 
         <AnimatedPanel delay={0.04}>
