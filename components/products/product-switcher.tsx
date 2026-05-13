@@ -37,7 +37,7 @@ export function ProductSwitcher({ currentProductId, currentProductName, fromDate
   }, [currentProductId, currentProductName, products, query]);
 
   return (
-    <div className="relative z-30 w-full max-w-3xl">
+    <div className="relative z-[80] w-full max-w-3xl">
       <label className="grid gap-1">
         <span className="sr-only">Đổi sản phẩm</span>
         <div className="relative">
@@ -70,7 +70,7 @@ export function ProductSwitcher({ currentProductId, currentProductName, fromDate
         </div>
       </label>
       {isOpen ? (
-        <div className="absolute left-0 right-0 top-[48px] z-50 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
+        <div className="absolute left-0 right-0 top-[48px] z-[100] overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
           {suggestions.length === 0 ? (
             <div className="px-3 py-3 text-sm text-slate-500">Không tìm thấy sản phẩm phù hợp.</div>
           ) : (

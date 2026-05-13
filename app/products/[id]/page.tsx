@@ -175,7 +175,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
 
     return (
       <div className="space-y-6">
-        <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <FadeIn className="relative z-[80] flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="text-sm text-slate-500">{product.code ?? "Không có mã"}</div>
             <ProductSwitcher
@@ -276,7 +276,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
           </Card>
         </AnimatedPanel>
 
-        <MotionMetricGrid className="md:grid-cols-4">
+        <MotionMetricGrid className="relative z-10 md:grid-cols-4">
           <MetricCard label="Số lượng bán" value={formatNumber(totalQuantity)} />
           <MetricCard label="Doanh thu" value={formatCurrency(totalRevenue)} />
           <MetricCard label="Hóa đơn trong kỳ" value={formatNumber(invoiceCount)} description="Đếm tất cả hóa đơn có sản phẩm này trong kỳ phân tích." />
