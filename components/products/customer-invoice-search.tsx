@@ -52,10 +52,10 @@ export function CustomerInvoiceSearch({
       <div className="relative grid gap-1 text-sm">
         <span className="text-xs font-medium text-slate-600">Khách hàng</span>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
             autoComplete="off"
-            className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-10 text-sm outline-none transition-colors duration-200 focus:border-slate-400"
+            className="h-12 w-full rounded-xl border pl-12 pr-12 text-sm outline-none transition duration-200"
             onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
             onChange={(event) => {
               setCustomerQuery(event.target.value);
@@ -68,7 +68,7 @@ export function CustomerInvoiceSearch({
           {customerQuery ? (
             <a
               aria-label="Xóa khách hàng"
-              className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900"
+              className="absolute right-2.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
               href={buildHref({ period, fromDate, toDate, keyword })}
             >
               <X className="h-4 w-4" />
@@ -109,9 +109,9 @@ export function CustomerInvoiceSearch({
       <label className="grid gap-1 text-sm">
         <span className="text-xs font-medium text-slate-600">Tìm hóa đơn/khách</span>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
-            className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition-colors duration-200 focus:border-slate-400"
+            className="h-12 w-full rounded-xl border pl-12 pr-3 text-sm outline-none transition duration-200"
             defaultValue={keyword}
             name="invoiceQ"
             placeholder="Mã hóa đơn, mã khách, tên khách"

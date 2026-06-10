@@ -20,7 +20,6 @@ const navItems = [
   { href: "/inventory", label: "Tồn kho", icon: Boxes },
   { href: "/analytics/customer-frequency", label: "Phân tích khách hàng", icon: BarChart3 },
   { href: "/analytics/product-frequency", label: "Phân tích sản phẩm", icon: ChartNoAxesCombined },
-  { href: "/analytics/product-branch-monthly", label: "SP theo chi nhánh", icon: ChartNoAxesCombined },
   { href: "/settings/sync", label: "Đồng bộ dữ liệu", icon: DatabaseZap },
   { href: "/settings/schedule", label: "Lịch đồng bộ", icon: Clock3 },
   { href: "/settings/api-test", label: "Cài đặt API", icon: Settings }
@@ -28,13 +27,19 @@ const navItems = [
 
 export function Sidebar() {
   return (
-    <aside className="border-b border-slate-200 bg-white lg:min-h-screen lg:border-b-0 lg:border-r">
-      <div className="flex h-16 items-center border-b border-slate-200 px-5">
-        <div>
-          <div className="text-base font-semibold text-slate-950">Yagami Dashboard</div>
+    <aside className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
+      <div className="flex h-20 items-center border-b border-slate-100 px-5 dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-sm font-semibold text-white shadow-sm">
+            Y
+          </div>
+          <div>
+            <div className="text-base font-semibold text-slate-950 dark:text-white">Yagami Dashboard</div>
+            <div className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">Local Analytics</div>
+          </div>
         </div>
       </div>
-      <nav className="flex gap-1 overflow-x-auto p-3 lg:block lg:space-y-1">
+      <nav className="flex gap-1 overflow-x-auto p-3 lg:block lg:space-y-1 lg:p-4">
         {navItems.map((item) => {
           const Icon = item.icon;
 

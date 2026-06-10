@@ -41,10 +41,10 @@ export function ProductSwitcher({ currentProductId, currentProductName, fromDate
       <label className="grid gap-1">
         <span className="sr-only">Đổi sản phẩm</span>
         <div className="relative">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
             autoComplete="off"
-            className="w-full rounded-md border border-transparent bg-transparent py-1 pl-0 pr-10 text-2xl font-semibold tracking-normal text-slate-900 outline-none transition-colors duration-200 hover:border-slate-200 hover:bg-white focus:border-slate-300 focus:bg-white focus:px-3 focus:pr-10"
+            className="w-full rounded-xl border border-transparent bg-transparent py-2 pl-3 pr-12 text-2xl font-semibold tracking-normal text-slate-900 outline-none transition duration-200 hover:border-slate-200 hover:bg-white focus:border-indigo-500 focus:bg-white dark:text-white dark:hover:border-slate-700 dark:hover:bg-slate-950 dark:focus:bg-slate-950"
             onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -57,7 +57,7 @@ export function ProductSwitcher({ currentProductId, currentProductName, fromDate
           {query !== currentProductName ? (
             <button
               aria-label="Xóa tìm kiếm sản phẩm"
-              className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900"
+              className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
               onClick={() => {
                 setQuery(currentProductName);
                 setIsOpen(false);
