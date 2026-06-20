@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -22,6 +22,7 @@ model Product {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   invoiceItems       InvoiceItem[]
+  orderItems         OrderItem[]
   inventorySnapshots InventorySnapshot[]
 
   @@index([code])
@@ -40,6 +41,7 @@ model Customer {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   invoices      Invoice[]
+  orders        Order[]
 
   @@index([code])
   @@index([name])
@@ -55,6 +57,7 @@ model Branch {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   invoices           Invoice[]
+  orders             Order[]
   inventorySnapshots InventorySnapshot[]
 
   @@index([name])
@@ -100,6 +103,58 @@ model InvoiceItem {
 
   @@index([invoiceId])
   @@index([productId])
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  kvOrderId    Int         @unique
+  code         String?
+  customerId   Int?
+  branchId     Int?
+  purchaseDate DateTime
+  createdDate  DateTime?
+  modifiedDate DateTime?
+  total        Decimal     @default(0)
+  totalPayment Decimal     @default(0)
+  discount     Decimal     @default(0)
+  status       Int?
+  statusValue  String?
+  description  String?
+  rawJson      String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  customer     Customer?   @relation(fields: [customerId], references: [id])
+  branch       Branch?     @relation(fields: [branchId], references: [id])
+  items        OrderItem[]
+
+  @@index([code])
+  @@index([purchaseDate])
+  @@index([createdDate])
+  @@index([modifiedDate])
+  @@index([customerId])
+  @@index([branchId])
+  @@index([statusValue])
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  productId   Int?
+  productCode String?
+  productName String?
+  quantity    Decimal  @default(0)
+  price       Decimal  @default(0)
+  discount    Decimal  @default(0)
+  subtotal    Decimal  @default(0)
+  rawJson     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product? @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([productCode])
 }
 
 model InventorySnapshot {

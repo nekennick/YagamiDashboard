@@ -5,6 +5,7 @@ const allowedTypes = new Set<SyncType>([
   "products",
   "customers",
   "branches",
+  "orders",
   "invoices",
   "invoiceHistory",
   "inventory",
@@ -27,10 +28,11 @@ export async function POST(request: NextRequest) {
     }
 
     const results = await syncKiotViet(body.syncType);
+    const hasWarnings = results.some((result) => result.warnings && result.warnings.length > 0);
 
     return NextResponse.json({
       ok: results.every((result) => result.status === "success"),
-      message: "Đồng bộ hoàn tất",
+      message: hasWarnings ? "Đồng bộ hoàn tất, có cảnh báo cần xem." : "Đồng bộ hoàn tất",
       results
     });
   } catch (error) {

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type SyncType = "products" | "customers" | "branches" | "invoices" | "invoiceHistory" | "inventory" | "all";
+type SyncType = "products" | "customers" | "branches" | "orders" | "invoices" | "invoiceHistory" | "inventory" | "all";
 
 type SyncResult = {
   syncType: SyncType;
@@ -13,22 +13,25 @@ type SyncResult = {
   totalRecords: number;
   savedRecords: number;
   message: string;
+  warnings?: string[];
 };
 
-const syncActions: Array<{ syncType: SyncType; label: string }> = [
-  { syncType: "branches", label: "Đồng bộ chi nhánh" },
-  { syncType: "products", label: "Đồng bộ sản phẩm" },
-  { syncType: "customers", label: "Đồng bộ khách hàng" },
-  { syncType: "invoices", label: "Đồng bộ hóa đơn 30 ngày" },
-  { syncType: "invoiceHistory", label: "Đồng bộ lịch sử hóa đơn" },
-  { syncType: "inventory", label: "Đồng bộ tồn kho" },
-  { syncType: "all", label: "Đồng bộ tất cả" }
+const syncActions: Array<{ syncType: SyncType; label: string; hint: string }> = [
+  { syncType: "branches", label: "Đồng bộ chi nhánh", hint: "Nhẹ, nên chạy trước dữ liệu khác." },
+  { syncType: "products", label: "Đồng bộ sản phẩm", hint: "Cập nhật tên hàng, mã hàng và nhóm hàng." },
+  { syncType: "customers", label: "Đồng bộ khách hàng", hint: "Cập nhật thông tin khách để nối hóa đơn." },
+  { syncType: "orders", label: "Đồng bộ đơn đặt hàng", hint: "Cập nhật phiếu tạm trong 30 ngày gần nhất." },
+  { syncType: "invoices", label: "Đồng bộ hóa đơn 30 ngày", hint: "Khuyến nghị cho vận hành hằng ngày." },
+  { syncType: "invoiceHistory", label: "Đồng bộ lịch sử hóa đơn", hint: "Tác vụ nặng, nên chạy thủ công khi cần." },
+  { syncType: "inventory", label: "Đồng bộ tồn kho", hint: "Lấy snapshot hiện tại, nên chạy sau cùng." },
+  { syncType: "all", label: "Đồng bộ tất cả", hint: "Chạy theo thứ tự an toàn, bỏ lịch sử hóa đơn." }
 ];
 
 const syncTypeLabels: Record<SyncType, string> = {
   branches: "Chi nhánh",
   products: "Sản phẩm",
   customers: "Khách hàng",
+  orders: "Đơn đặt hàng",
   invoices: "Hóa đơn 30 ngày",
   invoiceHistory: "Lịch sử hóa đơn",
   inventory: "Tồn kho",
@@ -64,22 +67,30 @@ export function SyncPanel() {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+    <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
       <Card>
         <CardHeader>
           <CardTitle>Lệnh đồng bộ</CardTitle>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            SQLite đã được tối ưu ghi theo lô nhỏ và tự retry khi database bận.
+          </p>
         </CardHeader>
         <CardContent className="space-y-3">
           {syncActions.map((action) => (
             <Button
               key={action.syncType}
-              className="w-full justify-start"
+              className="h-auto w-full justify-start px-4 py-3 text-left"
               disabled={loading !== null}
               onClick={() => runSync(action.syncType)}
               variant={action.syncType === "all" ? "default" : "secondary"}
             >
-              {loading === action.syncType ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {action.label}
+              <span className="flex min-w-0 flex-col">
+                <span className="flex items-center">
+                  {loading === action.syncType ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {action.label}
+                </span>
+                <span className="mt-1 text-xs font-medium opacity-70">{action.hint}</span>
+              </span>
             </Button>
           ))}
         </CardContent>
@@ -88,45 +99,67 @@ export function SyncPanel() {
       <Card>
         <CardHeader>
           <CardTitle>Log đồng bộ</CardTitle>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Nếu lượt sync lớn, hệ thống sẽ hiện cảnh báo để anh biết tác vụ có thể chậm hơn bình thường.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">{message}</div>
+          <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            {message}
+          </div>
 
           {results.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-300 p-6 text-sm text-slate-500">
-              Kết quả đồng bộ sẽ hiển thị tại đây: tổng bản ghi, số bản ghi đã lưu, lỗi nếu có.
+            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              Kết quả đồng bộ sẽ hiển thị tại đây: tổng bản ghi, số bản ghi đã lưu, cảnh báo lượt lớn và lỗi nếu có.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] border-collapse text-sm">
+              <table className="w-full min-w-[760px] border-collapse text-sm">
                 <thead>
-                  <tr className="border-b bg-slate-50 text-left">
-                    <th className="px-3 py-2 font-medium">STT</th>
-                    <th className="px-3 py-2 font-medium">Loại</th>
-                    <th className="px-3 py-2 font-medium">Trạng thái</th>
-                    <th className="px-3 py-2 font-medium">Tổng bản ghi</th>
-                    <th className="px-3 py-2 font-medium">Đã lưu</th>
-                    <th className="px-3 py-2 font-medium">Thông báo</th>
+                  <tr className="text-left">
+                    <th className="px-3 py-2 font-semibold">STT</th>
+                    <th className="px-3 py-2 font-semibold">Loại</th>
+                    <th className="px-3 py-2 font-semibold">Trạng thái</th>
+                    <th className="px-3 py-2 text-right font-semibold">Tổng bản ghi</th>
+                    <th className="px-3 py-2 text-right font-semibold">Đã lưu</th>
+                    <th className="px-3 py-2 font-semibold">Thông báo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {results.map((result, index) => (
-                    <tr key={result.syncType} className="border-b">
-                      <td className="px-3 py-2 text-slate-500">{index + 1}</td>
-                      <td className="px-3 py-2">{syncTypeLabels[result.syncType]}</td>
-                      <td className="px-3 py-2">
+                    <tr key={result.syncType} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                      <td className="px-3 py-3 text-slate-500 dark:text-slate-400">{index + 1}</td>
+                      <td className="px-3 py-3 font-semibold text-slate-900 dark:text-white">
+                        {syncTypeLabels[result.syncType]}
+                      </td>
+                      <td className="px-3 py-3">
                         <span className="inline-flex items-center gap-2">
                           {result.status === "success" ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            <CheckCircle2 className="h-4 w-4 text-success-600 dark:text-success-400" />
                           ) : (
-                            <XCircle className="h-4 w-4 text-red-600" />
+                            <XCircle className="h-4 w-4 text-error-600 dark:text-error-400" />
                           )}
                           {result.status === "success" ? "Thành công" : "Lỗi"}
                         </span>
                       </td>
-                      <td className="px-3 py-2">{result.totalRecords}</td>
-                      <td className="px-3 py-2">{result.savedRecords}</td>
-                      <td className="px-3 py-2">{result.message}</td>
+                      <td className="px-3 py-3 text-right">{formatNumber(result.totalRecords)}</td>
+                      <td className="px-3 py-3 text-right">{formatNumber(result.savedRecords)}</td>
+                      <td className="px-3 py-3">
+                        <div>{result.message}</div>
+                        {result.warnings && result.warnings.length > 0 ? (
+                          <div className="mt-2 space-y-1">
+                            {result.warnings.map((warning) => (
+                              <div
+                                className="flex items-start gap-2 rounded-lg bg-warning-50 px-2 py-1.5 text-xs font-semibold text-warning-700 dark:bg-warning-950/50 dark:text-warning-300"
+                                key={warning}
+                              >
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                <span>{warning}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -137,4 +170,8 @@ export function SyncPanel() {
       </Card>
     </div>
   );
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("vi-VN").format(value);
 }

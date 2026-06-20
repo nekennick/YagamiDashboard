@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, StaggerContainer, StaggerItem } from "@/components/ui/motion-primitives";
 import { prisma } from "@/lib/prisma";
+import { LowStockTrigger } from "@/components/dashboard/low-stock-trigger";
+import { buildDateRange } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +32,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const range = params.range?.trim() ?? "30d";
   const from = params.from?.trim() ?? "";
   const to = params.to?.trim() ?? "";
-  const dateRange = buildDashboardDateRange(range, from, to);
+  const dateRange = buildDateRange(range, from, to) || buildDateRange("30d")!;
   const invoiceWhere = {
     status: {
       not: cancelledStatus
@@ -269,35 +271,42 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <CardTitle>Sản phẩm tồn kho thấp</CardTitle>
               <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden="true" />
             </CardHeader>
-            <CardContent>
-              {lowInventoryItems.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  Chưa có dữ liệu tồn kho. Hãy chạy đồng bộ tồn kho trước.
+            <CardContent className="flex flex-col justify-between h-[calc(100%-72px)]">
+              <div className="flex-1">
+                {lowInventoryItems.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    Chưa có dữ liệu tồn kho. Hãy chạy đồng bộ tồn kho trước.
+                  </div>
+                ) : (
+                  <StaggerContainer className="space-y-3">
+                    {lowInventoryItems.map((item, index) => (
+                      <StaggerItem key={`${item.productId}-${item.branchId}`} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0 dark:border-slate-800">
+                        <div className="flex items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
+                          <div className="flex min-w-0 gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800">
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0">
+                            <div className="font-medium text-slate-900 dark:text-white">{item.product.name}</div>
+                            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              {item.product.code ?? "Không có mã"} · {item.branch.name}
+                            </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-base font-semibold">{formatNumber(toNumber(item.onHand))}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">tồn</div>
+                          </div>
+                        </div>
+                      </StaggerItem>
+                    ))}
+                  </StaggerContainer>
+                )}
+              </div>
+              {lowInventoryItems.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <LowStockTrigger />
                 </div>
-              ) : (
-                <StaggerContainer className="space-y-3">
-                  {lowInventoryItems.map((item, index) => (
-                    <StaggerItem key={`${item.productId}-${item.branchId}`} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0 dark:border-slate-800">
-                      <div className="flex items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
-                        <div className="flex min-w-0 gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800">
-                            {index + 1}
-                          </div>
-                          <div className="min-w-0">
-                          <div className="font-medium text-slate-900 dark:text-white">{item.product.name}</div>
-                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            {item.product.code ?? "Không có mã"} · {item.branch.name}
-                          </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-base font-semibold">{formatNumber(toNumber(item.onHand))}</div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">tồn</div>
-                        </div>
-                      </div>
-                    </StaggerItem>
-                  ))}
-                </StaggerContainer>
               )}
             </CardContent>
           </Card>
@@ -359,78 +368,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </AnimatedPanel>
     </div>
   );
-}
-
-function buildDashboardDateRange(range: string, from: string, to: string) {
-  const now = new Date();
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
-
-  if (range === "custom") {
-    return {
-      from: from ? startOfDay(new Date(`${from}T00:00:00.000+07:00`)) : addDays(todayStart, -30),
-      to: to ? endOfDay(new Date(`${to}T00:00:00.000+07:00`)) : todayEnd
-    };
-  }
-
-  if (range === "today") {
-    return { from: todayStart, to: todayEnd };
-  }
-
-  if (range === "7d") {
-    return { from: addDays(todayStart, -6), to: todayEnd };
-  }
-
-  if (range === "thisMonth") {
-    return { from: startOfMonth(now), to: todayEnd };
-  }
-
-  if (range === "lastMonth") {
-    const lastMonth = addMonths(startOfMonth(now), -1);
-    return { from: lastMonth, to: endOfDay(addDays(startOfMonth(now), -1)) };
-  }
-
-  if (range === "3m") {
-    return { from: addMonths(todayStart, -3), to: todayEnd };
-  }
-
-  if (range === "6m") {
-    return { from: addMonths(todayStart, -6), to: todayEnd };
-  }
-
-  if (range === "year") {
-    return { from: new Date(now.getFullYear(), 0, 1), to: todayEnd };
-  }
-
-  return { from: addDays(todayStart, -29), to: todayEnd };
-}
-
-function startOfDay(date: Date) {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
-}
-
-function endOfDay(date: Date) {
-  const next = new Date(date);
-  next.setHours(23, 59, 59, 999);
-  return next;
-}
-
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function addMonths(date: Date, months: number) {
-  const next = new Date(date);
-  next.setMonth(next.getMonth() + months);
-  return next;
 }
 
 function toNumber(value: unknown) {
@@ -520,6 +457,7 @@ function syncTypeLabel(syncType: string) {
     branches: "Chi nhánh",
     products: "Sản phẩm",
     customers: "Khách hàng",
+    orders: "Đơn đặt hàng",
     invoices: "Hóa đơn 30 ngày",
     invoiceHistory: "Lịch sử hóa đơn",
     inventory: "Tồn kho"

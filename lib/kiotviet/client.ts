@@ -1,6 +1,6 @@
 import { getKiotVietConfig, validateKiotVietConfig } from "@/lib/kiotviet/config";
 
-export type ApiTestKind = "token" | "products" | "customers" | "invoices" | "inventory";
+export type ApiTestKind = "token" | "products" | "customers" | "invoices" | "orders" | "inventory";
 
 export type KiotVietTestResult = {
   ok: boolean;
@@ -15,6 +15,7 @@ const endpointByKind: Record<Exclude<ApiTestKind, "token">, string> = {
   products: "/products?pageSize=5&currentItem=0",
   customers: "/customers?pageSize=5&currentItem=0",
   invoices: "/invoices?pageSize=5&currentItem=0",
+  orders: "/orders?pageSize=5&currentItem=0&orderBy=createdDate&orderDirection=Desc",
   inventory: "/products?pageSize=5&currentItem=0&includeInventory=true"
 };
 

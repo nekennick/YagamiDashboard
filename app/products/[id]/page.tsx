@@ -69,9 +69,9 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
       ...(invoiceKeyword
         ? {
             OR: [
-              { code: { contains: invoiceKeyword, mode: "insensitive" as const } },
-              { customer: { name: { contains: invoiceKeyword, mode: "insensitive" as const } } },
-              { customer: { code: { contains: invoiceKeyword, mode: "insensitive" as const } } }
+              { code: { contains: invoiceKeyword } },
+              { customer: { name: { contains: invoiceKeyword } } },
+              { customer: { code: { contains: invoiceKeyword } } }
             ]
           }
         : {})

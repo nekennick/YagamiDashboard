@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/app-shell";
 import { ensureAutoSyncScheduler } from "@/lib/schedule";
+import { Outfit } from "next/font/google";
+import { SidebarProvider } from "@/context/SidebarContext";
 import "./globals.css";
+
+const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Yagami Dashboard",
@@ -32,8 +36,10 @@ try {
           }}
         />
       </head>
-      <body>
-        <AppShell>{children}</AppShell>
+      <body className={outfit.className}>
+        <SidebarProvider>
+          <AppShell>{children}</AppShell>
+        </SidebarProvider>
       </body>
     </html>
   );

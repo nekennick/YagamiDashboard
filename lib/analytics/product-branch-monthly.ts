@@ -27,10 +27,24 @@ export type ProductBranchMonthlyFilters = {
   limit?: number;
 };
 
+type ProductBranchMonthlyRawRow = {
+  month: Date | string;
+  productId: number;
+  productCode: string | null;
+  productName: string;
+  categoryName: string | null;
+  unit: string | null;
+  branchId: number | null;
+  branchName: string | null;
+  quantity: unknown;
+  revenue: unknown;
+  invoiceCount: unknown;
+};
+
 export async function getProductBranchMonthlyRows(filters: ProductBranchMonthlyFilters) {
   const conditions: Prisma.Sql[] = [
     Prisma.sql`ii."productId" IS NOT NULL`,
-    Prisma.sql`i.status IS DISTINCT FROM ${cancelledStatus}`,
+    Prisma.sql`(i.status IS NULL OR i.status != ${cancelledStatus})`,
     Prisma.sql`i."purchaseDate" >= ${filters.fromDate}`,
     Prisma.sql`i."purchaseDate" < ${filters.toDate}`
   ];
@@ -49,12 +63,12 @@ export async function getProductBranchMonthlyRows(filters: ProductBranchMonthlyF
 
   if (filters.query) {
     const query = `%${filters.query}%`;
-    conditions.push(Prisma.sql`(p.name ILIKE ${query} OR p.code ILIKE ${query} OR p."fullName" ILIKE ${query})`);
+    conditions.push(Prisma.sql`(p.name LIKE ${query} OR p.code LIKE ${query} OR p."fullName" LIKE ${query})`);
   }
 
-  return prisma.$queryRaw<ProductBranchMonthlyRow[]>`
+  const rows = await prisma.$queryRaw<ProductBranchMonthlyRawRow[]>`
     SELECT
-      date_trunc('month', i."purchaseDate")::date AS "month",
+      date(i."purchaseDate", 'start of month') AS "month",
       p.id AS "productId",
       p.code AS "productCode",
       p.name AS "productName",
@@ -62,16 +76,16 @@ export async function getProductBranchMonthlyRows(filters: ProductBranchMonthlyF
       p.unit AS "unit",
       b.id AS "branchId",
       b.name AS "branchName",
-      SUM(ii.quantity)::float AS "quantity",
-      SUM(ii.subtotal)::float AS "revenue",
-      COUNT(DISTINCT i.id)::int AS "invoiceCount"
+      SUM(ii.quantity) AS "quantity",
+      SUM(ii.subtotal) AS "revenue",
+      COUNT(DISTINCT i.id) AS "invoiceCount"
     FROM "InvoiceItem" ii
     JOIN "Invoice" i ON i.id = ii."invoiceId"
     JOIN "Product" p ON p.id = ii."productId"
     LEFT JOIN "Branch" b ON b.id = i."branchId"
     WHERE ${Prisma.join(conditions, " AND ")}
     GROUP BY
-      date_trunc('month', i."purchaseDate")::date,
+      date(i."purchaseDate", 'start of month'),
       p.id,
       p.code,
       p.name,
@@ -82,6 +96,14 @@ export async function getProductBranchMonthlyRows(filters: ProductBranchMonthlyF
     ORDER BY "month" DESC, "revenue" DESC
     LIMIT ${filters.limit ?? 1200}
   `;
+
+  return rows.map((row) => ({
+    ...row,
+    month: new Date(row.month),
+    quantity: toNumber(row.quantity),
+    revenue: toNumber(row.revenue),
+    invoiceCount: toNumber(row.invoiceCount)
+  })) as ProductBranchMonthlyRow[];
 }
 
 export function parseMonthRange(fromMonth: string, toMonth: string) {

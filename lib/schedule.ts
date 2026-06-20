@@ -10,7 +10,16 @@ export type ScheduleSettings = {
   lastRunAt: string | null;
 };
 
-const defaultSyncTypes: ScheduledSyncType[] = ["branches", "products", "customers", "invoices", "inventory"];
+const scheduledSyncRunOrder: ScheduledSyncType[] = [
+  "branches",
+  "products",
+  "customers",
+  "orders",
+  "invoices",
+  "invoiceHistory",
+  "inventory"
+];
+const defaultSyncTypes: ScheduledSyncType[] = ["branches", "products", "customers", "orders", "invoices", "inventory"];
 const schedulerGlobal = globalThis as typeof globalThis & {
   yagamiAutoSyncInterval?: ReturnType<typeof setInterval>;
   yagamiAutoSyncRunning?: boolean;
@@ -134,8 +143,9 @@ function normalizeInterval(value: number) {
 }
 
 function normalizeSyncTypes(value: ScheduledSyncType[]) {
-  const allowed = new Set<ScheduledSyncType>(["branches", "products", "customers", "invoices", "invoiceHistory", "inventory"]);
-  const normalized = value.filter((item): item is ScheduledSyncType => allowed.has(item));
+  const allowed = new Set<ScheduledSyncType>(scheduledSyncRunOrder);
+  const selected = new Set(value.filter((item): item is ScheduledSyncType => allowed.has(item)));
+  const normalized = scheduledSyncRunOrder.filter((item) => selected.has(item));
   return normalized.length > 0 ? normalized : defaultSyncTypes;
 }
 

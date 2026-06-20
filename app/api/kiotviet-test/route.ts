@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { testKiotViet, type ApiTestKind } from "@/lib/kiotviet/client";
 
-const allowedKinds = new Set<ApiTestKind>(["token", "products", "customers", "invoices", "inventory"]);
+const allowedKinds = new Set<ApiTestKind>(["token", "products", "customers", "invoices", "orders", "inventory"]);
 
 export async function POST(request: NextRequest) {
   try {

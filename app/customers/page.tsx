@@ -2,13 +2,18 @@ import { Prisma } from "@prisma/client";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
-import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
+import { buildDateRange } from "@/lib/date";
+import { CustomerFilters } from "@/components/customers/customer-filters";
+import { CalendarDays } from "lucide-react";
 
 type CustomersPageProps = {
   searchParams?: Promise<{
     q?: string;
     activity?: string;
+    range?: string;
+    from?: string;
+    to?: string;
   }>;
 };
 
@@ -18,13 +23,18 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
   const activity = params.activity?.trim() ?? "all";
+  const range = params.range?.trim() ?? "30d";
+  const from = params.from?.trim() ?? "";
+  const to = params.to?.trim() ?? "";
+
+  const dateRange = buildDateRange(range, from, to);
 
   const customerWhere: Prisma.CustomerWhereInput = query
     ? {
         OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { code: { contains: query, mode: "insensitive" } },
-          { contactNumber: { contains: query, mode: "insensitive" } }
+          { name: { contains: query } },
+          { code: { contains: query } },
+          { contactNumber: { contains: query } }
         ]
       }
     : {};
@@ -48,6 +58,14 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       status: { not: cancelledStatus },
       customerId: { in: customerIds.length > 0 ? customerIds : [-1] }
     };
+
+    if (dateRange) {
+      invoiceWhere.purchaseDate = {
+        gte: dateRange.from,
+        lte: dateRange.to
+      };
+    }
+
     const stats = await prisma.invoice.groupBy({
       by: ["customerId"],
       where: invoiceWhere,
@@ -104,19 +122,26 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
 
   return (
     <div className="space-y-6">
-      <FadeIn className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <FadeIn className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-normal">Khách hàng</h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400">
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+            {dateRange ? `${formatDate(dateRange.from)} - ${formatDate(dateRange.to)}` : "Tất cả thời gian"}
+          </div>
+          <h1 className="mt-2 text-2xl font-semibold tracking-normal">Khách hàng</h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             Theo dõi khách hàng đã đồng bộ từ KiotViet, doanh thu và tần suất mua dựa trên hóa đơn hiện có.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:items-end">
           <a
-            className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+            className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition"
             href={`/api/export/customers?${new URLSearchParams({
               ...(query ? { q: query } : {}),
-              ...(activity !== "all" ? { activity } : {})
+              ...(activity !== "all" ? { activity } : {}),
+              ...(range !== "30d" ? { range } : {}),
+              ...(from ? { from } : {}),
+              ...(to ? { to } : {})
             }).toString()}`}
           >
             Xuất Excel
@@ -138,28 +163,14 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             <CardTitle>Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-          <form className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
-            <TableSearch
-              baseParams={{
-                ...(activity !== "all" ? { activity } : {})
-              }}
-              placeholder="Tìm theo tên, mã hoặc số điện thoại"
-              suggestions={searchSuggestions}
-              value={query}
-            />
-            <select
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              defaultValue={activity}
-              name="activity"
-            >
-              <option value="all">Tất cả khách hàng</option>
-              <option value="active">Có mua hàng</option>
-              <option value="inactive">Chưa có hóa đơn</option>
-            </select>
-            <button className="h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
-              Lọc
-            </button>
-          </form>
+          <CustomerFilters
+            initialQuery={query}
+            initialActivity={activity}
+            initialRange={range}
+            initialFrom={from}
+            initialTo={to}
+            searchSuggestions={searchSuggestions}
+          />
           </CardContent>
         </Card>
       </AnimatedPanel>

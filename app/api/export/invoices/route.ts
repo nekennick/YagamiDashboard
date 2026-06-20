@@ -13,9 +13,9 @@ export async function GET(request: Request) {
     ...(query
       ? {
           OR: [
-            { code: { contains: query, mode: "insensitive" } },
-            { customer: { name: { contains: query, mode: "insensitive" } } },
-            { customer: { code: { contains: query, mode: "insensitive" } } }
+            { code: { contains: query } },
+            { customer: { name: { contains: query } } },
+            { customer: { code: { contains: query } } }
           ]
         }
       : {}),

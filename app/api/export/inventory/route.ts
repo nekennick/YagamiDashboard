@@ -22,9 +22,9 @@ export async function GET(request: Request) {
             ...(query
               ? {
                   OR: [
-                    { name: { contains: query, mode: "insensitive" } },
-                    { code: { contains: query, mode: "insensitive" } },
-                    { fullName: { contains: query, mode: "insensitive" } }
+                    { name: { contains: query } },
+                    { code: { contains: query } },
+                    { fullName: { contains: query } }
                   ]
                 }
               : {})

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { createWorkbookBuffer, excelResponse } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
+import { buildDateRange } from "@/lib/date";
 
 const cancelledStatus = "Đã hủy";
 
@@ -8,12 +9,18 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim() ?? "";
   const activity = searchParams.get("activity")?.trim() ?? "all";
+  const range = searchParams.get("range")?.trim() ?? "30d";
+  const from = searchParams.get("from")?.trim() ?? "";
+  const to = searchParams.get("to")?.trim() ?? "";
+
+  const dateRange = buildDateRange(range, from, to);
+
   const customerWhere: Prisma.CustomerWhereInput = query
     ? {
         OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { code: { contains: query, mode: "insensitive" } },
-          { contactNumber: { contains: query, mode: "insensitive" } }
+          { name: { contains: query } },
+          { code: { contains: query } },
+          { contactNumber: { contains: query } }
         ]
       }
     : {};
@@ -30,12 +37,22 @@ export async function GET(request: Request) {
     }
   });
   const customerIds = customers.map((customer) => customer.id);
+
+  const invoiceWhere: Prisma.InvoiceWhereInput = {
+    status: { not: cancelledStatus },
+    customerId: { in: customerIds.length > 0 ? customerIds : [-1] }
+  };
+
+  if (dateRange) {
+    invoiceWhere.purchaseDate = {
+      gte: dateRange.from,
+      lte: dateRange.to
+    };
+  }
+
   const stats = await prisma.invoice.groupBy({
     by: ["customerId"],
-    where: {
-      status: { not: cancelledStatus },
-      customerId: { in: customerIds.length > 0 ? customerIds : [-1] }
-    },
+    where: invoiceWhere,
     _count: { _all: true },
     _sum: { total: true },
     _max: { purchaseDate: true }

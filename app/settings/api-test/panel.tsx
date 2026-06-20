@@ -5,7 +5,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type TestKind = "token" | "products" | "customers" | "invoices" | "inventory";
+type TestKind = "token" | "products" | "customers" | "invoices" | "orders" | "inventory";
 
 type TestResult = {
   ok: boolean;
@@ -20,6 +20,7 @@ const tests: Array<{ kind: TestKind; label: string }> = [
   { kind: "products", label: "Kiểm tra sản phẩm" },
   { kind: "customers", label: "Kiểm tra khách hàng" },
   { kind: "invoices", label: "Kiểm tra hóa đơn đã bán" },
+  { kind: "orders", label: "Kiểm tra đơn đặt hàng" },
   { kind: "inventory", label: "Kiểm tra tồn kho" }
 ];
 
@@ -82,7 +83,7 @@ export function ApiTestPanel() {
         </CardHeader>
         <CardContent>
           {!result ? (
-            <div className="rounded-md border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+            <div className="rounded-md border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
               Chọn một lệnh kiểm tra để xem HTTP status, lỗi nếu có, tổng bản ghi và JSON preview.
             </div>
           ) : (
@@ -96,11 +97,13 @@ export function ApiTestPanel() {
                   )}
                   {result.ok ? "Thành công" : "Thất bại"}
                 </span>
-                <span className="rounded-md bg-slate-100 px-2 py-1">HTTP {result.status}</span>
-                <span className="rounded-md bg-slate-100 px-2 py-1">{result.totalRecords} bản ghi</span>
+                <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-slate-800">HTTP {result.status}</span>
+                <span className="rounded-md bg-slate-100 px-2 py-1 dark:bg-slate-800">
+                  {result.totalRecords} bản ghi
+                </span>
               </div>
 
-              <div className="text-sm text-slate-700">{result.message}</div>
+              <div className="text-sm text-slate-700 dark:text-slate-300">{result.message}</div>
 
               <pre className="max-h-[520px] overflow-auto rounded-md bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
                 {JSON.stringify(result.preview, null, 2)}
