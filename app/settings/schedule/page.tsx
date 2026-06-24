@@ -35,8 +35,8 @@ export default async function SchedulePage() {
                 Lịch đồng bộ tự động
               </h1>
               <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-                Cấu hình lịch lấy dữ liệu KiotViet về SQLite local. Lịch tự động nên ưu tiên hóa đơn 30 ngày và
-                tồn kho chạy sau cùng để số liệu vận hành luôn mới mà không kéo quá nặng.
+                Cấu hình lịch lấy dữ liệu KiotViet về SQLite local. Lịch tự động nên ưu tiên hóa đơn/đơn đặt tăng dần
+                và tồn kho chạy sau cùng để số liệu vận hành luôn mới mà không kéo quá nặng.
               </p>
             </div>
             <div className={cn("inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold", settings.enabled ? "bg-success-50 text-success-700 dark:bg-success-950/50 dark:text-success-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300")}>
@@ -51,7 +51,7 @@ export default async function SchedulePage() {
             <MetricCard
               icon={Clock3}
               label="Chu kỳ hiện tại"
-              value={formatInterval(settings.intervalMinutes)}
+              value={formatInterval(settings.intervalMinutes, settings.startTime)}
               note="Kiểm tra mỗi phút, chạy khi đủ chu kỳ."
             />
           </AnimatedPanel>
@@ -193,7 +193,7 @@ function syncTypeLabel(syncType: string) {
     products: "Sản phẩm",
     customers: "Khách hàng",
     orders: "Đơn đặt hàng",
-    invoices: "Hóa đơn 30 ngày",
+    invoices: "Hóa đơn gần đây",
     invoiceHistory: "Lịch sử hóa đơn",
     inventory: "Tồn kho"
   };
@@ -228,9 +228,9 @@ function statusBadge(status: string) {
   );
 }
 
-function formatInterval(value: number) {
+function formatInterval(value: number, startTime?: string) {
   if (value === 1440) {
-    return "Mỗi ngày";
+    return `Mỗi ngày lúc ${startTime ?? "17:00"}`;
   }
 
   if (value >= 60) {

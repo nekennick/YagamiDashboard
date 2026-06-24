@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { syncKiotViet, type SyncType } from "@/lib/kiotviet/sync";
+import { syncKiotVietBatch, type SyncType } from "@/lib/kiotviet/sync";
 
 export type ScheduledSyncType = Exclude<SyncType, "all">;
 
 export type ScheduleSettings = {
   enabled: boolean;
   intervalMinutes: number;
+  startTime: string;
   syncTypes: ScheduledSyncType[];
   lastRunAt: string | null;
 };
@@ -29,7 +30,7 @@ export async function getScheduleSettings(): Promise<ScheduleSettings> {
   const settings = await prisma.appSetting.findMany({
     where: {
       key: {
-        in: ["autoSyncEnabled", "autoSyncIntervalMinutes", "autoSyncTypes", "autoSyncLastRunAt"]
+        in: ["autoSyncEnabled", "autoSyncIntervalMinutes", "autoSyncStartTime", "autoSyncTypes", "autoSyncLastRunAt"]
       }
     }
   });
@@ -38,15 +39,17 @@ export async function getScheduleSettings(): Promise<ScheduleSettings> {
   return {
     enabled: map.get("autoSyncEnabled") === "true",
     intervalMinutes: normalizeInterval(Number(map.get("autoSyncIntervalMinutes") ?? 60)),
+    startTime: normalizeStartTime(map.get("autoSyncStartTime")),
     syncTypes: parseSyncTypes(map.get("autoSyncTypes")),
     lastRunAt: map.get("autoSyncLastRunAt") ?? null
   };
 }
 
-export async function saveScheduleSettings(settings: Pick<ScheduleSettings, "enabled" | "intervalMinutes" | "syncTypes">) {
+export async function saveScheduleSettings(settings: Pick<ScheduleSettings, "enabled" | "intervalMinutes" | "startTime" | "syncTypes">) {
   const normalized = {
     enabled: settings.enabled,
     intervalMinutes: normalizeInterval(settings.intervalMinutes),
+    startTime: normalizeStartTime(settings.startTime),
     syncTypes: normalizeSyncTypes(settings.syncTypes)
   };
 
@@ -60,6 +63,11 @@ export async function saveScheduleSettings(settings: Pick<ScheduleSettings, "ena
       where: { key: "autoSyncIntervalMinutes" },
       create: { key: "autoSyncIntervalMinutes", value: String(normalized.intervalMinutes) },
       update: { value: String(normalized.intervalMinutes) }
+    }),
+    prisma.appSetting.upsert({
+      where: { key: "autoSyncStartTime" },
+      create: { key: "autoSyncStartTime", value: normalized.startTime },
+      update: { value: normalized.startTime }
     }),
     prisma.appSetting.upsert({
       where: { key: "autoSyncTypes" },
@@ -102,10 +110,24 @@ async function runAutoSyncIfDue() {
   }
 
   const lastRunAt = settings.lastRunAt ? new Date(settings.lastRunAt).getTime() : 0;
-  const elapsedMinutes = (Date.now() - lastRunAt) / 60_000;
 
-  if (lastRunAt > 0 && elapsedMinutes < settings.intervalMinutes) {
-    return;
+  if (settings.intervalMinutes === 1440) {
+    const scheduledAt = getTodayScheduledAt(settings.startTime);
+    const now = Date.now();
+
+    if (now < scheduledAt.getTime()) {
+      return;
+    }
+
+    if (lastRunAt >= scheduledAt.getTime()) {
+      return;
+    }
+  } else {
+    const elapsedMinutes = (Date.now() - lastRunAt) / 60_000;
+
+    if (lastRunAt > 0 && elapsedMinutes < settings.intervalMinutes) {
+      return;
+    }
   }
 
   await runScheduledSync(settings.syncTypes);
@@ -115,12 +137,7 @@ async function runScheduledSync(syncTypes: ScheduledSyncType[]) {
   schedulerGlobal.yagamiAutoSyncRunning = true;
 
   try {
-    const results = [];
-
-    for (const syncType of normalizeSyncTypes(syncTypes)) {
-      const [result] = await syncKiotViet(syncType);
-      results.push(result);
-    }
+    const results = await syncKiotVietBatch(normalizeSyncTypes(syncTypes));
 
     await prisma.appSetting.upsert({
       where: { key: "autoSyncLastRunAt" },
@@ -140,6 +157,25 @@ function normalizeInterval(value: number) {
   }
 
   return 60;
+}
+
+function normalizeStartTime(value: string | undefined) {
+  if (value && /^\d{2}:\d{2}$/.test(value)) {
+    const [hour, minute] = value.split(":").map(Number);
+
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return value;
+    }
+  }
+
+  return "17:00";
+}
+
+function getTodayScheduledAt(startTime: string) {
+  const [hour, minute] = normalizeStartTime(startTime).split(":").map(Number);
+  const scheduledAt = new Date();
+  scheduledAt.setHours(hour, minute, 0, 0);
+  return scheduledAt;
 }
 
 function normalizeSyncTypes(value: ScheduledSyncType[]) {

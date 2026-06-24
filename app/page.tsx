@@ -458,7 +458,7 @@ function syncTypeLabel(syncType: string) {
     products: "Sản phẩm",
     customers: "Khách hàng",
     orders: "Đơn đặt hàng",
-    invoices: "Hóa đơn 30 ngày",
+    invoices: "Hóa đơn gần đây",
     invoiceHistory: "Lịch sử hóa đơn",
     inventory: "Tồn kho"
   };

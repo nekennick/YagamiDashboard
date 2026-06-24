@@ -5,7 +5,7 @@ Local-first dashboard de test, dong bo va phan tich du lieu KiotViet Public API 
 ## Tinh nang da co
 
 - Test KiotViet API tai `/settings/api-test`.
-- Dong bo chi nhanh, san pham, khach hang, hoa don 30 ngay, lich su hoa don va ton kho tai `/settings/sync`.
+- Dong bo chi nhanh, san pham, khach hang, hoa don/don dat tang dan, lich su hoa don va ton kho tai `/settings/sync`.
 - PostgreSQL local de tranh lock khi sync hoa don lon.
 - Dashboard KPI that voi bo loc thoi gian: hom nay, 7 ngay, 30 ngay, thang nay, thang truoc, 3 thang, 6 thang, nam nay va tuy chon.
 - Trang du lieu: `/products`, `/customers`, `/invoices`, `/inventory`.
@@ -73,7 +73,7 @@ Neu PostgreSQL dung user/password khac, cap nhat `DATABASE_URL` trong `.env`.
 1. Chay PostgreSQL.
 2. Chay `npm.cmd run dev`.
 3. Mo `/settings/api-test` va test token, products, customers, invoices, inventory.
-4. Mo `/settings/sync` va sync theo thu tu: chi nhanh, san pham, khach hang, hoa don 30 ngay, lich su hoa don, ton kho.
+4. Mo `/settings/sync` va sync theo thu tu: chi nhanh, san pham, khach hang, hoa don/don dat tang dan, lich su hoa don khi can, ton kho.
 5. Xem dashboard va cac trang analytics.
 6. Tai Excel tu nut `Xuat Excel` tren tung trang.
 7. Neu muon tu dong sync, mo `/settings/schedule`, bat lich va chon chu ky.

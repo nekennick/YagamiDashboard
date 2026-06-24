@@ -13,11 +13,13 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as {
       enabled?: boolean;
       intervalMinutes?: number;
+      startTime?: string;
       syncTypes?: ScheduledSyncType[];
     };
     const settings = await saveScheduleSettings({
       enabled: Boolean(body.enabled),
       intervalMinutes: Number(body.intervalMinutes ?? 60),
+      startTime: body.startTime ?? "17:00",
       syncTypes: Array.isArray(body.syncTypes) ? body.syncTypes : []
     });
 

@@ -28,7 +28,7 @@ Dung checklist nay truoc khi coi mot commit la ban local on dinh de van hanh.
 - [ ] Sync chi nhanh thanh cong.
 - [ ] Sync san pham thanh cong.
 - [ ] Sync khach hang thanh cong.
-- [ ] Sync hoa don 30 ngay thanh cong.
+- [ ] Sync hoa don/don dat tang dan thanh cong.
 - [ ] Sync lich su hoa don thanh cong neu can lay du lieu cu.
 - [ ] Sync ton kho thanh cong.
 - [ ] Dashboard hien KPI tu du lieu that.

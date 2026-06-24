@@ -36,8 +36,45 @@ type InvoiceMaps = {
 const invoicePageSize = 50;
 const sqliteWriteChunkSize = 100;
 const staleRunningLogHours = 2;
+const recentSyncLookbackDays = 7;
+const incrementalBufferDays = 2;
+const syncGlobal = globalThis as typeof globalThis & {
+  yagamiKiotVietSyncRunning?: boolean;
+};
 
 export async function syncKiotViet(type: SyncType): Promise<SyncResult[]> {
+  return withSyncRunLock(() => syncKiotVietUnlocked(type));
+}
+
+export async function syncKiotVietBatch(types: Array<Exclude<SyncType, "all">>): Promise<SyncResult[]> {
+  return withSyncRunLock(async () => {
+    await closeStaleRunningLogs();
+
+    const results: SyncResult[] = [];
+
+    for (const syncType of types) {
+      results.push(await syncOne(syncType));
+    }
+
+    return results;
+  });
+}
+
+async function withSyncRunLock<T>(action: () => Promise<T>) {
+  if (syncGlobal.yagamiKiotVietSyncRunning) {
+    throw new Error("Đang có lượt đồng bộ khác chạy. Vui lòng đợi lượt hiện tại hoàn tất để tránh SQLite bị khóa.");
+  }
+
+  syncGlobal.yagamiKiotVietSyncRunning = true;
+
+  try {
+    return await action();
+  } finally {
+    syncGlobal.yagamiKiotVietSyncRunning = false;
+  }
+}
+
+async function syncKiotVietUnlocked(type: SyncType): Promise<SyncResult[]> {
   await closeStaleRunningLogs();
 
   if (type === "all") {
@@ -254,12 +291,18 @@ async function syncBranches(): Promise<SyncStats> {
 
 async function syncInvoices(): Promise<SyncStats> {
   const toDate = new Date();
-  const fromDate = addDays(toDate, -30);
+  const fromDate = await getRecentInvoiceFromDate(toDate);
   const result = await syncInvoicesByDateRange(fromDate, toDate);
 
   await setAppSetting("invoiceRecentSyncedAt", toDate.toISOString());
 
-  return result;
+  return {
+    ...result,
+    warnings: [
+      ...(result.warnings ?? []),
+      `Hóa đơn tự động chỉ lấy từ ${formatDateTime(fromDate)} đến ${formatDateTime(toDate)} để giảm tải SQLite.`
+    ]
+  };
 }
 
 async function syncInvoiceHistory(): Promise<SyncStats> {
@@ -282,7 +325,8 @@ async function syncInvoiceHistory(): Promise<SyncStats> {
 }
 
 async function syncOrders(): Promise<SyncStats> {
-  const fromDate = addDays(new Date(), -30);
+  const toDate = new Date();
+  const fromDate = await getRecentOrderFromDate(toDate);
   const maps: InvoiceMaps = {
     productIds: await loadProductIds(),
     customerIds: await loadCustomerIds(),
@@ -327,15 +371,17 @@ async function syncOrders(): Promise<SyncStats> {
     await delay(80);
   }
 
-  await setAppSetting("orderRecentSyncedAt", new Date().toISOString());
+  await setAppSetting("orderRecentSyncedAt", toDate.toISOString());
 
   return {
     totalRecords,
     savedRecords,
-    warnings:
-      totalRecords > savedRecords
-        ? [`KiotViet có ${formatNumber(totalRecords)} đơn đặt; hệ thống chỉ cập nhật các đơn trong 30 ngày gần nhất để giữ SQLite nhẹ.`]
-        : undefined
+    warnings: [
+      `Đơn đặt tự động chỉ lấy từ ${formatDateTime(fromDate)} đến ${formatDateTime(toDate)} để giảm tải SQLite.`,
+      ...(totalRecords > savedRecords
+        ? [`KiotViet có ${formatNumber(totalRecords)} đơn đặt; hệ thống chỉ cập nhật các đơn trong phạm vi gần đây để giữ SQLite nhẹ.`]
+        : [])
+    ]
   };
 }
 
@@ -620,6 +666,72 @@ async function setAppSetting(key: string, value: string) {
   );
 }
 
+async function getRecentInvoiceFromDate(toDate: Date) {
+  const settingDate = parseSettingDate(await getAppSetting("invoiceRecentSyncedAt"));
+
+  if (settingDate) {
+    return addDays(settingDate, -incrementalBufferDays);
+  }
+
+  const latestInvoice = await prisma.invoice.aggregate({
+    _max: { purchaseDate: true }
+  });
+
+  if (latestInvoice._max.purchaseDate) {
+    return addDays(latestInvoice._max.purchaseDate, -incrementalBufferDays);
+  }
+
+  return addDays(toDate, -recentSyncLookbackDays);
+}
+
+async function getRecentOrderFromDate(toDate: Date) {
+  const settingDate = parseSettingDate(await getAppSetting("orderRecentSyncedAt"));
+
+  if (settingDate) {
+    return addDays(settingDate, -incrementalBufferDays);
+  }
+
+  const latestOrder = await prisma.order.aggregate({
+    _max: {
+      modifiedDate: true,
+      createdDate: true,
+      purchaseDate: true
+    }
+  });
+  const latestDate = maxDate([
+    latestOrder._max.modifiedDate,
+    latestOrder._max.createdDate,
+    latestOrder._max.purchaseDate
+  ]);
+
+  if (latestDate) {
+    return addDays(latestDate, -incrementalBufferDays);
+  }
+
+  return addDays(toDate, -recentSyncLookbackDays);
+}
+
+function parseSettingDate(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function maxDate(values: Array<Date | null>) {
+  const timestamps = values
+    .filter((value): value is Date => value instanceof Date)
+    .map((value) => value.getTime());
+
+  if (timestamps.length === 0) {
+    return undefined;
+  }
+
+  return new Date(Math.max(...timestamps));
+}
+
 async function closeStaleRunningLogs() {
   const staleStartedBefore = new Date(Date.now() - staleRunningLogHours * 60 * 60 * 1000);
 
@@ -675,7 +787,7 @@ function buildSyncWarnings(type: Exclude<SyncType, "all">, result: SyncStats) {
 
   if (type === "orders" && result.savedRecords >= 100) {
     warnings.push(
-      `Cảnh báo: đơn đặt đã cập nhật ${formatNumber(result.savedRecords)} phiếu trong 30 ngày gần nhất.`
+      `Cảnh báo: đơn đặt đã cập nhật ${formatNumber(result.savedRecords)} phiếu trong phạm vi gần đây.`
     );
   }
 
@@ -710,6 +822,16 @@ function formatKiotVietDate(date: Date) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value);
+}
+
+function formatDateTime(value: Date) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(value);
 }
 
 function chunkArray<T>(items: T[], size: number) {

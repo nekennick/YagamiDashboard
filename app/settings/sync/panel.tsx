@@ -20,8 +20,8 @@ const syncActions: Array<{ syncType: SyncType; label: string; hint: string }> = 
   { syncType: "branches", label: "Đồng bộ chi nhánh", hint: "Nhẹ, nên chạy trước dữ liệu khác." },
   { syncType: "products", label: "Đồng bộ sản phẩm", hint: "Cập nhật tên hàng, mã hàng và nhóm hàng." },
   { syncType: "customers", label: "Đồng bộ khách hàng", hint: "Cập nhật thông tin khách để nối hóa đơn." },
-  { syncType: "orders", label: "Đồng bộ đơn đặt hàng", hint: "Cập nhật phiếu tạm trong 30 ngày gần nhất." },
-  { syncType: "invoices", label: "Đồng bộ hóa đơn 30 ngày", hint: "Khuyến nghị cho vận hành hằng ngày." },
+  { syncType: "orders", label: "Đồng bộ đơn đặt hàng", hint: "Cập nhật tăng dần, mặc định lùi 2 ngày để bắt đơn chỉnh sửa." },
+  { syncType: "invoices", label: "Đồng bộ hóa đơn gần đây", hint: "Chỉ lấy phần mới + buffer, nhẹ hơn so với kéo lại 30 ngày." },
   { syncType: "invoiceHistory", label: "Đồng bộ lịch sử hóa đơn", hint: "Tác vụ nặng, nên chạy thủ công khi cần." },
   { syncType: "inventory", label: "Đồng bộ tồn kho", hint: "Lấy snapshot hiện tại, nên chạy sau cùng." },
   { syncType: "all", label: "Đồng bộ tất cả", hint: "Chạy theo thứ tự an toàn, bỏ lịch sử hóa đơn." }
@@ -32,7 +32,7 @@ const syncTypeLabels: Record<SyncType, string> = {
   products: "Sản phẩm",
   customers: "Khách hàng",
   orders: "Đơn đặt hàng",
-  invoices: "Hóa đơn 30 ngày",
+  invoices: "Hóa đơn gần đây",
   invoiceHistory: "Lịch sử hóa đơn",
   inventory: "Tồn kho",
   all: "Tất cả"

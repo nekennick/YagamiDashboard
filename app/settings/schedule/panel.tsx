@@ -60,15 +60,15 @@ const syncTypeOptions: Array<{
   {
     value: "orders",
     label: "Đơn đặt hàng",
-    description: "Cập nhật phiếu tạm và đơn đặt trong 30 ngày gần nhất.",
+    description: "Cập nhật tăng dần, mặc định lùi 2 ngày để bắt đơn chỉnh sửa.",
     badge: "Đơn mới",
     recommended: true,
     icon: ShoppingCart
   },
   {
     value: "invoices",
-    label: "Hóa đơn 30 ngày",
-    description: "Luôn lấy 30 ngày gần nhất để cập nhật đơn mới và đơn chỉnh sửa.",
+    label: "Hóa đơn gần đây",
+    description: "Chỉ lấy phần mới + buffer, nhẹ hơn so với kéo lại 30 ngày.",
     badge: "Khuyến nghị",
     recommended: true,
     icon: FileClock
@@ -101,6 +101,7 @@ const intervalOptions = [
 export function SchedulePanel({ initialSettings }: { initialSettings: ScheduleSettings }) {
   const [enabled, setEnabled] = useState(initialSettings.enabled);
   const [intervalMinutes, setIntervalMinutes] = useState(initialSettings.intervalMinutes);
+  const [startTime, setStartTime] = useState(initialSettings.startTime);
   const [syncTypes, setSyncTypes] = useState<ScheduledSyncType[]>(initialSettings.syncTypes);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
@@ -127,7 +128,7 @@ export function SchedulePanel({ initialSettings }: { initialSettings: ScheduleSe
       const response = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, intervalMinutes, syncTypes })
+        body: JSON.stringify({ enabled, intervalMinutes, startTime, syncTypes })
       });
       const data = (await response.json()) as { message?: string };
 
@@ -189,7 +190,7 @@ export function SchedulePanel({ initialSettings }: { initialSettings: ScheduleSe
 
   function applyRecommendedPreset() {
     setSyncTypes(recommendedSyncTypes);
-    setMessage("Đã chọn cấu hình khuyến nghị: hóa đơn 30 ngày và tồn kho chạy sau cùng.");
+    setMessage("Đã chọn cấu hình khuyến nghị: hóa đơn/đơn đặt tăng dần và tồn kho chạy sau cùng.");
   }
 
   return (
@@ -223,7 +224,7 @@ export function SchedulePanel({ initialSettings }: { initialSettings: ScheduleSe
             <div>
               <div className="font-semibold">Khuyến nghị đang đúng cho lịch tự động</div>
               <p className="mt-1 text-brand-800/80 dark:text-brand-100/75">
-                Hóa đơn chỉ đồng bộ 30 ngày gần nhất để cập nhật nhanh. Tồn kho là snapshot hiện tại nên luôn chạy sau cùng.
+                Hóa đơn và đơn đặt sẽ đồng bộ tăng dần, có buffer 2 ngày để bắt dữ liệu chỉnh sửa. Tồn kho là snapshot hiện tại nên luôn chạy sau cùng.
               </p>
             </div>
           </div>
@@ -257,6 +258,24 @@ export function SchedulePanel({ initialSettings }: { initialSettings: ScheduleSe
                 <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{option.hint}</div>
               </button>
             ))}
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/40">
+            <label className="block text-sm font-semibold text-slate-900 dark:text-white" htmlFor="auto-sync-start-time">
+              Giờ bắt đầu trong ngày
+            </label>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition-colors focus:border-brand-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:w-40"
+                id="auto-sync-start-time"
+                onChange={(event) => setStartTime(event.target.value)}
+                type="time"
+                value={startTime}
+              />
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Áp dụng khi chọn chu kỳ mỗi ngày, ví dụ 17:00 thì lịch sẽ chạy sau 17h và chỉ chạy một lần trong ngày.
+              </p>
+            </div>
           </div>
         </section>
 

@@ -1,0 +1,3 @@
+display_name: Yagami Data Analyst
+short_description: Phân tích dữ liệu Yagami từ SQLite local với dẫn chứng.
+default_prompt: Dùng dữ liệu local đã sync để phân tích câu hỏi kinh doanh của Yagami, không bịa số liệu và luôn nêu dẫn chứng.
