@@ -6,6 +6,7 @@ import { AnimatedPanel, AnimatedTableRow, FadeIn } from "@/components/ui/motion-
 import { getScheduleSettings } from "@/lib/schedule";
 import { prisma } from "@/lib/prisma";
 import { SchedulePanel } from "@/app/settings/schedule/panel";
+import { ScheduleLogTable, type ScheduleLogRow } from "@/app/settings/schedule/log-table";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,15 @@ export default async function SchedulePage() {
 
     const successCount = recentLogs.filter((log) => log.status === "success").length;
     const errorCount = recentLogs.filter((log) => log.status === "error").length;
+    const logRows: ScheduleLogRow[] = recentLogs.map((log) => ({
+      id: String(log.id),
+      syncType: log.syncType,
+      status: log.status,
+      startedAt: log.startedAt.toISOString(),
+      finishedAt: log.finishedAt?.toISOString() ?? null,
+      totalRecords: log.totalRecords,
+      errorMessage: log.errorMessage
+    }));
 
     return (
       <div className="space-y-6">
@@ -79,6 +89,10 @@ export default async function SchedulePage() {
           </AnimatedPanel>
 
           <AnimatedPanel delay={0.08}>
+            <ScheduleLogTable recentLogs={logRows} />
+          </AnimatedPanel>
+
+          <AnimatedPanel className="hidden" delay={0.08}>
             <Card className="overflow-hidden">
               <CardHeader>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

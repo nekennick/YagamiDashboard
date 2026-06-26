@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ComponentType } from "react";
+import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
   Clock3,
@@ -99,6 +100,7 @@ const intervalOptions = [
 ];
 
 export function SchedulePanel({ initialSettings }: { initialSettings: ScheduleSettings }) {
+  const router = useRouter();
   const [enabled, setEnabled] = useState(initialSettings.enabled);
   const [intervalMinutes, setIntervalMinutes] = useState(initialSettings.intervalMinutes);
   const [startTime, setStartTime] = useState(initialSettings.startTime);
@@ -130,7 +132,15 @@ export function SchedulePanel({ initialSettings }: { initialSettings: ScheduleSe
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled, intervalMinutes, startTime, syncTypes })
       });
-      const data = (await response.json()) as { message?: string };
+      const data = (await response.json()) as {
+        message?: string;
+        results?: Array<{
+          syncType: ScheduledSyncType;
+          status: "success" | "error";
+          totalRecords: number;
+          message: string;
+        }>;
+      };
 
       if (!response.ok) {
         throw new Error(data.message ?? "Không thể lưu lịch đồng bộ.");
@@ -148,26 +158,66 @@ export function SchedulePanel({ initialSettings }: { initialSettings: ScheduleSe
 
   async function runNow() {
     setRunning(true);
+    window.dispatchEvent(
+      new CustomEvent("yagami:schedule-sync-start", {
+        detail: {
+          syncTypes: selectedRunOrder,
+          startedAt: new Date().toISOString()
+        }
+      })
+    );
     setMessage("Đang chuẩn bị chạy theo lịch hiện tại...");
 
     try {
       const saved = await saveSettings();
 
       if (!saved) {
+        window.dispatchEvent(new CustomEvent("yagami:schedule-sync-finish"));
         return;
       }
 
       setMessage("Đang chạy đồng bộ theo lịch hiện tại...");
       const response = await fetch("/api/schedule/run", { method: "POST" });
-      const data = (await response.json()) as { message?: string };
+      const data = (await response.json()) as {
+        message?: string;
+        results?: Array<{
+          syncType: ScheduledSyncType;
+          status: "success" | "error";
+          totalRecords: number;
+          message: string;
+        }>;
+      };
 
       if (!response.ok) {
         throw new Error(data.message ?? "Không thể chạy đồng bộ.");
       }
 
       setMessage(data.message ?? "Đã chạy đồng bộ theo lịch.");
+      window.dispatchEvent(
+        new CustomEvent("yagami:schedule-sync-finish", {
+          detail: {
+            results: data.results ?? [],
+            finishedAt: new Date().toISOString()
+          }
+        })
+      );
+      router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Không thể chạy đồng bộ.");
+      window.dispatchEvent(
+        new CustomEvent("yagami:schedule-sync-finish", {
+          detail: {
+            results: selectedRunOrder.map((syncType) => ({
+              syncType,
+              status: "error",
+              totalRecords: 0,
+              message: error instanceof Error ? error.message : "Không thể chạy đồng bộ."
+            })),
+            finishedAt: new Date().toISOString()
+          }
+        })
+      );
+      router.refresh();
     } finally {
       setRunning(false);
     }

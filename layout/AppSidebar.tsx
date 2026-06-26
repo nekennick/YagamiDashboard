@@ -9,6 +9,7 @@ import {
   ShoppingCart,
   Users,
   FileText,
+  ClipboardList,
   Boxes,
   BarChart3,
   Settings,
@@ -63,6 +64,11 @@ const navItems: NavItem[] = [
     name: "Tồn kho",
     icon: <Boxes className="h-5 w-5" />,
     path: "/inventory",
+  },
+  {
+    name: "Báo cáo nhanh",
+    icon: <ClipboardList className="h-5 w-5" />,
+    path: "/reports",
   },
 ];
 

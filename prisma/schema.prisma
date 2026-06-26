@@ -190,6 +190,27 @@ model SyncLog {
   @@index([startedAt])
 }
 
+model ReportSnapshot {
+  id               Int      @id @default(autoincrement())
+  reportKey        String   @unique
+  reportType       String
+  periodLabel      String?
+  periodFrom       DateTime?
+  periodTo         DateTime?
+  title            String
+  payloadJson      String
+  markdown         String
+  sourceTablesJson String
+  filtersJson      String
+  generatedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([reportType])
+  @@index([periodFrom])
+  @@index([periodTo])
+  @@index([generatedAt])
+}
+
 model AppSetting {
   id        Int      @id @default(autoincrement())
   key       String   @unique
