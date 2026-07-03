@@ -18,6 +18,7 @@ type CustomersPageProps = {
 };
 
 const cancelledStatus = "Đã hủy";
+const customersPageSize = 20;
 
 export default async function CustomersPage({ searchParams }: CustomersPageProps) {
   const params = (await searchParams) ?? {};
@@ -97,7 +98,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         return true;
       })
       .sort((a, b) => b.revenue - a.revenue || b.invoiceCount - a.invoiceCount || a.name.localeCompare(b.name))
-      .slice(0, 100);
+      .slice(0, customersPageSize);
 
     data = {
       rows,
@@ -146,7 +147,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
           >
             Xuất Excel
           </a>
-          <div className="text-sm text-slate-500">Hiển thị tối đa 100 khách hàng</div>
+          <div className="text-sm text-slate-500">Hiển thị tối đa 20 khách hàng</div>
         </div>
       </FadeIn>
 

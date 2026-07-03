@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { closeInterruptedRunningLogs } from "@/lib/kiotviet/sync";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   const since = request.nextUrl.searchParams.get("since");
   const sinceDate = since ? new Date(since) : null;
+
+  await closeInterruptedRunningLogs();
 
   const logs = await prisma.syncLog.findMany({
     where: sinceDate && !Number.isNaN(sinceDate.getTime()) ? { startedAt: { gte: sinceDate } } : undefined,

@@ -14,6 +14,8 @@ type ProductsPageProps = {
   }>;
 };
 
+const productsPageSize = 20;
+
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
@@ -46,7 +48,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       prisma.product.findMany({
         where: productWhere,
         orderBy: [{ isActive: "desc" }, { name: "asc" }],
-        take: 80
+        take: productsPageSize
       }),
       prisma.product.count({ where: productWhere }),
       prisma.product.count({ where: { ...productWhere, isActive: true } }),
@@ -115,7 +117,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           >
             Xuất Excel
           </a>
-          <div className="text-sm text-slate-500">Hiển thị tối đa 80 dòng đầu tiên</div>
+          <div className="text-sm text-slate-500">Hiển thị tối đa 20 dòng đầu tiên</div>
         </div>
       </FadeIn>
 

@@ -14,6 +14,8 @@ type InventoryPageProps = {
   }>;
 };
 
+const inventoryPageSize = 20;
+
 export default async function InventoryPage({ searchParams }: InventoryPageProps) {
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
@@ -58,7 +60,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           branch: { select: { id: true, name: true } }
         },
         orderBy: [{ onHand: "asc" }, { product: { name: "asc" } }],
-        take: 120
+        take: inventoryPageSize
       }),
       prisma.inventorySnapshot.aggregate({
         where: inventoryWhere,

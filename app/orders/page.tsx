@@ -29,6 +29,7 @@ type UnifiedOrderRow = {
 
 const temporaryOrderStatus = "Phiếu tạm";
 const completedInvoiceStatus = "Hoàn thành";
+const ordersPageSize = 50;
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           ? prisma.order.findMany({
               where: orderWhere,
               orderBy: { purchaseDate: "desc" },
-              take: 100,
+              take: ordersPageSize,
               include: {
                 customer: { select: { code: true, name: true } },
                 branch: { select: { name: true } },
@@ -89,7 +90,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           ? prisma.invoice.findMany({
               where: invoiceWhere,
               orderBy: { purchaseDate: "desc" },
-              take: 100,
+              take: ordersPageSize,
               include: {
                 customer: { select: { code: true, name: true } },
                 branch: { select: { name: true } },
@@ -153,7 +154,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
       }))
     ]
       .sort((left, right) => right.date.getTime() - left.date.getTime())
-      .slice(0, 100);
+      .slice(0, ordersPageSize);
 
     const searchSuggestions = rows.map((row) => ({
       label: row.code,
@@ -239,7 +240,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
             <CardHeader>
               <CardTitle>Bảng đơn hàng</CardTitle>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Hiển thị tối đa 100 dòng mới nhất sau khi gộp Phiếu tạm và Hóa đơn Hoàn thành.
+                Hiển thị tối đa 50 dòng mới nhất sau khi gộp Phiếu tạm và Hóa đơn Hoàn thành.
               </p>
             </CardHeader>
             <CardContent className="px-0 pb-0">

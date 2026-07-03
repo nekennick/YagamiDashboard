@@ -27,7 +27,7 @@ type ProductDetailPageProps = {
 };
 
 const cancelledStatus = "Đã hủy";
-type AnalysisPeriod = "month" | "previousMonth" | "week" | "custom";
+type AnalysisPeriod = "month" | "last7Days" | "last30Days" | "week" | "custom";
 
 export default async function ProductDetailPage({ params, searchParams }: ProductDetailPageProps) {
   const { id } = await params;
@@ -219,12 +219,20 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
                     Tháng này
                   </button>
                   <button
-                    className={periodButtonClass(analysisRange.period === "previousMonth")}
+                    className={periodButtonClass(analysisRange.period === "last7Days")}
                     name="period"
                     type="submit"
-                    value="previousMonth"
+                    value="last7Days"
                   >
-                    Tháng trước
+                    7 ngày qua
+                  </button>
+                  <button
+                    className={periodButtonClass(analysisRange.period === "last30Days")}
+                    name="period"
+                    type="submit"
+                    value="last30Days"
+                  >
+                    30 ngày qua
                   </button>
                   <button
                     className={periodButtonClass(analysisRange.period === "week")}
@@ -510,13 +518,18 @@ function parseAnalysisRange({
 }) {
   const today = startOfDay(new Date());
   const selectedPeriod: AnalysisPeriod =
-    period === "previousMonth" || period === "week" || period === "custom" ? period : "month";
+    period === "last7Days" || period === "last30Days" || period === "week" || period === "custom"
+      ? period
+      : "month";
   let start = startOfMonth(today);
   let endInclusive = today;
 
-  if (selectedPeriod === "previousMonth") {
-    start = startOfMonth(addMonths(today, -1));
-    endInclusive = addDays(startOfMonth(today), -1);
+  if (selectedPeriod === "last7Days") {
+    start = addDays(today, -6);
+  }
+
+  if (selectedPeriod === "last30Days") {
+    start = addDays(today, -29);
   }
 
   if (selectedPeriod === "week") {
@@ -562,10 +575,6 @@ function startOfDay(date: Date) {
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function addMonths(date: Date, months: number) {
-  return new Date(date.getFullYear(), date.getMonth() + months, date.getDate());
 }
 
 function startOfWeek(date: Date) {

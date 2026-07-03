@@ -35,7 +35,7 @@ type InvoiceMaps = {
 
 const invoicePageSize = 50;
 const sqliteWriteChunkSize = 100;
-const staleRunningLogHours = 2;
+const staleRunningLogMinutes = 30;
 const recentSyncLookbackDays = 7;
 const incrementalBufferDays = 2;
 const syncGlobal = globalThis as typeof globalThis & {
@@ -48,7 +48,7 @@ export async function syncKiotViet(type: SyncType): Promise<SyncResult[]> {
 
 export async function syncKiotVietBatch(types: Array<Exclude<SyncType, "all">>): Promise<SyncResult[]> {
   return withSyncRunLock(async () => {
-    await closeStaleRunningLogs();
+    await closeInterruptedRunningLogs();
 
     const results: SyncResult[] = [];
 
@@ -75,7 +75,7 @@ async function withSyncRunLock<T>(action: () => Promise<T>) {
 }
 
 async function syncKiotVietUnlocked(type: SyncType): Promise<SyncResult[]> {
-  await closeStaleRunningLogs();
+  await closeInterruptedRunningLogs();
 
   if (type === "all") {
     const results: SyncResult[] = [];
@@ -732,8 +732,52 @@ function maxDate(values: Array<Date | null>) {
   return new Date(Math.max(...timestamps));
 }
 
+export async function closeInterruptedRunningLogs() {
+  await closeSupersededRunningLogs();
+  await closeStaleRunningLogs();
+}
+
+async function closeSupersededRunningLogs() {
+  const runningLogs = await withDatabaseRetry("Tìm log đồng bộ đang chạy bị thay thế", () =>
+    prisma.syncLog.findMany({
+      where: { status: "running" },
+      select: { id: true, syncType: true, startedAt: true }
+    })
+  );
+
+  for (const log of runningLogs) {
+    const newerFinishedLog = await withDatabaseRetry("Tìm log đồng bộ mới hơn", () =>
+      prisma.syncLog.findFirst({
+        where: {
+          syncType: log.syncType,
+          status: { not: "running" },
+          startedAt: { gt: log.startedAt },
+          finishedAt: { not: null }
+        },
+        orderBy: { startedAt: "desc" },
+        select: { startedAt: true }
+      })
+    );
+
+    if (!newerFinishedLog) {
+      continue;
+    }
+
+    await withDatabaseRetry("Đóng log đồng bộ bị thay thế", () =>
+      prisma.syncLog.update({
+        where: { id: log.id },
+        data: {
+          status: "error",
+          finishedAt: newerFinishedLog.startedAt,
+          errorMessage: "Lượt đồng bộ này bị ngắt giữa chừng và đã được thay thế bởi một lượt đồng bộ mới hơn."
+        }
+      })
+    );
+  }
+}
+
 async function closeStaleRunningLogs() {
-  const staleStartedBefore = new Date(Date.now() - staleRunningLogHours * 60 * 60 * 1000);
+  const staleStartedBefore = new Date(Date.now() - staleRunningLogMinutes * 60 * 1000);
 
   await withDatabaseRetry("Đóng log đồng bộ bị kẹt", () =>
     prisma.syncLog.updateMany({
@@ -744,7 +788,7 @@ async function closeStaleRunningLogs() {
       data: {
         status: "error",
         finishedAt: new Date(),
-        errorMessage: `Tự động đóng log bị kẹt quá ${staleRunningLogHours} giờ trước khi chạy lượt đồng bộ mới.`
+        errorMessage: `Tự động đóng log bị kẹt quá ${staleRunningLogMinutes} phút trước khi chạy lượt đồng bộ mới.`
       }
     })
   );

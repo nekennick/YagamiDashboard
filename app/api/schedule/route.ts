@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getScheduleSettings, saveScheduleSettings, type ScheduledSyncType } from "@/lib/schedule";
+import { getScheduleSettings, saveScheduleSettings, type ScheduleGroupSetting, type ScheduledSyncType } from "@/lib/schedule";
 
 export async function GET() {
   return NextResponse.json({
@@ -15,12 +15,15 @@ export async function POST(request: NextRequest) {
       intervalMinutes?: number;
       startTime?: string;
       syncTypes?: ScheduledSyncType[];
+      groups?: ScheduleGroupSetting[];
     };
+    const groups = Array.isArray(body.groups) ? body.groups : undefined;
     const settings = await saveScheduleSettings({
       enabled: Boolean(body.enabled),
       intervalMinutes: Number(body.intervalMinutes ?? 60),
       startTime: body.startTime ?? "17:00",
-      syncTypes: Array.isArray(body.syncTypes) ? body.syncTypes : []
+      syncTypes: Array.isArray(body.syncTypes) ? body.syncTypes : undefined,
+      groups
     });
 
     return NextResponse.json({

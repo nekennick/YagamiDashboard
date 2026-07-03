@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "npm run db:prepare",
     "dev": "next dev",
     "build": "next build",
+    "prestart": "npm run db:prepare",
     "start": "next start",
     "lint": "eslint .",
     "knowledge:export": "node scripts/export-knowledge-pack.mjs",
@@ -14,7 +16,8 @@
     "report:inventory": "node scripts/reports/run-report.mjs inventory",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "db:prepare": "node scripts/prepare-sqlite.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",

@@ -14,6 +14,8 @@ type InvoicesPageProps = {
   }>;
 };
 
+const invoicesPageSize = 20;
+
 export default async function InvoicesPage({ searchParams }: InvoicesPageProps) {
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
@@ -43,7 +45,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
       prisma.invoice.findMany({
         where: invoiceWhere,
         orderBy: { purchaseDate: "desc" },
-        take: 100,
+        take: invoicesPageSize,
         include: {
           customer: { select: { code: true, name: true } },
           branch: { select: { name: true } },
@@ -112,7 +114,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
           >
             Xuất Excel
           </a>
-          <div className="text-sm text-slate-500">Hiển thị tối đa 100 hóa đơn mới nhất</div>
+          <div className="text-sm text-slate-500">Hiển thị tối đa 20 hóa đơn mới nhất</div>
         </div>
       </FadeIn>
 

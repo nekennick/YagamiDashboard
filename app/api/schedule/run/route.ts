@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { runScheduledSyncNow } from "@/lib/schedule";
+import { runScheduledSyncNow, type ScheduleGroupId } from "@/lib/schedule";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const results = await runScheduledSyncNow();
+    const body = (await request.json().catch(() => ({}))) as { groupId?: ScheduleGroupId };
+    const results = await runScheduledSyncNow(body.groupId);
 
     return NextResponse.json({
       ok: results.every((result) => result.status === "success"),
