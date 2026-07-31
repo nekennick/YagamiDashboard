@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { buildDateRange } from "@/lib/date";
 import { CustomerFilters } from "@/components/customers/customer-filters";
 import { CalendarDays } from "lucide-react";
+import { normalizeWarehouseFilter } from "@/lib/warehouse-filter";
 
 type CustomersPageProps = {
   searchParams?: Promise<{
@@ -14,6 +15,7 @@ type CustomersPageProps = {
     range?: string;
     from?: string;
     to?: string;
+    warehouse?: string;
   }>;
 };
 
@@ -27,22 +29,32 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const range = params.range?.trim() ?? "30d";
   const from = params.from?.trim() ?? "";
   const to = params.to?.trim() ?? "";
+  const warehouse = normalizeWarehouseFilter(params.warehouse);
 
   const dateRange = buildDateRange(range, from, to);
 
-  const customerWhere: Prisma.CustomerWhereInput = query
-    ? {
-        OR: [
-          { name: { contains: query } },
-          { code: { contains: query } },
-          { contactNumber: { contains: query } }
-        ]
-      }
-    : {};
+  const customerWhere: Prisma.CustomerWhereInput = {};
+
+  if (query) {
+    customerWhere.OR = [
+      { name: { contains: query } },
+      { code: { contains: query } },
+      { contactNumber: { contains: query } }
+    ];
+  }
 
   let data;
 
   try {
+    if (warehouse) {
+      const branchCustomers = await prisma.branchDirectory.findMany({
+        where: { warehouse, status: "ACTIVE", customerCode: { not: null } },
+        select: { customerCode: true }
+      });
+      const customerCodes = branchCustomers.flatMap((branch) => (branch.customerCode ? [branch.customerCode] : []));
+      customerWhere.code = { in: customerCodes.length > 0 ? customerCodes : ["__NO_CUSTOMER__"] };
+    }
+
     const matchingCustomers = await prisma.customer.findMany({
       where: customerWhere,
       orderBy: { name: "asc" },
@@ -142,7 +154,8 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
               ...(activity !== "all" ? { activity } : {}),
               ...(range !== "30d" ? { range } : {}),
               ...(from ? { from } : {}),
-              ...(to ? { to } : {})
+              ...(to ? { to } : {}),
+              ...(warehouse ? { warehouse } : {})
             }).toString()}`}
           >
             Xuất Excel
@@ -170,6 +183,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             initialRange={range}
             initialFrom={from}
             initialTo={to}
+            initialWarehouse={warehouse}
             searchSuggestions={searchSuggestions}
           />
           </CardContent>

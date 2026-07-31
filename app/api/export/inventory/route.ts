@@ -1,42 +1,44 @@
 import { Prisma } from "@prisma/client";
 import { createWorkbookBuffer, excelResponse } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere } from "@/lib/warehouse-filter";
+import { normalizeInventoryStorage } from "@/lib/inventory-storage";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim() ?? "";
-  const branch = searchParams.get("branch")?.trim() ?? "";
-  const category = searchParams.get("category")?.trim() ?? "";
+  const warehouse = normalizeWarehouseFilter(searchParams.get("warehouse") ?? searchParams.get("branch"));
+  const storage = normalizeInventoryStorage(searchParams.get("storage"));
   const stock = searchParams.get("stock")?.trim() ?? "all";
   const latestInventoryDate = await prisma.inventorySnapshot.aggregate({
     _max: { snapshotDate: true }
   });
   const snapshotDate = latestInventoryDate._max.snapshotDate;
+  const branchWhere = warehouseBranchWhere(warehouse);
+  const productWhere: Prisma.ProductWhereInput | undefined = query || storage
+    ? {
+        ...(storage ? { manualGroupAssignment: { is: { group: { storageArea: storage } } } } : {}),
+        ...(query
+          ? {
+              OR: [
+                { name: { contains: query } },
+                { code: { contains: query } },
+                { fullName: { contains: query } }
+              ]
+            }
+          : {})
+      }
+    : undefined;
   const inventoryWhere: Prisma.InventorySnapshotWhereInput = {
     ...(snapshotDate ? { snapshotDate } : {}),
-    ...(branch ? { branchId: Number(branch) } : {}),
-    ...(query || category
-      ? {
-          product: {
-            ...(category ? { categoryName: category } : {}),
-            ...(query
-              ? {
-                  OR: [
-                    { name: { contains: query } },
-                    { code: { contains: query } },
-                    { fullName: { contains: query } }
-                  ]
-                }
-              : {})
-          }
-        }
-      : {}),
+    ...(branchWhere ? { branch: branchWhere } : {}),
+    ...(productWhere ? { product: productWhere } : {}),
     ...stockFilter(stock)
   };
   const items = await prisma.inventorySnapshot.findMany({
     where: inventoryWhere,
     include: {
-      product: { select: { code: true, name: true, categoryName: true, unit: true, isActive: true } },
+      product: { select: { code: true, name: true, unit: true, isActive: true, manualGroupAssignment: { select: { group: { select: { name: true, storageArea: true } } } } } },
       branch: { select: { name: true } }
     },
     orderBy: [{ onHand: "asc" }, { product: { name: "asc" } }]
@@ -48,7 +50,8 @@ export async function GET(request: Request) {
       snapshotDate: snapshotDate ? formatDateTime(snapshotDate) : "",
       productCode: item.product.code ?? "",
       productName: item.product.name,
-      categoryName: item.product.categoryName ?? "",
+      groupName: item.product.manualGroupAssignment?.group.name ?? "Chưa phân nhóm",
+      storageArea: item.product.manualGroupAssignment?.group.storageArea === "DRY" ? "Kho khô" : item.product.manualGroupAssignment?.group.storageArea === "COLD" ? "Kho đông" : "Chưa xác định",
       unit: item.product.unit ?? "",
       branchName: item.branch.name,
       onHand,
@@ -64,7 +67,8 @@ export async function GET(request: Request) {
       { header: "Snapshot", key: "snapshotDate", width: 20 },
       { header: "Mã sản phẩm", key: "productCode", width: 18 },
       { header: "Sản phẩm", key: "productName", width: 36 },
-      { header: "Nhóm hàng", key: "categoryName", width: 24 },
+      { header: "Nhóm hàng", key: "groupName", width: 24 },
+      { header: "Khu kho", key: "storageArea", width: 16 },
       { header: "Đơn vị", key: "unit", width: 12 },
       { header: "Chi nhánh", key: "branchName", width: 24 },
       { header: "Tồn", key: "onHand", width: 12 },

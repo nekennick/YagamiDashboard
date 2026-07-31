@@ -1,12 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { createWorkbookBuffer, excelResponse } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere } from "@/lib/warehouse-filter";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim() ?? "";
   const category = searchParams.get("category")?.trim() ?? "";
   const status = searchParams.get("status")?.trim() ?? "all";
+  const warehouse = normalizeWarehouseFilter(searchParams.get("warehouse"));
   const productWhere: Prisma.ProductWhereInput = {
     ...(query
       ? {
@@ -24,6 +26,7 @@ export async function GET(request: Request) {
   const latestInventoryDate = await prisma.inventorySnapshot.aggregate({
     _max: { snapshotDate: true }
   });
+  const branchWhere = warehouseBranchWhere(warehouse);
   const [products, inventoryGroups] = await Promise.all([
     prisma.product.findMany({
       where: productWhere,
@@ -32,7 +35,7 @@ export async function GET(request: Request) {
     latestInventoryDate._max.snapshotDate
       ? prisma.inventorySnapshot.groupBy({
           by: ["productId"],
-          where: { snapshotDate: latestInventoryDate._max.snapshotDate },
+          where: { snapshotDate: latestInventoryDate._max.snapshotDate, ...(branchWhere ? { branch: branchWhere } : {}) },
           _sum: { onHand: true, reserved: true }
         })
       : []

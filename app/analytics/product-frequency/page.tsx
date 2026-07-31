@@ -5,12 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
 
 type ProductFrequencyPageProps = {
   searchParams?: Promise<{
     q?: string;
     category?: string;
     sort?: string;
+    warehouse?: string;
   }>;
 };
 
@@ -21,6 +23,8 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
   const query = params.q?.trim() ?? "";
   const category = params.category?.trim() ?? "";
   const sort = params.sort?.trim() ?? "revenue";
+  const warehouse = normalizeWarehouseFilter(params.warehouse);
+  const branchWhere = warehouseBranchWhere(warehouse);
 
   const productWhere: Prisma.ProductWhereInput = {
     ...(query
@@ -47,7 +51,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
       by: ["productId"],
       where: {
         productId: { in: productIds.length > 0 ? productIds : [-1] },
-        invoice: { status: { not: cancelledStatus } }
+        invoice: { status: { not: cancelledStatus }, ...(branchWhere ? { branch: branchWhere } : {}) }
       },
       _count: { _all: true },
       _sum: { quantity: true, subtotal: true }
@@ -58,7 +62,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
       prisma.invoiceItem.findMany({
         where: {
           productId: { in: shownProductIds },
-          invoice: { status: { not: cancelledStatus }, customerId: { not: null } }
+          invoice: { status: { not: cancelledStatus }, customerId: { not: null }, ...(branchWhere ? { branch: branchWhere } : {}) }
         },
         select: {
           productId: true,
@@ -69,7 +73,7 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
         by: ["productId", "invoiceId"],
         where: {
           productId: { in: shownProductIds },
-          invoice: { status: { not: cancelledStatus } }
+          invoice: { status: { not: cancelledStatus }, ...(branchWhere ? { branch: branchWhere } : {}) }
         },
         _sum: { subtotal: true }
       }),
@@ -168,7 +172,8 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
             href={`/api/export/analytics/product-frequency?${new URLSearchParams({
               ...(query ? { q: query } : {}),
               ...(category ? { category } : {}),
-              ...(sort !== "revenue" ? { sort } : {})
+              ...(sort !== "revenue" ? { sort } : {}),
+              ...(warehouse ? { warehouse } : {})
             }).toString()}`}
           >
             Xuất Excel
@@ -190,11 +195,12 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
             <CardTitle>Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-          <form className="grid gap-3 xl:grid-cols-[1fr_240px_220px_auto]">
+          <form className="grid gap-3 xl:grid-cols-[1fr_240px_190px_220px_auto]">
             <TableSearch
               baseParams={{
                 ...(category ? { category } : {}),
-                ...(sort !== "revenue" ? { sort } : {})
+                ...(sort !== "revenue" ? { sort } : {}),
+                ...(warehouse ? { warehouse } : {})
               }}
               placeholder="Tìm theo tên hoặc mã sản phẩm"
               suggestions={searchSuggestions}
@@ -209,6 +215,14 @@ export default async function ProductFrequencyPage({ searchParams }: ProductFreq
               {data.categories.map((item) => (
                 <option key={item.categoryName ?? "empty"} value={item.categoryName ?? ""}>
                   {item.categoryName ?? "Chưa phân nhóm"} ({item._count._all})
+                </option>
+              ))}
+            </select>
+            <select className={warehouseSelectClassName()} defaultValue={warehouse} name="warehouse">
+              <option value="">Tất cả kho</option>
+              {warehouseFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>

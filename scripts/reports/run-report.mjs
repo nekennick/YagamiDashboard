@@ -7,6 +7,7 @@ const prisma = new PrismaClient();
 const timezone = "Asia/Saigon";
 const localUtcOffsetMs = 7 * 60 * 60 * 1000;
 const websiteSaleChannelId = 226442;
+const websiteRolloutDate = "2026-06-01";
 
 const preset = process.argv[2] || "daily";
 const args = parseArgs(process.argv.slice(3));
@@ -102,6 +103,12 @@ function currentRange() {
     return { from, to: addDays(from, 1), label: formatDate(from) };
   }
 
+  if (preset === "website") {
+    const from = startOfLocalDay(parseLocalDate(websiteRolloutDate));
+    const tomorrow = addDays(startOfLocalDay(today), 1);
+    return { from, to: tomorrow, label: `${formatDate(from)} đến ${formatDate(addDays(tomorrow, -1))}` };
+  }
+
   const monthStart = startOfLocalDay({ year: today.year, month: today.month, day: 1 });
   const tomorrow = addDays(startOfLocalDay(today), 1);
   return { from: monthStart, to: tomorrow, label: `${formatDate(monthStart)} đến ${formatDate(addDays(tomorrow, -1))}` };
@@ -163,6 +170,22 @@ function groupRows(rows, keyFn, seedFn, updateFn) {
     updateFn(map.get(key), row);
   }
   return [...map.values()];
+}
+
+function normalizeCustomerCode(value) {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function groupBranchesByWarehouse(branches) {
+  return groupRows(
+    branches,
+    (branch) => branch.warehouse,
+    (branch) => ({ warehouse: branch.warehouse, count: 0, branches: [] }),
+    (entry, branch) => {
+      entry.count += 1;
+      entry.branches.push(branch.canonicalName);
+    },
+  );
 }
 
 function topRows(rows, count, sortFn) {
@@ -252,23 +275,30 @@ async function reportSales(range) {
 
 async function reportWebsite(range) {
   const branchMap = JSON.parse(fs.readFileSync("docs/knowledge/yagami-branch-warehouse-map.json", "utf8"));
-  const activeBranches = branchMap.branches.filter((branch) => branch.status === "ACTIVE" && branch.customerCode);
-  const branchByCode = new Map(activeBranches.map((branch) => [branch.customerCode, branch]));
+  const directoryBranches = await loadBranchDirectoryForReport(branchMap);
+  const activeBranches = directoryBranches.filter((branch) => branch.status === "ACTIVE" && branch.customerCode);
+  const branchByCode = new Map(activeBranches.map((branch) => [normalizeCustomerCode(branch.customerCode), branch]));
   const invoices = await prisma.invoice.findMany({
     where: { status: "Hoàn thành", purchaseDate: { gte: range.from, lt: range.to } },
     include: { customer: true, branch: true },
     orderBy: { purchaseDate: "desc" },
   });
   const websiteInvoices = invoices.filter(includesWebsiteChannel);
-  const websiteCodes = new Set(websiteInvoices.map((invoice) => invoice.customer?.code).filter(Boolean));
-  const noWebsite = activeBranches.filter((branch) => !websiteCodes.has(branch.customerCode));
+  const websiteCodes = new Set(
+    websiteInvoices
+      .map((invoice) => normalizeCustomerCode(invoice.customer?.code))
+      .filter(Boolean),
+  );
+  const websiteBranches = activeBranches.filter((branch) => websiteCodes.has(normalizeCustomerCode(branch.customerCode)));
+  const noWebsite = activeBranches.filter((branch) => !websiteCodes.has(normalizeCustomerCode(branch.customerCode)));
+  const websiteByWarehouse = groupBranchesByWarehouse(websiteBranches);
   const noWebsiteByWarehouse = groupRows(
     noWebsite,
     (branch) => branch.warehouse,
     (branch) => ({ warehouse: branch.warehouse, count: 0, branches: [] }),
     (entry, branch) => {
       entry.count += 1;
-      entry.branches.push(`${branch.canonicalName} (${branch.customerCode})`);
+      entry.branches.push(branch.canonicalName);
     },
   );
 
@@ -279,7 +309,7 @@ async function reportWebsite(range) {
       (invoice) => ({
         customerCode: invoice.customer?.code || "",
         customerName: invoice.customer?.name || "Không rõ",
-        warehouse: branchByCode.get(invoice.customer?.code)?.warehouse || "CHƯA MAP",
+        warehouse: branchByCode.get(normalizeCustomerCode(invoice.customer?.code))?.warehouse || "CHƯA MAP",
         invoices: 0,
         revenue: 0,
       }),
@@ -297,7 +327,7 @@ async function reportWebsite(range) {
     `# Báo cáo hóa đơn website`,
     "",
     `- Kỳ báo cáo: **${range.label}**`,
-    `- Nguồn dữ liệu: \`Invoice\`, \`Customer\`, \`docs/knowledge/yagami-branch-warehouse-map.json\``,
+    `- Nguồn dữ liệu: \`Invoice\`, \`Customer\`, \`BranchDirectory\` (knowledge base là bản xuất chia sẻ)`,
     `- Bộ lọc: \`Invoice.status = Hoàn thành\`, kênh bán website \`saleChannelId = ${websiteSaleChannelId}\` hoặc tên kênh có chữ website`,
     `- Knowledge version: \`${branchMap.version}\`, verifiedAt: \`${branchMap.verifiedAt}\``,
     "",
@@ -309,9 +339,16 @@ async function reportWebsite(range) {
         ["Hóa đơn website", number(websiteInvoices.length)],
         ["Doanh thu website", money(websiteInvoices.reduce((sum, invoice) => sum + decimal(invoice.total), 0))],
         ["Chi nhánh đang hoạt động", number(activeBranches.length)],
-        ["Chi nhánh đã phát sinh đơn website", number(websiteCodes.size)],
+        ["Chi nhánh đã phát sinh đơn website", number(websiteBranches.length)],
         ["Chi nhánh chưa phát sinh đơn website", number(noWebsite.length)],
       ],
+    ),
+    "",
+    "## Đã phát sinh website theo kho",
+    "",
+    markdownTable(
+      ["Kho", "Số chi nhánh", "Danh sách"],
+      websiteByWarehouse.map((entry) => [entry.warehouse, number(entry.count), entry.branches.join("; ")]),
     ),
     "",
     "## Chưa phát sinh website theo kho",
@@ -346,14 +383,60 @@ async function reportWebsite(range) {
       websiteInvoices: websiteInvoices.length,
       websiteRevenue: websiteInvoices.reduce((sum, invoice) => sum + decimal(invoice.total), 0),
       activeBranches: activeBranches.length,
-      branchesWithWebsite: websiteCodes.size,
+      branchesWithWebsite: websiteBranches.length,
       branchesWithoutWebsite: noWebsite.length,
+      branchesWithWebsiteByWarehouse: websiteByWarehouse,
       branchesWithoutWebsiteByWarehouse: noWebsiteByWarehouse,
       topCustomers: customerRows,
     },
     freshness: fresh,
     markdown,
   };
+}
+
+async function loadBranchDirectoryForReport(branchMap) {
+  const count = await prisma.branchDirectory.count();
+
+  if (count === 0) {
+    const customers = await prisma.customer.findMany({
+      where: { code: { not: null } },
+      select: { code: true, kvCustomerId: true },
+    });
+    const customerByCode = new Map(customers.map((customer) => [normalizeCustomerCode(customer.code), customer.kvCustomerId]));
+    const confirmedAt = new Date(`${branchMap.verifiedAt}T00:00:00+07:00`);
+
+    await prisma.branchDirectory.createMany({
+      data: branchMap.branches.map((branch) => ({
+        customerCode: branch.customerCode ? normalizeCustomerCode(branch.customerCode) : null,
+        kvCustomerId: branch.customerCode ? customerByCode.get(normalizeCustomerCode(branch.customerCode)) ?? null : null,
+        canonicalName: branch.canonicalName,
+        rawName: branch.rawName ?? null,
+        warehouse: branch.warehouse,
+        status: branch.status,
+        routeType: branch.routeType || "UNSPECIFIED",
+        day: branch.day ?? null,
+        sourceCell: branch.sourceCell ?? null,
+        notes: branch.notes ?? null,
+        source: "KNOWLEDGE_BASE",
+        confirmedAt: Number.isNaN(confirmedAt.getTime()) ? new Date() : confirmedAt,
+      })),
+    });
+  }
+
+  return prisma.branchDirectory.findMany({
+    orderBy: { id: "asc" },
+    select: {
+      warehouse: true,
+      day: true,
+      sourceCell: true,
+      rawName: true,
+      canonicalName: true,
+      customerCode: true,
+      status: true,
+      routeType: true,
+      notes: true,
+    },
+  });
 }
 
 async function reportInventory() {
@@ -713,7 +796,7 @@ function reportMetadata(reportPreset) {
       },
     },
     website: {
-      sourceTables: ["Invoice", "Customer", "docs/knowledge/yagami-branch-warehouse-map.json", "SyncLog", "AppSetting"],
+      sourceTables: ["Invoice", "Customer", "BranchDirectory", "SyncLog", "AppSetting"],
       filters: {
         invoices: "Invoice.status = Hoàn thành",
         saleChannel: `saleChannelId = ${websiteSaleChannelId} OR saleChannelName contains website`,

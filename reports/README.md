@@ -38,7 +38,7 @@ Each run creates:
 | --- | --- |
 | `daily` | Fast daily snapshot: completed invoices, temporary orders, top products, top customers, inventory alerts, sync freshness. |
 | `sales` | Sales analysis for a selected date range. |
-| `website` | Website-channel completed invoices and branches that have not generated website invoices. |
+| `website` | Hóa đơn hoàn thành qua website và toàn bộ chi nhánh đã/chưa phát sinh kể từ 01/06/2026. |
 | `inventory` | Latest full inventory snapshot with negative and high-stock alerts. |
 
 ## Rules
@@ -46,5 +46,6 @@ Each run creates:
 - Reports must cite source tables, date range, and filters.
 - Reports must not call KiotViet live API; sync first if data freshness is not enough.
 - `website` uses `saleChannelId = 226442` or a sale channel name containing `website`.
+- Khi không truyền ngày, `website` mặc định lấy từ ngày triển khai 01/06/2026 đến hôm nay.
 - `inventory` uses only the latest `InventorySnapshot.snapshotDate`.
 - Running the same preset for the same period overwrites that snapshot instead of creating duplicates.

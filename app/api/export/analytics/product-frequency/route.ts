@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { createWorkbookBuffer, excelResponse } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere } from "@/lib/warehouse-filter";
 
 const cancelledStatus = "Đã hủy";
 
@@ -9,6 +10,8 @@ export async function GET(request: Request) {
   const query = searchParams.get("q")?.trim() ?? "";
   const category = searchParams.get("category")?.trim() ?? "";
   const sort = searchParams.get("sort")?.trim() ?? "revenue";
+  const warehouse = normalizeWarehouseFilter(searchParams.get("warehouse"));
+  const branchWhere = warehouseBranchWhere(warehouse);
   const productWhere: Prisma.ProductWhereInput = {
     ...(query
       ? {
@@ -30,7 +33,7 @@ export async function GET(request: Request) {
     by: ["productId"],
     where: {
       productId: { in: productIds.length > 0 ? productIds : [-1] },
-      invoice: { status: { not: cancelledStatus } }
+      invoice: { status: { not: cancelledStatus }, ...(branchWhere ? { branch: branchWhere } : {}) }
     },
     _count: { _all: true },
     _sum: { quantity: true, subtotal: true }
@@ -41,7 +44,7 @@ export async function GET(request: Request) {
     prisma.invoiceItem.findMany({
       where: {
         productId: { in: shownProductIds },
-        invoice: { status: { not: cancelledStatus }, customerId: { not: null } }
+        invoice: { status: { not: cancelledStatus }, customerId: { not: null }, ...(branchWhere ? { branch: branchWhere } : {}) }
       },
       select: {
         productId: true,
@@ -52,7 +55,7 @@ export async function GET(request: Request) {
       by: ["productId", "invoiceId"],
       where: {
         productId: { in: shownProductIds },
-        invoice: { status: { not: cancelledStatus } }
+        invoice: { status: { not: cancelledStatus }, ...(branchWhere ? { branch: branchWhere } : {}) }
       },
       _sum: { subtotal: true }
     })

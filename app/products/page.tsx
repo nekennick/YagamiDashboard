@@ -5,12 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
 
 type ProductsPageProps = {
   searchParams?: Promise<{
     q?: string;
     category?: string;
     status?: string;
+    warehouse?: string;
   }>;
 };
 
@@ -21,6 +23,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const query = params.q?.trim() ?? "";
   const category = params.category?.trim() ?? "";
   const status = params.status?.trim() ?? "all";
+  const warehouse = normalizeWarehouseFilter(params.warehouse);
 
   const productWhere: Prisma.ProductWhereInput = {
     ...(query
@@ -43,6 +46,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     const latestInventoryDate = await prisma.inventorySnapshot.aggregate({
       _max: { snapshotDate: true }
     });
+    const branchWhere = warehouseBranchWhere(warehouse);
 
     productData = await Promise.all([
       prisma.product.findMany({
@@ -61,7 +65,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         ? prisma.inventorySnapshot.groupBy({
             by: ["productId"],
             where: {
-              snapshotDate: latestInventoryDate._max.snapshotDate
+              snapshotDate: latestInventoryDate._max.snapshotDate,
+              ...(branchWhere ? { branch: branchWhere } : {})
             },
             _sum: {
               onHand: true,
@@ -112,7 +117,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             href={`/api/export/products?${new URLSearchParams({
               ...(query ? { q: query } : {}),
               ...(category ? { category } : {}),
-              ...(status !== "all" ? { status } : {})
+              ...(status !== "all" ? { status } : {}),
+              ...(warehouse ? { warehouse } : {})
             }).toString()}`}
           >
             Xuất Excel
@@ -133,11 +139,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             <CardTitle>Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-          <form className="grid gap-3 lg:grid-cols-[1fr_220px_180px_auto]">
+          <form className="grid gap-3 lg:grid-cols-[1fr_220px_190px_180px_auto]">
             <TableSearch
               baseParams={{
                 ...(category ? { category } : {}),
-                ...(status !== "all" ? { status } : {})
+                ...(status !== "all" ? { status } : {}),
+                ...(warehouse ? { warehouse } : {})
               }}
               placeholder="Tìm theo tên hoặc mã sản phẩm"
               suggestions={searchSuggestions}
@@ -152,6 +159,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               {categories.map((item) => (
                 <option key={item.categoryName ?? "empty"} value={item.categoryName ?? ""}>
                   {item.categoryName ?? "Chưa phân nhóm"} ({item._count._all})
+                </option>
+              ))}
+            </select>
+            <select className={warehouseSelectClassName()} defaultValue={warehouse} name="warehouse">
+              <option value="">Tất cả kho</option>
+              {warehouseFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>

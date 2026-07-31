@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TableSearch, TableSearchSuggestion } from "@/components/ui/table-search";
+import { warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
 
 type CustomerFiltersProps = {
   initialQuery: string;
@@ -9,6 +10,7 @@ type CustomerFiltersProps = {
   initialRange: string;
   initialFrom: string;
   initialTo: string;
+  initialWarehouse: string;
   searchSuggestions: TableSearchSuggestion[];
 };
 
@@ -18,6 +20,7 @@ export function CustomerFilters({
   initialRange,
   initialFrom,
   initialTo,
+  initialWarehouse,
   searchSuggestions
 }: CustomerFiltersProps) {
   const [range, setRange] = useState(initialRange);
@@ -30,7 +33,8 @@ export function CustomerFilters({
             ...(initialActivity !== "all" ? { activity: initialActivity } : {}),
             ...(range !== "all" ? { range } : {}),
             ...(initialFrom ? { from: initialFrom } : {}),
-            ...(initialTo ? { to: initialTo } : {})
+            ...(initialTo ? { to: initialTo } : {}),
+            ...(initialWarehouse ? { warehouse: initialWarehouse } : {})
           }}
           placeholder="Tìm theo tên, mã hoặc số điện thoại"
           suggestions={searchSuggestions}
@@ -38,7 +42,7 @@ export function CustomerFilters({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">
             Trạng thái hoạt động
@@ -51,6 +55,20 @@ export function CustomerFilters({
             <option value="all">Tất cả khách hàng</option>
             <option value="active">Có mua hàng</option>
             <option value="inactive">Chưa có hóa đơn</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider dark:text-slate-400">
+            Kho phụ trách
+          </span>
+          <select className={`${warehouseSelectClassName()} h-12 w-[180px] rounded-xl`} defaultValue={initialWarehouse} name="warehouse">
+            <option value="">Tất cả kho</option>
+            {warehouseFilterOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 

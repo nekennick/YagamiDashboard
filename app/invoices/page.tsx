@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
 
 type InvoicesPageProps = {
   searchParams?: Promise<{
@@ -11,6 +12,7 @@ type InvoicesPageProps = {
     status?: string;
     from?: string;
     to?: string;
+    warehouse?: string;
   }>;
 };
 
@@ -22,7 +24,9 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
   const status = params.status?.trim() ?? "all";
   const from = params.from?.trim() ?? "";
   const to = params.to?.trim() ?? "";
+  const warehouse = normalizeWarehouseFilter(params.warehouse);
   const dateFilter = buildDateFilter(from, to);
+  const branchWhere = warehouseBranchWhere(warehouse);
 
   const invoiceWhere: Prisma.InvoiceWhereInput = {
     ...(query
@@ -35,7 +39,8 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
         }
       : {}),
     ...(status !== "all" ? { status } : {}),
-    ...(dateFilter ? { purchaseDate: dateFilter } : {})
+    ...(dateFilter ? { purchaseDate: dateFilter } : {}),
+    ...(branchWhere ? { branch: branchWhere } : {})
   };
 
   let data;
@@ -109,7 +114,8 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
               ...(query ? { q: query } : {}),
               ...(status !== "all" ? { status } : {}),
               ...(from ? { from } : {}),
-              ...(to ? { to } : {})
+              ...(to ? { to } : {}),
+              ...(warehouse ? { warehouse } : {})
             }).toString()}`}
           >
             Xuất Excel
@@ -131,12 +137,13 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
             <CardTitle>Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-          <form className="grid gap-3 xl:grid-cols-[1fr_180px_170px_170px_auto]">
+          <form className="grid gap-3 xl:grid-cols-[1fr_180px_190px_170px_170px_auto]">
             <TableSearch
               baseParams={{
                 ...(status !== "all" ? { status } : {}),
                 ...(from ? { from } : {}),
-                ...(to ? { to } : {})
+                ...(to ? { to } : {}),
+                ...(warehouse ? { warehouse } : {})
               }}
               placeholder="Tìm theo mã hóa đơn hoặc khách hàng"
               suggestions={searchSuggestions}
@@ -151,6 +158,14 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
               {data.statuses.map((item) => (
                 <option key={item.status ?? "empty"} value={item.status ?? ""}>
                   {item.status ?? "Chưa có"} ({item._count._all})
+                </option>
+              ))}
+            </select>
+            <select className={warehouseSelectClassName()} defaultValue={warehouse} name="warehouse">
+              <option value="">Tất cả kho</option>
+              {warehouseFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>

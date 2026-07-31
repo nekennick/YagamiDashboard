@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { createWorkbookBuffer, excelResponse } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere } from "@/lib/warehouse-filter";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,7 +9,9 @@ export async function GET(request: Request) {
   const status = searchParams.get("status")?.trim() ?? "all";
   const from = searchParams.get("from")?.trim() ?? "";
   const to = searchParams.get("to")?.trim() ?? "";
+  const warehouse = normalizeWarehouseFilter(searchParams.get("warehouse"));
   const dateFilter = buildDateFilter(from, to);
+  const branchWhere = warehouseBranchWhere(warehouse);
   const invoiceWhere: Prisma.InvoiceWhereInput = {
     ...(query
       ? {
@@ -20,7 +23,8 @@ export async function GET(request: Request) {
         }
       : {}),
     ...(status !== "all" ? { status } : {}),
-    ...(dateFilter ? { purchaseDate: dateFilter } : {})
+    ...(dateFilter ? { purchaseDate: dateFilter } : {}),
+    ...(branchWhere ? { branch: branchWhere } : {})
   };
 
   const invoices = await prisma.invoice.findMany({
