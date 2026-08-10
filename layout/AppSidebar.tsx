@@ -18,7 +18,8 @@ import {
   ChartNoAxesCombined,
   DatabaseZap,
   Clock3,
-  Database
+  Database,
+  Building2
 } from "lucide-react";
 
 type SubItem = {
@@ -85,6 +86,7 @@ const subMenuGroups: NavItem[] = [
     name: "Cài đặt",
     icon: <Settings className="h-5 w-5" />,
     subItems: [
+      { name: "Danh mục chi nhánh", path: "/settings/branches", icon: <Building2 className="h-4 w-4" /> },
       { name: "Đồng bộ dữ liệu", path: "/settings/sync", icon: <DatabaseZap className="h-4 w-4" /> },
       { name: "Lịch đồng bộ", path: "/settings/schedule", icon: <Clock3 className="h-4 w-4" /> },
       { name: "Cài đặt API", path: "/settings/api-test", icon: <Settings className="h-4 w-4" /> },

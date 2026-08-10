@@ -3,8 +3,8 @@
   "description": "Portable AI-readable knowledge for Yagami branch, warehouse, route, and customer-code mapping.",
   "language": "vi-VN",
   "encoding": "UTF-8",
-  "version": 3,
-  "verifiedAt": "2026-06-23",
+  "version": 4,
+  "verifiedAt": "2026-07-03",
   "sourceOfTruth": "yagami-branch-warehouse-map.json",
   "recommendedReadOrder": [
     "README.md",

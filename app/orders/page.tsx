@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
 
 type OrdersPageProps = {
   searchParams?: Promise<{
@@ -11,6 +12,7 @@ type OrdersPageProps = {
     status?: string;
     from?: string;
     to?: string;
+    warehouse?: string;
   }>;
 };
 
@@ -39,7 +41,9 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const status = params.status?.trim() ?? "all";
   const from = params.from?.trim() ?? "";
   const to = params.to?.trim() ?? "";
+  const warehouse = normalizeWarehouseFilter(params.warehouse);
   const dateFilter = buildDateFilter(from, to);
+  const branchWhere = warehouseBranchWhere(warehouse);
 
   const orderWhere: Prisma.OrderWhereInput = {
     statusValue: temporaryOrderStatus,
@@ -52,7 +56,8 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           ]
         }
       : {}),
-    ...(dateFilter ? { purchaseDate: dateFilter } : {})
+    ...(dateFilter ? { purchaseDate: dateFilter } : {}),
+    ...(branchWhere ? { branch: branchWhere } : {})
   };
   const invoiceWhere: Prisma.InvoiceWhereInput = {
     status: completedInvoiceStatus,
@@ -65,7 +70,8 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           ]
         }
       : {}),
-    ...(dateFilter ? { purchaseDate: dateFilter } : {})
+    ...(dateFilter ? { purchaseDate: dateFilter } : {}),
+    ...(branchWhere ? { branch: branchWhere } : {})
   };
 
   try {
@@ -195,12 +201,13 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
               <CardTitle>Bộ lọc</CardTitle>
             </CardHeader>
             <CardContent>
-              <form className="grid gap-3 xl:grid-cols-[1fr_190px_170px_170px_auto]">
+              <form className="grid gap-3 xl:grid-cols-[1fr_190px_190px_170px_170px_auto]">
                 <TableSearch
                   baseParams={{
                     ...(status !== "all" ? { status } : {}),
                     ...(from ? { from } : {}),
-                    ...(to ? { to } : {})
+                    ...(to ? { to } : {}),
+                    ...(warehouse ? { warehouse } : {})
                   }}
                   placeholder="Tìm theo mã phiếu, mã hóa đơn hoặc khách hàng"
                   suggestions={searchSuggestions}
@@ -214,6 +221,14 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                   <option value="all">Tất cả</option>
                   <option value="temporary">Phiếu tạm</option>
                   <option value="completed">Hoàn thành</option>
+                </select>
+                <select className={warehouseSelectClassName()} defaultValue={warehouse} name="warehouse">
+                  <option value="">Tất cả kho</option>
+                  {warehouseFilterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
                 <input
                   className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"

@@ -423,6 +423,20 @@ table[class*="border-collapse"] tbody tr:hover {
   color: #b9d5f5;
 }
 
+table.inventory-table th {
+  padding: 12px 12px;
+}
+
+table.inventory-table td {
+  height: 34px;
+  padding: 3px 12px;
+  line-height: 1.25rem;
+}
+
+table.inventory-table td[rowspan] {
+  vertical-align: middle;
+}
+
 .dark .text-slate-950,
 .dark .text-slate-900,
 .dark .text-slate-800 {

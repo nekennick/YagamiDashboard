@@ -24,10 +24,37 @@ model Product {
   invoiceItems       InvoiceItem[]
   orderItems         OrderItem[]
   inventorySnapshots InventorySnapshot[]
+  manualGroupAssignment InventoryGroupProduct?
 
   @@index([code])
   @@index([name])
   @@index([categoryName])
+}
+
+model InventoryGroup {
+  id          Int                    @id @default(autoincrement())
+  name        String                 @unique
+  storageArea String                 @default("UNASSIGNED")
+  position    Int                    @default(0)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  assignments InventoryGroupProduct[]
+
+  @@index([position])
+  @@index([storageArea, position])
+}
+
+model InventoryGroupProduct {
+  id        Int           @id @default(autoincrement())
+  groupId   Int
+  productId Int           @unique
+  position  Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  group     InventoryGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, position])
 }
 
 model Customer {
@@ -217,4 +244,41 @@ model AppSetting {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model BranchDirectory {
+  id            Int                    @id @default(autoincrement())
+  customerCode  String?                @unique
+  kvCustomerId  Int?                   @unique
+  canonicalName String
+  rawName       String?
+  warehouse     String
+  status        String
+  routeType     String                 @default("UNSPECIFIED")
+  day           String?
+  sourceCell    String?
+  notes         String?
+  source        String                 @default("KNOWLEDGE_BASE")
+  confirmedAt   DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  audits        BranchDirectoryAudit[]
+
+  @@index([warehouse, status])
+  @@index([canonicalName])
+  @@index([source])
+}
+
+model BranchDirectoryAudit {
+  id                Int             @id @default(autoincrement())
+  branchDirectoryId Int
+  action            String
+  previousJson      String?
+  nextJson          String
+  actor             String          @default("local-admin")
+  createdAt         DateTime        @default(now())
+  branchDirectory   BranchDirectory @relation(fields: [branchDirectoryId], references: [id], onDelete: Cascade)
+
+  @@index([branchDirectoryId, createdAt])
+  @@index([action])
 }

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { createWorkbookBuffer, excelResponse } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter } from "@/lib/warehouse-filter";
 
 const cancelledStatus = "Đã hủy";
 
@@ -8,15 +9,25 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim() ?? "";
   const segment = searchParams.get("segment")?.trim() ?? "all";
-  const customerWhere: Prisma.CustomerWhereInput = query
-    ? {
-        OR: [
-          { name: { contains: query } },
-          { code: { contains: query } },
-          { contactNumber: { contains: query } }
-        ]
-      }
-    : {};
+  const warehouse = normalizeWarehouseFilter(searchParams.get("warehouse"));
+  const customerWhere: Prisma.CustomerWhereInput = {};
+
+  if (query) {
+    customerWhere.OR = [
+      { name: { contains: query } },
+      { code: { contains: query } },
+      { contactNumber: { contains: query } }
+    ];
+  }
+
+  if (warehouse) {
+    const branchCustomers = await prisma.branchDirectory.findMany({
+      where: { warehouse, status: "ACTIVE", customerCode: { not: null } },
+      select: { customerCode: true }
+    });
+    const customerCodes = branchCustomers.flatMap((branch) => (branch.customerCode ? [branch.customerCode] : []));
+    customerWhere.code = { in: customerCodes.length > 0 ? customerCodes : ["__NO_CUSTOMER__"] };
+  }
   const customers = await prisma.customer.findMany({
     where: customerWhere,
     select: { id: true, code: true, name: true, contactNumber: true }

@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid, StaggerContainer, StaggerItem } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
 
 type CustomerFrequencyPageProps = {
   searchParams?: Promise<{
     q?: string;
     segment?: string;
+    warehouse?: string;
   }>;
 };
 
@@ -18,6 +20,7 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
   const segment = params.segment?.trim() ?? "all";
+  const warehouse = normalizeWarehouseFilter(params.warehouse);
 
   const customerWhere: Prisma.CustomerWhereInput = query
     ? {
@@ -32,6 +35,15 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
   let data;
 
   try {
+    if (warehouse) {
+      const branchCustomers = await prisma.branchDirectory.findMany({
+        where: { warehouse, status: "ACTIVE", customerCode: { not: null } },
+        select: { customerCode: true }
+      });
+      const customerCodes = branchCustomers.flatMap((branch) => (branch.customerCode ? [branch.customerCode] : []));
+      customerWhere.code = { in: customerCodes.length > 0 ? customerCodes : ["__NO_CUSTOMER__"] };
+    }
+
     const customers = await prisma.customer.findMany({
       where: customerWhere,
       select: { id: true, code: true, name: true, contactNumber: true }
@@ -117,7 +129,8 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
             className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
             href={`/api/export/analytics/customer-frequency?${new URLSearchParams({
               ...(query ? { q: query } : {}),
-              ...(segment !== "all" ? { segment } : {})
+              ...(segment !== "all" ? { segment } : {}),
+              ...(warehouse ? { warehouse } : {})
             }).toString()}`}
           >
             Xuất Excel
@@ -155,15 +168,24 @@ export default async function CustomerFrequencyPage({ searchParams }: CustomerFr
             <CardTitle>Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-          <form className="grid gap-3 lg:grid-cols-[1fr_240px_auto]">
+          <form className="grid gap-3 lg:grid-cols-[1fr_190px_240px_auto]">
             <TableSearch
               baseParams={{
-                ...(segment !== "all" ? { segment } : {})
+                ...(segment !== "all" ? { segment } : {}),
+                ...(warehouse ? { warehouse } : {})
               }}
               placeholder="Tìm theo tên, mã hoặc số điện thoại"
               suggestions={searchSuggestions}
               value={query}
             />
+            <select className={warehouseSelectClassName()} defaultValue={warehouse} name="warehouse">
+              <option value="">Tất cả kho</option>
+              {warehouseFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             <select
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
               defaultValue={segment}

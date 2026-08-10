@@ -202,7 +202,13 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                         <h2 className="font-semibold text-slate-950 dark:text-white">Nội dung báo cáo</h2>
                       </div>
                       <div className="px-5 py-5">
-                        <MarkdownPreview markdown={selectedSnapshot.markdown} />
+                        <MarkdownPreview
+                          markdown={
+                            selectedSnapshot.reportType === "website"
+                              ? hideBranchCustomerCodes(selectedSnapshot.markdown)
+                              : selectedSnapshot.markdown
+                          }
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -358,6 +364,10 @@ function MarkdownPreview({ markdown }: { markdown: string }) {
       })}
     </div>
   );
+}
+
+function hideBranchCustomerCodes(markdown: string) {
+  return markdown.replace(/\s+\(KH\d+\)/gi, "");
 }
 
 function MarkdownTable({ block }: { block: string }) {

@@ -3,24 +3,29 @@ import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/lay
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
+import { InventoryGroupManager } from "@/components/inventory/inventory-group-manager";
+import { InventoryScreenshotButton } from "@/components/inventory/inventory-screenshot-button";
 import { prisma } from "@/lib/prisma";
+import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
+import { inventoryStorageOptions, normalizeInventoryStorage } from "@/lib/inventory-storage";
 
 type InventoryPageProps = {
   searchParams?: Promise<{
     q?: string;
     branch?: string;
-    category?: string;
+    warehouse?: string;
+    storage?: string;
     stock?: string;
   }>;
 };
 
-const inventoryPageSize = 20;
+const inventoryPageSize = 200;
 
 export default async function InventoryPage({ searchParams }: InventoryPageProps) {
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
-  const branch = params.branch?.trim() ?? "";
-  const category = params.category?.trim() ?? "";
+  const warehouse = normalizeWarehouseFilter(params.warehouse ?? params.branch);
+  const storage = normalizeInventoryStorage(params.storage);
   const stock = params.stock?.trim() ?? "all";
 
   let data;
@@ -30,60 +35,63 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       _max: { snapshotDate: true }
     });
     const snapshotDate = latestInventoryDate._max.snapshotDate;
+    const branchWhere = warehouseBranchWhere(warehouse);
+    const productWhere: Prisma.ProductWhereInput | undefined = query || storage
+      ? {
+        ...(storage ? { manualGroupAssignment: { is: { group: { storageArea: storage } } } } : {}),
+        ...(query
+          ? {
+            OR: [
+              { name: { contains: query } },
+              { code: { contains: query } },
+              { fullName: { contains: query } }
+            ]
+          }
+          : {})
+      }
+      : undefined;
     const inventoryWhere: Prisma.InventorySnapshotWhereInput = {
       ...(snapshotDate ? { snapshotDate } : {}),
-      ...(branch ? { branchId: Number(branch) } : {}),
-      ...(query || category
-        ? {
-            product: {
-              ...(category ? { categoryName: category } : {}),
-              ...(query
-                ? {
-                    OR: [
-                      { name: { contains: query } },
-                      { code: { contains: query } },
-                      { fullName: { contains: query } }
-                    ]
-                  }
-                : {})
-            }
-          }
-        : {}),
+      ...(branchWhere ? { branch: branchWhere } : {}),
+      ...(productWhere ? { product: productWhere } : {}),
       ...stockFilter(stock)
     };
 
-    const [items, stats, branches, categories] = await Promise.all([
+    const [unsortedItems, stats] = await Promise.all([
       prisma.inventorySnapshot.findMany({
         where: inventoryWhere,
         include: {
-          product: { select: { code: true, name: true, categoryName: true, unit: true, isActive: true } },
+          product: { select: { code: true, name: true, categoryName: true, unit: true, isActive: true, manualGroupAssignment: { select: { position: true, group: { select: { name: true, position: true, storageArea: true } } } } } },
           branch: { select: { id: true, name: true } }
         },
-        orderBy: [{ onHand: "asc" }, { product: { name: "asc" } }],
+        orderBy: [{ product: { name: "asc" } }],
         take: inventoryPageSize
       }),
       prisma.inventorySnapshot.aggregate({
         where: inventoryWhere,
         _count: { _all: true },
         _sum: { onHand: true, reserved: true, actualReserved: true }
-      }),
-      prisma.branch.findMany({
-        orderBy: { name: "asc" },
-        select: { id: true, name: true }
-      }),
-      prisma.product.groupBy({
-        by: ["categoryName"],
-        _count: { _all: true },
-        orderBy: { _count: { categoryName: "desc" } }
       })
     ]);
+
+    const items = unsortedItems.sort((left, right) => {
+      const leftGroup = left.product.manualGroupAssignment?.group;
+      const rightGroup = right.product.manualGroupAssignment?.group;
+      const leftGroupPosition = leftGroup?.position ?? Number.MAX_SAFE_INTEGER;
+      const rightGroupPosition = rightGroup?.position ?? Number.MAX_SAFE_INTEGER;
+      if (leftGroupPosition !== rightGroupPosition) return leftGroupPosition - rightGroupPosition;
+
+      const leftProductPosition = left.product.manualGroupAssignment?.position ?? Number.MAX_SAFE_INTEGER;
+      const rightProductPosition = right.product.manualGroupAssignment?.position ?? Number.MAX_SAFE_INTEGER;
+      if (leftProductPosition !== rightProductPosition) return leftProductPosition - rightProductPosition;
+
+      return left.product.name.localeCompare(right.product.name, "vi");
+    });
 
     data = {
       snapshotDate,
       items,
       stats,
-      branches,
-      categories,
       negativeCount: items.filter((item) => toNumber(item.onHand) < 0).length,
       zeroCount: items.filter((item) => toNumber(item.onHand) === 0).length,
       lowCount: items.filter((item) => toNumber(item.onHand) > 0 && toNumber(item.onHand) <= 10).length
@@ -99,8 +107,24 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
   const searchSuggestions = data.items.map((item) => ({
     label: item.product.name,
     value: item.product.name,
-    meta: `${item.product.code ?? "Không có mã"} · ${item.branch.name} · ${item.product.categoryName ?? "Chưa phân nhóm"}`
+    meta: `${item.product.code ?? "Không có mã"} · ${item.branch.name} · ${item.product.manualGroupAssignment?.group.name ?? "Chưa phân nhóm"}`
   }));
+  const groupNameForItem = (item: (typeof data.items)[number]) => item.product.manualGroupAssignment?.group.name ?? "Chưa phân nhóm";
+  const screenshotRows = data.items.map((item, index) => {
+    const onHand = toNumber(item.onHand);
+
+    return {
+      index: index + 1,
+      groupName: groupNameForItem(item),
+      productName: item.product.name,
+      unit: item.product.unit ?? "-",
+      branchName: item.branch.name,
+      onHand: formatNumber(onHand),
+      onHandValue: onHand,
+      reserved: formatNumber(toNumber(item.reserved)),
+      actualReserved: formatNumber(toNumber(item.actualReserved))
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -116,8 +140,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
             href={`/api/export/inventory?${new URLSearchParams({
               ...(query ? { q: query } : {}),
-              ...(branch ? { branch } : {}),
-              ...(category ? { category } : {}),
+              ...(warehouse ? { warehouse } : {}),
+              ...(storage ? { storage } : {}),
               ...(stock !== "all" ? { stock } : {})
             }).toString()}`}
           >
@@ -126,6 +150,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           <div className="text-sm text-slate-500">Snapshot: {formatDateTime(data.snapshotDate)}</div>
         </div>
       </FadeIn>
+
+      <InventoryGroupManager />
 
       <MotionMetricGrid className="md:grid-cols-4">
         <MetricCard label="Dòng tồn kho" value={formatNumber(data.stats._count._all)} />
@@ -140,119 +166,126 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             <CardTitle>Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-          <form className="grid gap-3 xl:grid-cols-[1fr_220px_220px_180px_auto]">
-            <TableSearch
-              baseParams={{
-                ...(branch ? { branch } : {}),
-                ...(category ? { category } : {}),
-                ...(stock !== "all" ? { stock } : {})
-              }}
-              placeholder="Tìm theo tên hoặc mã sản phẩm"
-              suggestions={searchSuggestions}
-              value={query}
-            />
-            <select
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              defaultValue={branch}
-              name="branch"
-            >
-              <option value="">Tất cả chi nhánh</option>
-              {data.branches.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              defaultValue={category}
-              name="category"
-            >
-              <option value="">Tất cả nhóm hàng</option>
-              {data.categories.map((item) => (
-                <option key={item.categoryName ?? "empty"} value={item.categoryName ?? ""}>
-                  {item.categoryName ?? "Chưa phân nhóm"} ({item._count._all})
-                </option>
-              ))}
-            </select>
-            <select
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              defaultValue={stock}
-              name="stock"
-            >
-              <option value="all">Tất cả tồn kho</option>
-              <option value="negative">Tồn âm</option>
-              <option value="zero">Hết hàng</option>
-              <option value="low">Tồn thấp</option>
-              <option value="available">Còn hàng</option>
-            </select>
-            <button className="h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
-              Lọc
-            </button>
-          </form>
+            <form className="grid gap-3 xl:grid-cols-[1fr_190px_220px_180px_auto]">
+              <TableSearch
+                baseParams={{
+                  ...(warehouse ? { warehouse } : {}),
+                  ...(storage ? { storage } : {}),
+                  ...(stock !== "all" ? { stock } : {})
+                }}
+                placeholder="Tìm theo tên hoặc mã sản phẩm"
+                suggestions={searchSuggestions}
+                value={query}
+              />
+              <select
+                className={warehouseSelectClassName()}
+                defaultValue={warehouse}
+                name="warehouse"
+              >
+                <option value="">Tất cả kho</option>
+                {warehouseFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                defaultValue={storage ?? ""}
+                name="storage"
+              >
+                <option value="">Tất cả khu kho</option>
+                {inventoryStorageOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <select
+                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+                defaultValue={stock}
+                name="stock"
+              >
+                <option value="all">Tất cả tồn kho</option>
+                <option value="negative">Tồn âm</option>
+                <option value="zero">Hết hàng</option>
+                <option value="low">Tồn thấp</option>
+                <option value="available">Còn hàng</option>
+              </select>
+              <button className="h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
+                Lọc
+              </button>
+            </form>
           </CardContent>
         </Card>
       </AnimatedPanel>
 
       <AnimatedPanel className="relative z-10" delay={0.08}>
         <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
             <CardTitle>Bảng tồn kho</CardTitle>
+            <InventoryScreenshotButton
+              rows={screenshotRows}
+              snapshotLabel={`Snapshot: ${formatDateTime(data.snapshotDate)}`}
+            />
           </CardHeader>
           <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1060px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b bg-slate-50 text-left">
-                  <th className="px-3 py-2 font-medium">STT</th>
-                  <th className="px-3 py-2 font-medium">Sản phẩm</th>
-                  <th className="px-3 py-2 font-medium">Nhóm hàng</th>
-                  <th className="px-3 py-2 font-medium">Chi nhánh</th>
-                  <th className="px-3 py-2 text-right font-medium">Tồn</th>
-                  <th className="px-3 py-2 text-right font-medium">Đặt giữ</th>
-                  <th className="px-3 py-2 text-right font-medium">Giữ thực tế</th>
-                  <th className="px-3 py-2 font-medium">Tình trạng</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.length === 0 ? (
-                  <tr>
-                    <td className="px-3 py-8 text-center text-slate-500" colSpan={8}>
-                      Không có dòng tồn kho phù hợp với bộ lọc.
-                    </td>
+            <div className="overflow-x-auto">
+              <div className="inventory-table-capture w-max min-w-full bg-white dark:bg-slate-950">
+                <table className="inventory-table w-full min-w-[1120px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-50 text-left">
+                    <th className="px-3 py-2 font-medium">STT</th>
+                    <th className="px-3 py-2 font-medium">Nhóm hàng</th>
+                    <th className="px-3 py-2 font-medium">Sản phẩm</th>
+                    <th className="px-3 py-2 font-medium">ĐVT</th>
+                    <th className="px-3 py-2 font-medium">Chi nhánh</th>
+                    <th className="px-3 py-2 text-right font-medium">Tồn</th>
+                    <th className="px-3 py-2 text-right font-medium">Đặt giữ</th>
+                    <th className="px-3 py-2 text-right font-medium">Giữ thực tế</th>
+                    <th className="px-3 py-2 font-medium">Tình trạng</th>
                   </tr>
-                ) : (
-                  data.items.map((item, index) => {
-                    const onHand = toNumber(item.onHand);
+                </thead>
+                <tbody>
+                  {data.items.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-8 text-center text-slate-500" colSpan={9}>
+                        Không có dòng tồn kho phù hợp với bộ lọc.
+                      </td>
+                    </tr>
+                  ) : (
+                    data.items.map((item, index) => {
+                      const onHand = toNumber(item.onHand);
+                      const groupName = groupNameForItem(item);
+                      const isGroupStart = index === 0 || groupNameForItem(data.items[index - 1]) !== groupName;
+                      const nextGroupOffset = data.items.slice(index).findIndex((candidate) => groupNameForItem(candidate) !== groupName);
+                      const groupRowSpan = nextGroupOffset === -1 ? data.items.length - index : nextGroupOffset;
 
-                    return (
-                      <AnimatedTableRow
-                        key={item.id}
-                        className="border-b last:border-0"
-                        delay={Math.min(index, 12) * 0.015}
-                      >
-                        <td className="px-3 py-2 text-slate-500">{index + 1}</td>
-                        <td className="px-3 py-2">
-                          <div className="font-medium text-slate-900">{item.product.name}</div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            {item.product.code ?? "Không có mã"} · {item.product.unit ?? "Chưa có đơn vị"}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2">{item.product.categoryName ?? "Chưa phân nhóm"}</td>
-                        <td className="px-3 py-2">{item.branch.name}</td>
-                        <td className="px-3 py-2 text-right font-medium">{formatNumber(onHand)}</td>
-                        <td className="px-3 py-2 text-right">{formatNumber(toNumber(item.reserved))}</td>
-                        <td className="px-3 py-2 text-right">{formatNumber(toNumber(item.actualReserved))}</td>
-                        <td className="px-3 py-2">
-                          <StockBadge onHand={onHand} />
-                        </td>
-                      </AnimatedTableRow>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                      return (
+                        <AnimatedTableRow
+                          key={item.id}
+                          className="h-9 border-b last:border-0"
+                          delay={Math.min(index, 12) * 0.015}
+                        >
+                          <td className="h-9 px-3 py-0.5 leading-5 text-slate-500">{index + 1}</td>
+                          {isGroupStart ? <td className="h-9 px-3 py-0.5 align-middle font-semibold leading-5 text-slate-700 dark:text-slate-200" rowSpan={groupRowSpan}>{groupName}</td> : null}
+                          <td className="h-9 px-3 py-0.5 leading-5">
+                            <div className="font-medium leading-5 text-slate-900">{item.product.name}</div>
+                          </td>
+                          <td className="h-9 px-3 py-0.5 leading-5">{item.product.unit ?? "-"}</td>
+                          <td className="h-9 px-3 py-0.5 leading-5">{item.branch.name}</td>
+                          <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatNumber(onHand)}</td>
+                          <td className="h-9 px-3 py-0.5 text-right leading-5">{formatNumber(toNumber(item.reserved))}</td>
+                          <td className="h-9 px-3 py-0.5 text-right leading-5">{formatNumber(toNumber(item.actualReserved))}</td>
+                          <td className="h-9 px-3 py-0.5 leading-5">
+                            <StockBadge onHand={onHand} />
+                          </td>
+                        </AnimatedTableRow>
+                      );
+                    })
+                  )}
+                </tbody>
+                </table>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </AnimatedPanel>
