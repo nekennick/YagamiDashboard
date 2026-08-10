@@ -59,6 +59,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    if (action === "assign-products") {
+      const groupId = positiveInt(body.groupId);
+      const productIds = uniquePositiveInts(body.productIds);
+      if (productIds.length === 0) throw new Error("Hãy chọn ít nhất một sản phẩm.");
+      await assignProducts(productIds, groupId);
+      return NextResponse.json({ ok: true, assigned: productIds.length });
+    }
+
     if (action === "move-group") {
       const groupId = positiveInt(body.groupId);
       const beforeGroupId = optionalPositiveInt(body.beforeGroupId);
@@ -96,6 +104,25 @@ async function moveGroup(groupId: number, beforeGroupId: number | undefined) {
   await prisma.$transaction(ids.map((id, position) => prisma.inventoryGroup.update({ where: { id }, data: { position } })));
 }
 
+async function assignProducts(productIds: number[], groupId: number) {
+  const lastAssignment = await prisma.inventoryGroupProduct.findFirst({
+    where: { groupId },
+    orderBy: { position: "desc" },
+    select: { position: true }
+  });
+  const startPosition = (lastAssignment?.position ?? -1) + 1;
+
+  await prisma.$transaction(
+    productIds.map((productId, index) =>
+      prisma.inventoryGroupProduct.upsert({
+        where: { productId },
+        update: { groupId, position: startPosition + index },
+        create: { productId, groupId, position: startPosition + index }
+      })
+    )
+  );
+}
+
 function positiveInt(value: unknown) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) throw new Error("Mã dữ liệu không hợp lệ.");
@@ -105,4 +132,9 @@ function positiveInt(value: unknown) {
 function optionalPositiveInt(value: unknown) {
   if (value === null || value === undefined || value === "") return undefined;
   return positiveInt(value);
+}
+
+function uniquePositiveInts(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(Number).filter((item) => Number.isInteger(item) && item > 0))].slice(0, 200);
 }
