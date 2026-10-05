@@ -1,0 +1,72 @@
+name: yagami-dashboard
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: yagami_postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: yagami_dashboard
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: yagami_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  web:
+    secrets:
+      - goclaw_gateway_token
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yagami_dashboard_web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/yagami_dashboard?schema=public"
+      KIOTVIET_CLIENT_ID: "dd24b724-d83d-4b7d-924f-c88192163c10"
+      KIOTVIET_CLIENT_SECRET: "7515BD08909F64D3AB666554E3B4F89E85BAD584"
+      KIOTVIET_RETAILER: "tongkhoyagami"
+      KIOTVIET_AUTH_URL: "https://id.kiotviet.vn/connect/token"
+      KIOTVIET_API_URL: "https://public.kiotapi.com"
+      GOCLAW_WS_URL: "ws://goclaw:18790/ws"
+      GOCLAW_MORNING_REPORT_PATH: "/goclaw-workspace/quan-ly-kim/zlo-ql-kim/group_zlo-ql-kim_6244108299423959453/outputs/morning-report.json"
+      GOCLAW_MORNING_REPORT_TEXT_PATH: "/goclaw-workspace/quan-ly-kim/zlo-ql-kim/group_zlo-ql-kim_6244108299423959453/outputs/morning-report.txt"
+      GOCLAW_GATEWAY_TOKEN_FILE: "/run/secrets/goclaw_gateway_token"
+    volumes:
+      - goclaw_goclaw-workspace:/goclaw-workspace:ro
+    networks:
+      - default
+      - goclaw-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  goclaw_goclaw-workspace:
+    external: true
+
+networks:
+  goclaw-net:
+    external: true
+secrets:
+  goclaw_gateway_token:
+    file: ./secrets/goclaw_gateway_token.txt

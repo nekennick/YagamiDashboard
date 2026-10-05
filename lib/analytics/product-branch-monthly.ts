@@ -68,7 +68,7 @@ export async function getProductBranchMonthlyRows(filters: ProductBranchMonthlyF
 
   const rows = await prisma.$queryRaw<ProductBranchMonthlyRawRow[]>`
     SELECT
-      date(i."purchaseDate", 'start of month') AS "month",
+      date_trunc('month', i."purchaseDate") AS "month",
       p.id AS "productId",
       p.code AS "productCode",
       p.name AS "productName",
@@ -85,7 +85,7 @@ export async function getProductBranchMonthlyRows(filters: ProductBranchMonthlyF
     LEFT JOIN "Branch" b ON b.id = i."branchId"
     WHERE ${Prisma.join(conditions, " AND ")}
     GROUP BY
-      date(i."purchaseDate", 'start of month'),
+      date_trunc('month', i."purchaseDate"),
       p.id,
       p.code,
       p.name,

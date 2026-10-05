@@ -13,6 +13,7 @@ import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/lay
 import { AnimatedPanel, AnimatedTableRow, FadeIn, StaggerContainer, StaggerItem } from "@/components/ui/motion-primitives";
 import { prisma } from "@/lib/prisma";
 import { LowStockTrigger } from "@/components/dashboard/low-stock-trigger";
+import { DashboardDateFilter } from "@/components/dashboard/dashboard-date-filter";
 import { buildDateRange } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
@@ -173,14 +174,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 Dữ liệu thật từ PostgreSQL local, cập nhật theo các lần đồng bộ KiotViet gần nhất.
           </p>
         </div>
-        <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:min-w-[300px]">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-slate-500 dark:text-slate-400">Dữ liệu hóa đơn</span>
-            <span className="font-medium">{formatDate(invoiceStats._min.purchaseDate)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-slate-500 dark:text-slate-400">Cập nhật đến</span>
-            <span className="font-medium">{formatDate(invoiceStats._max.purchaseDate)}</span>
+        <div className="flex flex-col gap-3 lg:items-end">
+          <DashboardDateFilter
+            initialRange={range}
+            initialFrom={formatDateInput(dateRange.from)}
+            initialTo={formatDateInput(dateRange.to)}
+          />
+          <div className="grid w-full gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:min-w-[300px]">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-slate-500 dark:text-slate-400">Dữ liệu hóa đơn</span>
+              <span className="font-medium">{formatDate(invoiceStats._min.purchaseDate)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-slate-500 dark:text-slate-400">Cập nhật đến</span>
+              <span className="font-medium">{formatDate(invoiceStats._max.purchaseDate)}</span>
+            </div>
           </div>
         </div>
       </FadeIn>
@@ -424,6 +432,15 @@ function formatCurrency(value: number) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(value);
+}
+
+function formatDateInput(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
 }
 
 function formatDate(date: Date | null) {

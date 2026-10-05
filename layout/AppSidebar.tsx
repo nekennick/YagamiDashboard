@@ -6,9 +6,7 @@ import { useSidebar } from "@/context/SidebarContext";
 import {
   LayoutDashboard,
   Package,
-  ShoppingCart,
-  Users,
-  FileText,
+  CalendarCheck2,
   ClipboardList,
   Boxes,
   BarChart3,
@@ -47,19 +45,9 @@ const navItems: NavItem[] = [
     path: "/products",
   },
   {
-    name: "Khách hàng",
-    icon: <Users className="h-5 w-5" />,
-    path: "/customers",
-  },
-  {
-    name: "Đơn hàng",
-    icon: <ShoppingCart className="h-5 w-5" />,
-    path: "/orders",
-  },
-  {
-    name: "Hóa đơn",
-    icon: <FileText className="h-5 w-5" />,
-    path: "/invoices",
+    name: "Tổng Quan",
+    icon: <CalendarCheck2 className="h-5 w-5" />,
+    path: "/order-schedule",
   },
   {
     name: "Tồn kho",
@@ -78,7 +66,6 @@ const subMenuGroups: NavItem[] = [
     name: "Phân tích",
     icon: <BarChart3 className="h-5 w-5" />,
     subItems: [
-      { name: "Khách hàng", path: "/analytics/customer-frequency", icon: <BarChart3 className="h-4 w-4" /> },
       { name: "Sản phẩm", path: "/analytics/product-frequency", icon: <ChartNoAxesCombined className="h-4 w-4" /> },
     ],
   },

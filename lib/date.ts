@@ -14,6 +14,17 @@ export function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
+export function startOfWeek(date: Date) {
+  const next = startOfDay(date);
+  const day = next.getDay();
+  next.setDate(next.getDate() - (day === 0 ? 6 : day - 1));
+  return next;
+}
+
+export function startOfQuarter(date: Date) {
+  return new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1);
+}
+
 export function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -51,6 +62,10 @@ export function buildDateRange(range: string, from?: string, to?: string): DateR
     return { from: todayStart, to: todayEnd };
   }
 
+  if (range === "thisWeek") {
+    return { from: startOfWeek(now), to: todayEnd };
+  }
+
   if (range === "7d") {
     return { from: addDays(todayStart, -6), to: todayEnd };
   }
@@ -62,6 +77,10 @@ export function buildDateRange(range: string, from?: string, to?: string): DateR
   if (range === "lastMonth") {
     const lastMonth = addMonths(startOfMonth(now), -1);
     return { from: lastMonth, to: endOfDay(addDays(startOfMonth(now), -1)) };
+  }
+
+  if (range === "thisQuarter") {
+    return { from: startOfQuarter(now), to: todayEnd };
   }
 
   if (range === "3m") {

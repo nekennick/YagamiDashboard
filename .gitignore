@@ -13,3 +13,4 @@ tsconfig.tsbuildinfo
 a.txt
 backups/
 *.dump
+secrets/
