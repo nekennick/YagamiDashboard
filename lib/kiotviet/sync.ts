@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { fetchKiotVietList, fetchKiotVietPage } from "@/lib/kiotviet/client";
+import { parseKiotVietDate } from "@/lib/kiotviet/datetime";
+import {
+  syncInvoiceSaleMovements,
+  syncPurchaseMovements,
+  syncReturnMovements,
+  syncTransferMovements
+} from "@/lib/kiotviet/inventory-movements";
 
 export type SyncType =
   | "products"
@@ -8,6 +15,10 @@ export type SyncType =
   | "orders"
   | "invoices"
   | "invoiceHistory"
+  | "purchases"
+  | "returns"
+  | "transfers"
+  | "inventoryMovementHistory"
   | "inventory"
   | "all";
 
@@ -80,7 +91,7 @@ async function syncKiotVietUnlocked(type: SyncType): Promise<SyncResult[]> {
   if (type === "all") {
     const results: SyncResult[] = [];
 
-    for (const syncType of ["branches", "products", "customers", "orders", "invoices", "inventory"] as const) {
+    for (const syncType of ["branches", "products", "customers", "orders", "invoices", "purchases", "returns", "transfers", "inventory"] as const) {
       results.push(await syncOne(syncType));
     }
 
@@ -166,6 +177,14 @@ async function syncByType(type: Exclude<SyncType, "all">): Promise<SyncStats> {
       return syncInvoices();
     case "invoiceHistory":
       return syncInvoiceHistory();
+    case "purchases":
+      return syncInventoryMovements("purchases");
+    case "returns":
+      return syncInventoryMovements("returns");
+    case "transfers":
+      return syncInventoryMovements("transfers");
+    case "inventoryMovementHistory":
+      return syncInventoryMovementHistory();
     case "inventory":
       return syncInventory();
   }
@@ -293,6 +312,9 @@ async function syncInvoices(): Promise<SyncStats> {
   const toDate = new Date();
   const fromDate = await getRecentInvoiceFromDate(toDate);
   const result = await syncInvoicesByDateRange(fromDate, toDate);
+  const saleResult = await syncInvoiceSaleMovements(fromDate, toDate);
+  result.totalRecords += saleResult.totalRecords;
+  result.savedRecords += saleResult.savedRecords;
 
   await setAppSetting("invoiceRecentSyncedAt", toDate.toISOString());
 
@@ -321,6 +343,43 @@ async function syncInvoiceHistory(): Promise<SyncStats> {
       ...(result.warnings ?? []),
       "Lịch sử hóa đơn là tác vụ nặng, nên chạy thủ công hoặc chạy thưa hơn lịch tự động."
     ]
+  };
+}
+
+async function syncInventoryMovements(type: "purchases" | "returns" | "transfers"): Promise<SyncStats> {
+  const toDate = new Date();
+  const fromDate = await getRecentInventoryMovementFromDate(toDate);
+  const result =
+    type === "purchases"
+      ? await syncPurchaseMovements(fromDate, toDate)
+      : type === "returns"
+        ? await syncReturnMovements(fromDate)
+        : await syncTransferMovements(fromDate, toDate);
+
+  await setAppSetting("inventoryMovementRecentSyncedAt", toDate.toISOString());
+  return {
+    ...result,
+    warnings: [
+      ...(result.warnings ?? []),
+      `Sổ kho lấy tăng dần từ ${formatDateTime(fromDate)} đến ${formatDateTime(toDate)}, có lùi 3 ngày để bắt chứng từ chỉnh sửa.`
+    ]
+  };
+}
+
+async function syncInventoryMovementHistory(): Promise<SyncStats> {
+  const toDate = new Date();
+  const fromDate = addDays(toDate, -90);
+  const [purchases, returns, transfers, sales] = await Promise.all([
+    syncPurchaseMovements(fromDate, toDate),
+    syncReturnMovements(fromDate),
+    syncTransferMovements(fromDate, toDate),
+    syncInvoiceSaleMovements(fromDate, toDate)
+  ]);
+
+  return {
+    totalRecords: purchases.totalRecords + returns.totalRecords + transfers.totalRecords + sales.totalRecords,
+    savedRecords: purchases.savedRecords + returns.savedRecords + transfers.savedRecords + sales.savedRecords,
+    warnings: ["Đã đồng bộ sổ kho lịch sử 90 ngày. Các giao dịch cũ hơn không được tự tải lại trong tác vụ này."]
   };
 }
 
@@ -711,6 +770,24 @@ async function getRecentOrderFromDate(toDate: Date) {
   return addDays(toDate, -recentSyncLookbackDays);
 }
 
+async function getRecentInventoryMovementFromDate(toDate: Date) {
+  const settingDate = parseSettingDate(await getAppSetting("inventoryMovementRecentSyncedAt"));
+
+  if (settingDate) {
+    return addDays(settingDate, -3);
+  }
+
+  const latestMovement = await prisma.inventoryMovement.aggregate({
+    _max: { occurredAt: true }
+  });
+
+  if (latestMovement._max.occurredAt) {
+    return addDays(latestMovement._max.occurredAt, -3);
+  }
+
+  return addDays(toDate, -7);
+}
+
 function parseSettingDate(value: string | undefined) {
   if (!value) {
     return undefined;
@@ -920,12 +997,7 @@ function asBoolean(value: unknown) {
 }
 
 function asDate(value: unknown) {
-  if (typeof value !== "string" && typeof value !== "number") {
-    return undefined;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  return parseKiotVietDate(value);
 }
 
 function asNestedString(value: unknown, key: string) {

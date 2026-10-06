@@ -8,6 +8,10 @@ const allowedTypes = new Set<SyncType>([
   "orders",
   "invoices",
   "invoiceHistory",
+  "purchases",
+  "returns",
+  "transfers",
+  "inventoryMovementHistory",
   "inventory",
   "all"
 ]);

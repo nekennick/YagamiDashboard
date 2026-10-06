@@ -31,10 +31,14 @@ const scheduledSyncRunOrder: ScheduledSyncType[] = [
   "orders",
   "invoices",
   "invoiceHistory",
+  "purchases",
+  "returns",
+  "transfers",
+  "inventoryMovementHistory",
   "inventory"
 ];
 
-const defaultSyncTypes: ScheduledSyncType[] = ["branches", "products", "customers", "orders", "invoices", "inventory"];
+const defaultSyncTypes: ScheduledSyncType[] = ["branches", "products", "customers", "orders", "invoices", "purchases", "returns", "transfers", "inventory"];
 
 const defaultScheduleGroups: ScheduleGroupSetting[] = [
   {
@@ -44,7 +48,7 @@ const defaultScheduleGroups: ScheduleGroupSetting[] = [
     enabled: true,
     intervalMinutes: 60,
     startTime: "08:00",
-    syncTypes: ["orders", "invoices"],
+    syncTypes: ["orders", "invoices", "purchases", "returns", "transfers"],
     lastRunAt: null
   },
   {
@@ -305,6 +309,10 @@ function normalizeScheduleGroups(groups?: ScheduleGroupSetting[]) {
 
   return defaultScheduleGroups.map((defaultGroup) => {
     const group = byId.get(defaultGroup.id);
+    const configuredSyncTypes = group?.syncTypes ?? defaultGroup.syncTypes;
+    const syncTypes = defaultGroup.id === "transaction"
+      ? [...new Set([...configuredSyncTypes, ...defaultGroup.syncTypes])]
+      : configuredSyncTypes;
 
     return {
       ...defaultGroup,
@@ -312,7 +320,7 @@ function normalizeScheduleGroups(groups?: ScheduleGroupSetting[]) {
       enabled: Boolean(group?.enabled ?? defaultGroup.enabled),
       intervalMinutes: normalizeInterval(Number(group?.intervalMinutes ?? defaultGroup.intervalMinutes)),
       startTime: normalizeStartTime(group?.startTime ?? defaultGroup.startTime),
-      syncTypes: normalizeSyncTypes(group?.syncTypes ?? defaultGroup.syncTypes),
+      syncTypes: normalizeSyncTypes(syncTypes),
       lastRunAt: group?.lastRunAt ?? defaultGroup.lastRunAt
     };
   });

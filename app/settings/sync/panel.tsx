@@ -5,7 +5,19 @@ import { AlertTriangle, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type SyncType = "products" | "customers" | "branches" | "orders" | "invoices" | "invoiceHistory" | "inventory" | "all";
+type SyncType =
+  | "products"
+  | "customers"
+  | "branches"
+  | "orders"
+  | "invoices"
+  | "invoiceHistory"
+  | "purchases"
+  | "returns"
+  | "transfers"
+  | "inventoryMovementHistory"
+  | "inventory"
+  | "all";
 
 type SyncResult = {
   syncType: SyncType;
@@ -23,6 +35,10 @@ const syncActions: Array<{ syncType: SyncType; label: string; hint: string }> = 
   { syncType: "orders", label: "Đồng bộ đơn đặt hàng", hint: "Cập nhật tăng dần, mặc định lùi 2 ngày để bắt đơn chỉnh sửa." },
   { syncType: "invoices", label: "Đồng bộ hóa đơn gần đây", hint: "Chỉ lấy phần mới + buffer, nhẹ hơn so với kéo lại 30 ngày." },
   { syncType: "invoiceHistory", label: "Đồng bộ lịch sử hóa đơn", hint: "Tác vụ nặng, nên chạy thủ công khi cần." },
+  { syncType: "purchases", label: "Đồng bộ phiếu nhập", hint: "Cập nhật sổ kho từ phiếu nhập, lùi 3 ngày để bắt chỉnh sửa." },
+  { syncType: "returns", label: "Đồng bộ trả hàng", hint: "Cập nhật hàng khách trả vào sổ kho." },
+  { syncType: "transfers", label: "Đồng bộ chuyển kho", hint: "Cập nhật xuất/gửi, nhập/nhận và hóa đơn bán vào sổ kho." },
+  { syncType: "inventoryMovementHistory", label: "Đồng bộ lịch sử sổ kho 90 ngày", hint: "Tác vụ nặng, chạy thủ công khi cần đối chiếu lịch sử." },
   { syncType: "inventory", label: "Đồng bộ tồn kho", hint: "Lấy snapshot hiện tại, nên chạy sau cùng." },
   { syncType: "all", label: "Đồng bộ tất cả", hint: "Chạy theo thứ tự an toàn, bỏ lịch sử hóa đơn." }
 ];
@@ -34,6 +50,10 @@ const syncTypeLabels: Record<SyncType, string> = {
   orders: "Đơn đặt hàng",
   invoices: "Hóa đơn gần đây",
   invoiceHistory: "Lịch sử hóa đơn",
+  purchases: "Phiếu nhập",
+  returns: "Trả hàng",
+  transfers: "Chuyển kho",
+  inventoryMovementHistory: "Lịch sử sổ kho",
   inventory: "Tồn kho",
   all: "Tất cả"
 };

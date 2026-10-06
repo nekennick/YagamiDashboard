@@ -24,6 +24,8 @@ model Product {
   invoiceItems       InvoiceItem[]
   orderItems         OrderItem[]
   inventorySnapshots InventorySnapshot[]
+  inventoryMovements InventoryMovement[]
+  dailyInventoryEntries ProductDailyInventoryEntry[]
   manualGroupAssignment InventoryGroupProduct?
 
   @@index([code])
@@ -86,6 +88,8 @@ model Branch {
   invoices           Invoice[]
   orders             Order[]
   inventorySnapshots InventorySnapshot[]
+  inventoryMovements InventoryMovement[]
+  dailyInventoryEntries ProductDailyInventoryEntry[]
 
   @@index([name])
 }
@@ -201,6 +205,61 @@ model InventorySnapshot {
   @@index([productId])
   @@index([branchId])
   @@index([productId, branchId, snapshotDate])
+}
+
+model InventoryMovement {
+  id               Int      @id @default(autoincrement())
+  movementKey      String   @unique
+  sourceType       String
+  sourceDocumentId String
+  sourceLineKey    String
+  documentCode     String?
+  occurredAt       DateTime
+  productId        Int
+  branchId         Int
+  quantityDelta    Decimal  @default(0)
+  status           String?
+  partnerName      String?
+  isActive         Boolean  @default(true)
+  rawJson          String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  branch           Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@index([productId, branchId, occurredAt])
+  @@index([sourceType, sourceDocumentId])
+  @@index([branchId, occurredAt])
+}
+
+model ProductDailyInventoryEntry {
+  id              Int      @id @default(autoincrement())
+  productId       Int
+  branchId        Int
+  businessDate    DateTime @db.Date
+  openingOverride Decimal?
+  actualOnHand    Decimal?
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  audits          ProductDailyInventoryAudit[]
+
+  @@unique([productId, branchId, businessDate])
+  @@index([branchId, businessDate])
+}
+
+model ProductDailyInventoryAudit {
+  id        Int      @id @default(autoincrement())
+  entryId   Int
+  previousJson String?
+  nextJson  String
+  actor     String   @default("local-admin")
+  createdAt DateTime @default(now())
+  entry     ProductDailyInventoryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, createdAt])
 }
 
 model SyncLog {
