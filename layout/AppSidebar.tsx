@@ -90,7 +90,7 @@ const subMenuGroups: NavItem[] = [
   },
 ];
 
-const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string }> = ({ role = "MEMBER", displayName }) => {
+const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string; allowedTabs?: string[] }> = ({ role = "MEMBER", displayName, allowedTabs }) => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
@@ -130,7 +130,20 @@ const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string }> 
   };
 
   const showFullMenu = isExpanded || isHovered || isMobileOpen;
-  const visibleNavItems = role === "ADMIN" ? navItems : navItems.filter((item) => item.path === "/order-schedule" || item.path === "/stocktake");
+  const allowedSet = React.useMemo(() => new Set(allowedTabs || ["/order-schedule", "/stocktake"]), [allowedTabs]);
+
+  const visibleNavItems = role === "ADMIN"
+    ? navItems
+    : navItems.filter((item) => item.path && allowedSet.has(item.path));
+
+  const visibleSubMenuGroups = role === "ADMIN"
+    ? subMenuGroups
+    : subMenuGroups
+        .map((group) => ({
+          ...group,
+          subItems: group.subItems?.filter((sub) => allowedSet.has(sub.path))
+        }))
+        .filter((group) => (group.subItems?.length ?? 0) > 0);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -212,7 +225,7 @@ const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string }> 
             </div>
 
             {/* Advanced Section */}
-            <div className={role === "ADMIN" ? "" : "hidden"}>
+            <div className={visibleSubMenuGroups.length > 0 ? "" : "hidden"}>
               <h2
                 className={`mb-3 text-[10px] font-bold tracking-wider uppercase flex leading-[20px] text-gray-400 dark:text-gray-400 ${
                   !showFullMenu ? "justify-center" : "justify-start"
@@ -222,7 +235,7 @@ const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string }> 
               </h2>
 
               <ul className="flex flex-col gap-1.5">
-                {subMenuGroups.map((group) => {
+                {visibleSubMenuGroups.map((group) => {
                   const hasActiveChild = group.subItems?.some((sub) => isActive(sub.path));
                   const isSubmenuOpen = openSubmenu === group.name;
 

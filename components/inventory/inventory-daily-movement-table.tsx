@@ -74,7 +74,7 @@ export function InventoryDailyMovementTable({ rows }: { rows: InventoryDailyMove
         <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatOptionalNumber(row.openingOnHand)}</td>
         <AmountCell value={row.incoming} onClick={() => setSelection({ row, source: "incoming" })} positive /><AmountCell value={row.outgoing} onClick={() => setSelection({ row, source: "outgoing" })} />
         <SignedAmountCell value={row.transfer} onClick={() => setSelection({ row, source: "transfer" })} /><SignedAmountCell value={row.stocktake} onClick={() => setSelection({ row, source: "stocktake" })} /><SignedAmountCell value={row.adjustment} onClick={() => setSelection({ row, source: "adjustment" })} />
-        <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatOptionalNumber(row.closingOnHand ?? row.provisionalClosingOnHand)}{row.closingOnHand === null && row.provisionalClosingOnHand !== null ? <span className="ml-1 text-[10px] font-medium text-amber-600">tạm tính</span> : null}</td>
+        <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatOptionalNumber(row.closingOnHand ?? row.provisionalClosingOnHand)}{row.closingOnHand === null && row.provisionalClosingOnHand !== null ? <span className="ml-1 text-[10px] font-medium text-amber-600">tt</span> : null}</td>
         <td className="h-9 px-3 py-0.5 leading-5"><StockBadge onHand={row.statusOnHand} /></td><td className="h-9 px-3 py-0.5 leading-5 text-slate-600">{adjustmentNote(row)}</td>
       </tr>)}</tbody>
     </table></div></div>

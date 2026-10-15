@@ -3,6 +3,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ensureAutoSyncScheduler } from "@/lib/schedule";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { getCurrentSession } from "@/lib/auth/server";
+import { getMemberAllowedTabs } from "@/lib/auth/permissions";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,7 +17,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   ensureAutoSyncScheduler();
-  const session = await getCurrentSession();
+  const [session, allowedTabs] = await Promise.all([
+    getCurrentSession(),
+    getMemberAllowedTabs()
+  ]);
 
   return (
     <html lang="vi" suppressHydrationWarning>
@@ -37,7 +41,7 @@ try {
       </head>
       <body>
         <SidebarProvider>
-          <AppShell displayName={session?.displayName} role={session?.role}>{children}</AppShell>
+          <AppShell displayName={session?.displayName} role={session?.role} allowedTabs={allowedTabs}>{children}</AppShell>
         </SidebarProvider>
       </body>
     </html>

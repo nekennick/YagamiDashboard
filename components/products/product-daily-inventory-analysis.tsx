@@ -176,7 +176,7 @@ export function ProductDailyInventoryAnalysis({ productId, branches }: { product
                     {row.closingOnHand !== null ? formatNumber(row.closingOnHand) : row.provisionalClosingOnHand !== null ? (
                       <span className="inline-flex flex-col items-end leading-tight text-amber-700 dark:text-amber-300" title="Số tạm tính, chưa có snapshot chốt cuối ngày">
                         {formatNumber(row.provisionalClosingOnHand)}
-                        <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide">Tạm tính</span>
+                        <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide">tt</span>
                       </span>
                     ) : '—'}
                   </td>
