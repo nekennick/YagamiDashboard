@@ -5,6 +5,7 @@
   "scripts": {
     "predev": "npm run db:prepare",
     "dev": "next dev",
+    "prebuild": "node scripts/generate-changelog.mjs",
     "build": "next build",
     "test": "vitest run",
     "prestart": "npm run db:prepare",

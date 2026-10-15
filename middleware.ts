@@ -70,6 +70,9 @@ function isPathAllowedForMember(pathname: string, allowedSet: Set<string>): bool
 }
 
 function isMemberApiAllowed(pathname: string, allowedSet: Set<string>): boolean {
+  // Cho phép lấy thông tin cập nhật hệ thống
+  if (pathname === "/api/changelog") return true;
+
   // API cập nhật số kiểm tồn hàng ngày luôn mở cho thành viên có quyền kiểm tồn
   if (/^\/api\/products\/[^/]+\/daily-inventory(?:\/[^/]+)?$/.test(pathname)) {
     return allowedSet.has("/stocktake") || allowedSet.has("/inventory");

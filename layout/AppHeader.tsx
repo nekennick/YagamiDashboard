@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSidebar } from "@/context/SidebarContext";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { Search } from "lucide-react";
 
 const AppHeader: React.FC = () => {
@@ -117,6 +118,8 @@ const AppHeader: React.FC = () => {
             </span>
             <span>Local DB</span>
           </div>
+
+          <NotificationBell />
 
           <ThemeToggle />
         </div>

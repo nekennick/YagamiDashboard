@@ -1,0 +1,366 @@
+[
+  {
+    "hash": "cb908edc5939ab6b9ec0696f0aa7dc8f21b62e26",
+    "shortHash": "cb908ed",
+    "message": "Phân quyền user",
+    "author": "nekennick",
+    "date": "2026-10-15"
+  },
+  {
+    "hash": "2e35dca992a6128a38ce5daf53372def72bd66c3",
+    "shortHash": "2e35dca",
+    "message": "Phân biệt cột tạm tính",
+    "author": "nekennick",
+    "date": "2026-10-15"
+  },
+  {
+    "hash": "ec38354ca3674923648e48569fdb24324afbde98",
+    "shortHash": "ec38354",
+    "message": "Thanh tiêu đề trôi theo khi cuộn danh sách sản phẩm",
+    "author": "nekennick",
+    "date": "2026-10-15"
+  },
+  {
+    "hash": "fa54f140dc3d0526ceafd0dc683427cba67f8545",
+    "shortHash": "fa54f14",
+    "message": "Tổng hợp 32 commit do lười: Thêm tab kiểm tồn, tab tồn kho giờ theo dõi được số liệu xuất nhập hàng ngày, cuối ngày. Số liệu xuất chi tiết đến từng hoá đơn",
+    "author": "nekennick",
+    "date": "2026-10-15"
+  },
+  {
+    "hash": "c439af268ac4420b970048fea27e504fc4dfcb4f",
+    "shortHash": "c439af2",
+    "message": "xong phần Phân tích tồn kho theo ngày",
+    "author": "nekennick",
+    "date": "2026-10-06"
+  },
+  {
+    "hash": "c52a27cef1510b02fdad7bc1be0ba474a2df0b56",
+    "shortHash": "c52a27c",
+    "message": "Ẩn một số tab không cần thiết, có tab Tổng quan để xem khái quát thông tin trong ngày",
+    "author": "nekennick",
+    "date": "2026-10-05"
+  },
+  {
+    "hash": "2894195a52401b681dbb58a070ca2671123626d3",
+    "shortHash": "2894195",
+    "message": "Merge pull request #1 from nekennick/feature/branch-directory",
+    "author": "nekennick",
+    "date": "2026-08-10"
+  },
+  {
+    "hash": "c632c8dc92f5135b841b4ea64a220327717e0128",
+    "shortHash": "c632c8d",
+    "message": "them tinh nang chup anh ton kho",
+    "author": "nekennick",
+    "date": "2026-08-10"
+  },
+  {
+    "hash": "2cc3698f5ebae9480cdecc6bf7b8d602396ddd3b",
+    "shortHash": "2cc3698",
+    "message": "làm lại trang tồn kho",
+    "author": "nekennick",
+    "date": "2026-07-31"
+  },
+  {
+    "hash": "d76750ca00dfde5808083652fb904b60e5358483",
+    "shortHash": "d76750c",
+    "message": "thêm kỳ phân tích trong chi tiết hàng hoá",
+    "author": "nekennick",
+    "date": "2026-07-03"
+  },
+  {
+    "hash": "2f29ccb3550f17aa66f5fcf2fa8067d39bf541a8",
+    "shortHash": "2f29ccb",
+    "message": "Trạng thái sync tức thời",
+    "author": "nekennick",
+    "date": "2026-06-26"
+  },
+  {
+    "hash": "e73e43f647c3c44740113917e8a80f34a263c5e7",
+    "shortHash": "e73e43f",
+    "message": "thêm skill yagami data",
+    "author": "nekennick",
+    "date": "2026-06-24"
+  },
+  {
+    "hash": "58ab974944087ef022c1a06e6dac76f2b2bf0d52",
+    "shortHash": "58ab974",
+    "message": "Làm lại giao diện đồng bộ + Knowledge Base",
+    "author": "nekennick",
+    "date": "2026-06-20"
+  },
+  {
+    "hash": "e26d95e405ec58577777de2e55f427da5999b6d4",
+    "shortHash": "e26d95e",
+    "message": "Backup Trước khi thay giao diện",
+    "author": "nekennick",
+    "date": "2026-06-10"
+  },
+  {
+    "hash": "d55588bc962ed11d8660f5d6684c5af77a0f1836",
+    "shortHash": "d55588b",
+    "message": "Rename app to Yagami Dashboard",
+    "author": "nekennick",
+    "date": "2026-05-13"
+  },
+  {
+    "hash": "a62c5ed8542a712795596cbe280272f9f66ab060",
+    "shortHash": "a62c5ed",
+    "message": "Add row numbers to tables",
+    "author": "nekennick",
+    "date": "2026-05-13"
+  },
+  {
+    "hash": "a435f5531f45b51c23ce7c8437b066c96d31d028",
+    "shortHash": "a435f55",
+    "message": "Keep product title switcher above metric cards",
+    "author": "nekennick",
+    "date": "2026-05-13"
+  },
+  {
+    "hash": "dc3463a524083eb8aaea84ee568ffb08440d16e0",
+    "shortHash": "dc3463a",
+    "message": "Use product title as switcher",
+    "author": "nekennick",
+    "date": "2026-05-13"
+  },
+  {
+    "hash": "9eed3a1fe70d30184a96d7677d65832fc449e547",
+    "shortHash": "9eed3a1",
+    "message": "Add product switcher to detail analysis",
+    "author": "nekennick",
+    "date": "2026-05-13"
+  },
+  {
+    "hash": "b005b9582851322b91922f949acfbed98807500f",
+    "shortHash": "b005b95",
+    "message": "Add previous month product analysis preset",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "da0aa4159767104bb297b62653a75722693f20a6",
+    "shortHash": "da0aa41",
+    "message": "Show all expanded customer invoices",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "afdce9d7e6831906a90dd39200868879e997d2c0",
+    "shortHash": "afdce9d",
+    "message": "Move product invoice details into customer rows",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "f138f93b96867116737e4967f8a18a4af8a1ceb7",
+    "shortHash": "f138f93",
+    "message": "Show all product frequency rows",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "a3b5f2a3f6fa4dcf0f38fd6def021b3a21b8d218",
+    "shortHash": "a3b5f2a",
+    "message": "Keep search suggestions above tables",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "2e3884e723552ca1337cb67d914801531700d262",
+    "shortHash": "2e3884e",
+    "message": "Add contextual suggestions to table searches",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "7af8bac17520f8d793a157956827abf6adb3f50d",
+    "shortHash": "7af8bac",
+    "message": "Show customer suggestions only while typing",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "3c47d2ee82e25bfdbb3e1ba950da019fcc1e5d24",
+    "shortHash": "3c47d2e",
+    "message": "Add customer suggestions to product invoice search",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "2574f17f65f9a097cd416f2906101267c9b4c3be",
+    "shortHash": "2574f17",
+    "message": "Fix product customer summary totals",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "11847fdb2e2779eb8ca6b10296fa1b6123072125",
+    "shortHash": "11847fd",
+    "message": "Use date ranges for product analysis period",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "ae3bfdbad8ecbc81725945822a566aa6341eae4c",
+    "shortHash": "ae3bfdb",
+    "message": "Align product invoice filters with analysis period",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "e6eb66f6bc9f8bffef3454a13584efbdbf4680ba",
+    "shortHash": "e6eb66f",
+    "message": "Clarify product detail invoice analysis",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "5522217c2a0a27c5a7484f96600cc737d815c077",
+    "shortHash": "5522217",
+    "message": "Add product drilldown analytics",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "49157b7bef5b57008897bacb527819923aa2cd95",
+    "shortHash": "49157b7",
+    "message": "Remove panel hover movement",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "925271e15fbbe48c86b70aed9772895b2452d47e",
+    "shortHash": "925271e",
+    "message": "Remove table row hover backgrounds",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "64b7396f7feb8f1503f97d6bc313fc2bdef35793",
+    "shortHash": "64b7396",
+    "message": "Enhance motion presence without scroll flicker",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "0d412b46d4adb6f25cf2d7dab423e4eb98ba1336",
+    "shortHash": "0d412b4",
+    "message": "Prevent motion entrance scrollbar flicker",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "5ead0cc6762c7f0e8f6dcc306de0bf58cd27f2f7",
+    "shortHash": "5ead0cc",
+    "message": "Extend subtle motion across pages",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "181fa1281058cf838d67a0986c13647150a3ecbb",
+    "shortHash": "181fa12",
+    "message": "Add subtle dashboard motion",
+    "author": "nekennick",
+    "date": "2026-05-12"
+  },
+  {
+    "hash": "ad9521c1a2f26e8ac185657d6f20ceec10776aa0",
+    "shortHash": "ad9521c",
+    "message": "Add PostgreSQL backup and release checklist",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "6799f360c33bf68c3beecc434ce24e76d669bb8f",
+    "shortHash": "6799f36",
+    "message": "Complete dashboard filters and README",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "aac1c99ae4f364a1a22a16d6a7b4b743446c861e",
+    "shortHash": "aac1c99",
+    "message": "Add analytics Excel exports",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "ceb6337bf2080cfcd5fd688d5ed2a6953993ac74",
+    "shortHash": "ceb6337",
+    "message": "Add automatic sync schedule",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "7557fd7121362c89e44def1c3f3dc0e301522d44",
+    "shortHash": "7557fd7",
+    "message": "Add Excel exports for data pages",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "02cd6c65a3c1b7fca0a3e0ab586bbe552ddb9720",
+    "shortHash": "02cd6c6",
+    "message": "Add products Excel export",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "891fb779eb2c62092ddce468b42bb068d5d322e5",
+    "shortHash": "891fb77",
+    "message": "Add product frequency analytics",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "376c5b743bb2c717528b5cf10da075cb87081df9",
+    "shortHash": "376c5b7",
+    "message": "Add customer frequency analytics",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "ed0ecdfcc490c5ac330438fc7a6f75556dc83081",
+    "shortHash": "ed0ecdf",
+    "message": "Add inventory data page",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "b1d2c02ca3c33ccc6b3a39545874da3dbf6ca7e5",
+    "shortHash": "b1d2c02",
+    "message": "Add invoices data page",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "a9153819eb3ef4beda5bfef2598e03b74f9676c2",
+    "shortHash": "a915381",
+    "message": "Add customers data page",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "450c6c0a8d3a80c30cf5c6618d097d78afb9bee2",
+    "shortHash": "450c6c0",
+    "message": "Handle missing database connection",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "4bdaad802cddb36ee835aaa2de4f2bc456d0341a",
+    "shortHash": "4bdaad8",
+    "message": "Switch database to PostgreSQL",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  },
+  {
+    "hash": "fd3a56f99faf28ed861a631847a9d69f4810f20b",
+    "shortHash": "fd3a56f",
+    "message": "Initial Yagami dashboard implementation",
+    "author": "nekennick",
+    "date": "2026-05-11"
+  }
+]
