@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { FileSpreadsheet, Clock } from "lucide-react";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
@@ -328,17 +329,22 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
         </div>
         <div className="flex flex-col gap-2 sm:items-end">
           <a
-            className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-3.5 text-xs font-semibold text-emerald-800 shadow-2xs transition-all hover:bg-emerald-100/90 hover:border-emerald-300 hover:shadow-xs active:scale-[0.98] dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
             href={`/api/export/inventory?${new URLSearchParams({
               ...(query ? { q: query } : {}),
               ...(warehouse ? { warehouse } : {}),
               ...(category ? { category } : {}),
               ...(stock !== "all" ? { stock } : {})
             }).toString()}`}
+            title="Xuất dữ liệu tồn kho ra file Excel"
           >
-            Xuất Excel
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Xuất Excel</span>
           </a>
-          <div className="text-sm text-slate-500">Snapshot: {formatDateTime(data.snapshotDate)}</div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <Clock className="h-3 w-3 text-slate-400" />
+            <span>Snapshot: {formatDateTime(data.snapshotDate)}</span>
+          </div>
         </div>
       </FadeIn>
 

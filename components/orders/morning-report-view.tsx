@@ -110,8 +110,9 @@ function ReportHighlights({ summary }: { summary: string }) {
 }
 
 function MissingBranches({ groups }: { groups: Array<{ warehouse: string; branches: string[] }> }) {
-  if (groups.length === 0) return null;
-  return <Card className="border-amber-200 dark:border-amber-500/20"><CardHeader><CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100"><AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden="true" />Chi nhánh chưa đặt</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2">{groups.map((group) => <div key={group.warehouse}><p className="text-sm font-semibold text-slate-900 dark:text-white">{group.warehouse}</p><ul className="mt-2 flex flex-wrap gap-2">{group.branches.map((branch) => <li className="rounded-md bg-amber-50 px-2.5 py-1 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200" key={branch}>{branch}</li>)}</ul></div>)}</CardContent></Card>;
+  const activeGroups = groups.filter((group) => group.branches.length > 0);
+  if (activeGroups.length === 0) return null;
+  return <Card className="border-amber-200 dark:border-amber-500/20"><CardHeader><CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100"><AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden="true" />Chi nhánh chưa đặt</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2">{activeGroups.map((group) => <div key={group.warehouse}><p className="text-sm font-semibold text-slate-900 dark:text-white">{group.warehouse}</p><ul className="mt-2 flex flex-wrap gap-2">{group.branches.map((branch) => <li className="rounded-md bg-amber-50 px-2.5 py-1 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200" key={branch}>{branch}</li>)}</ul></div>)}</CardContent></Card>;
 }
 
 function OperationalReports({ summary }: { summary: string }) {
@@ -170,7 +171,28 @@ function groupStockByCode(rows: StockPressure[]) {
 function parseMissingBranches(summary: string) {
   const section = summary.split("📍 Chi nhánh chưa đặt:")[1]?.split("🚛 Gửi xe ngoài")[0];
   if (!section) return [];
-  return [...section.matchAll(/•\s*([^:\n]+):\s*([^\n]+)/g)].map(([, warehouse, branchList]) => ({ warehouse: warehouse.trim(), branches: branchList.split(",").map((branch) => branch.trim()).filter(Boolean) }));
+  return [...section.matchAll(/•\s*([^:\n]+):\s*([^\n]+)/g)].map(([, warehouse, branchList]) => ({
+    warehouse: warehouse.trim(),
+    branches: parseBranchList(branchList)
+  }));
+}
+
+function parseBranchList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+  if (
+    lower === "không có" ||
+    lower === "không" ||
+    lower.startsWith("không có ") ||
+    lower.includes("0 chi nhánh")
+  ) {
+    return [];
+  }
+  return trimmed
+    .split(",")
+    .map((b) => b.trim())
+    .filter((b) => b && b.toLowerCase() !== "không có" && b.toLowerCase() !== "không");
 }
 
 function extractReportLine(summary: string, label: string) {
