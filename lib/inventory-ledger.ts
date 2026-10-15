@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/prisma";
 
 const businessTimezoneSuffix = "+07:00";
-const snapshotToleranceMs = 60 * 60 * 1000;
+const closingSnapshotHour = 17;
+const businessTimezoneOffsetHours = 7;
+const snapshotTargetToleranceMs = 2 * 60 * 60 * 1000;
 
 export type DailyInventoryConfidence = "COMPLETE" | "RECONCILED" | "MISSING_SNAPSHOT";
 
 export type DailyInventoryMovement = {
   id: number;
+  sourceDocumentId: string;
   occurredAt: string;
   sourceType: string;
   documentCode: string | null;
@@ -20,6 +23,8 @@ export type ProductDailyInventoryRow = {
   openingOnHand: number | null;
   incoming: number;
   outgoing: number;
+  transfer: number;
+  stocktake: number;
   adjustment: number | null;
   closingOnHand: number | null;
   provisionalClosingOnHand: number | null;
@@ -40,8 +45,8 @@ export async function getProductDailyInventory(params: {
   toDate: string;
 }) {
   const { productId, branchId, fromDate, toDate } = params;
-  const firstBoundary = businessDayBoundary(fromDate);
-  const endBoundary = nextBusinessDayBoundary(toDate);
+  const firstBoundary = operationalDayStart(fromDate);
+  const endBoundary = operationalDayEnd(toDate);
   const firstDateOnly = dateOnly(fromDate);
   const lastDateOnly = dateOnly(toDate);
 
@@ -56,7 +61,7 @@ export async function getProductDailyInventory(params: {
         occurredAt: { gte: firstBoundary, lt: endBoundary }
       },
       orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
-      select: { id: true, occurredAt: true, sourceType: true, documentCode: true, quantityDelta: true, partnerName: true }
+      select: { id: true, sourceDocumentId: true, occurredAt: true, sourceType: true, documentCode: true, quantityDelta: true, partnerName: true }
     }),
     prisma.productDailyInventoryEntry.findMany({
       where: { productId, branchId, businessDate: { gte: firstDateOnly, lte: lastDateOnly } },
@@ -66,7 +71,10 @@ export async function getProductDailyInventory(params: {
       where: {
         productId,
         branchId,
-        snapshotDate: { gte: new Date(firstBoundary.getTime() - snapshotToleranceMs), lt: endBoundary }
+        snapshotDate: {
+          gte: new Date(firstBoundary.getTime() - snapshotTargetToleranceMs),
+          lte: new Date(endBoundary.getTime() + snapshotTargetToleranceMs)
+        }
       },
       orderBy: { snapshotDate: "asc" },
       select: { snapshotDate: true, onHand: true }
@@ -77,47 +85,65 @@ export async function getProductDailyInventory(params: {
     return null;
   }
 
+  const saleDocumentIds = [...new Set(movements.filter((movement) => movement.sourceType === "SALE").map((movement) => Number(movement.sourceDocumentId)).filter(Number.isInteger))];
+  const invoices = saleDocumentIds.length === 0 ? [] : await prisma.invoice.findMany({
+    where: { kvInvoiceId: { in: saleDocumentIds } },
+    select: { kvInvoiceId: true, customer: { select: { code: true, name: true } } }
+  });
+  const invoiceById = new Map(invoices.map((invoice) => [invoice.kvInvoiceId, invoice.customer]));
+  const enrichedMovements = movements.map((movement) => {
+    if (movement.sourceType !== "SALE" || movement.partnerName) return movement;
+    const customer = invoiceById.get(Number(movement.sourceDocumentId));
+    const partnerName = customer ? [customer.code, customer.name].filter(Boolean).join(" ") : null;
+    return { ...movement, partnerName };
+  });
+
   const entriesByDate = new Map(entries.map((entry) => [formatDateOnly(entry.businessDate), entry]));
-  const movementsByDate = groupMovementsByDate(movements);
+  const movementsByDate = groupMovementsByOperationalDate(enrichedMovements);
   const currentBusinessDate = formatBusinessDate(new Date());
   const rows: ProductDailyInventoryRow[] = [];
   let previousClosing: number | null = null;
   let previousVariance: number | null = null;
 
   for (const date of eachBusinessDate(fromDate, toDate)) {
-    const start = businessDayBoundary(date);
-    const end = nextBusinessDayBoundary(date);
+    const start = operationalDayStart(date);
+    const end = operationalDayEnd(date);
     const entry = entriesByDate.get(date);
     const dayMovements = movementsByDate.get(date) ?? [];
-    const openingSnapshot = closestSnapshotBefore(snapshots, start);
-    const closingSnapshot = closestSnapshotBefore(snapshots, end);
-    const hasUsableSnapshots = isFreshSnapshot(openingSnapshot, start) && isFreshSnapshot(closingSnapshot, end);
-    const incoming = sum(dayMovements.filter((movement) => movement.quantityDelta > 0).map((movement) => movement.quantityDelta));
-    const outgoing = Math.abs(sum(dayMovements.filter((movement) => movement.quantityDelta < 0).map((movement) => movement.quantityDelta)));
+    const openingSnapshot = closestSnapshotTo(snapshots, start);
+    const closingSnapshot = closestSnapshotTo(snapshots, end);
+    const hasUsableSnapshots = Boolean(openingSnapshot && closingSnapshot);
+    const transfer = sum(dayMovements.filter(isTransferMovement).map((movement) => movement.quantityDelta));
+    const stocktake = sum(dayMovements.filter(isStocktakeMovement).map((movement) => movement.quantityDelta));
+    const incoming = sum(dayMovements.filter((movement) => !isTransferMovement(movement) && !isStocktakeMovement(movement) && movement.quantityDelta > 0).map((movement) => movement.quantityDelta));
+    const outgoing = Math.abs(sum(dayMovements.filter((movement) => !isTransferMovement(movement) && !isStocktakeMovement(movement) && movement.quantityDelta < 0).map((movement) => movement.quantityDelta)));
     const openingOnHand: number | null = entry?.openingOverride === null || entry?.openingOverride === undefined
-      ? previousClosing ?? (openingSnapshot ? number(openingSnapshot.onHand) : null)
+      ? (openingSnapshot ? number(openingSnapshot.onHand) : previousClosing)
       : number(entry.openingOverride);
     const actualOnHand = entry?.actualOnHand === null || entry?.actualOnHand === undefined ? null : number(entry.actualOnHand);
     const calculation = calculateDailyInventoryDay({
       openingOnHand,
       incoming,
       outgoing,
+      transfer,
+      stocktake,
       snapshotOpening: hasUsableSnapshots && openingSnapshot ? number(openingSnapshot.onHand) : null,
       snapshotClosing: hasUsableSnapshots && closingSnapshot ? number(closingSnapshot.onHand) : null,
       actualOnHand,
       previousVariance
     });
-
     rows.push({
       date,
       openingOverride: entry?.openingOverride === null || entry?.openingOverride === undefined ? null : number(entry.openingOverride),
       openingOnHand,
       incoming,
       outgoing,
+      transfer,
+      stocktake,
       adjustment: calculation.adjustment,
       closingOnHand: calculation.closingOnHand,
       provisionalClosingOnHand: date === currentBusinessDate && calculation.closingOnHand === null
-        ? calculateProvisionalClosing(openingOnHand, incoming, outgoing)
+        ? calculateProvisionalClosing(openingOnHand, incoming, outgoing, transfer, stocktake)
         : null,
       actualOnHand,
       variance: calculation.variance,
@@ -146,6 +172,16 @@ export function nextBusinessDayBoundary(date: string) {
   return new Date(`${formatUtcDate(next)}T00:00:00.000${businessTimezoneSuffix}`);
 }
 
+export function operationalDayStart(date: string) {
+  const [year, month, day] = parseDateParts(date);
+  const previousDate = new Date(Date.UTC(year, month - 1, day - 1));
+  return businessDayHour(formatUtcDate(previousDate), closingSnapshotHour);
+}
+
+export function operationalDayEnd(date: string) {
+  return businessDayHour(date, closingSnapshotHour);
+}
+
 export function dateOnly(date: string) {
   return new Date(`${date}T00:00:00.000Z`);
 }
@@ -154,12 +190,14 @@ export function calculateDailyInventoryDay(input: {
   openingOnHand: number | null;
   incoming: number;
   outgoing: number;
+  transfer?: number;
+  stocktake?: number;
   snapshotOpening: number | null;
   snapshotClosing: number | null;
   actualOnHand: number | null;
   previousVariance: number | null;
 }) {
-  const documentedDelta = input.incoming - input.outgoing;
+  const documentedDelta = input.incoming - input.outgoing + (input.transfer ?? 0) + (input.stocktake ?? 0);
   const adjustment = input.snapshotOpening === null || input.snapshotClosing === null
     ? null
     : input.snapshotClosing - input.snapshotOpening - documentedDelta;
@@ -179,8 +217,16 @@ export function calculateDailyInventoryDay(input: {
   };
 }
 
-export function calculateProvisionalClosing(openingOnHand: number | null, incoming: number, outgoing: number) {
-  return openingOnHand === null ? null : openingOnHand + incoming - outgoing;
+export function calculateProvisionalClosing(openingOnHand: number | null, incoming: number, outgoing: number, transfer = 0, stocktake = 0) {
+  return openingOnHand === null ? null : openingOnHand + incoming - outgoing + transfer + stocktake;
+}
+
+function isTransferMovement(movement: DailyInventoryMovement) {
+  return movement.sourceType === "TRANSFER_OUT" || movement.sourceType === "TRANSFER_IN";
+}
+
+function isStocktakeMovement(movement: DailyInventoryMovement) {
+  return movement.sourceType === "STOCKTAKE";
 }
 
 export function eachBusinessDate(fromDate: string, toDate: string) {
@@ -198,13 +244,14 @@ export function eachBusinessDate(fromDate: string, toDate: string) {
   return dates;
 }
 
-function groupMovementsByDate(movements: Array<{ id: number; occurredAt: Date; sourceType: string; documentCode: string | null; quantityDelta: unknown; partnerName: string | null }>) {
+function groupMovementsByOperationalDate(movements: Array<{ id: number; sourceDocumentId: string; occurredAt: Date; sourceType: string; documentCode: string | null; quantityDelta: unknown; partnerName: string | null }>) {
   const groups = new Map<string, DailyInventoryMovement[]>();
   for (const movement of movements) {
-    const date = formatBusinessDate(movement.occurredAt);
+    const date = operationalDateForMovement(movement.occurredAt);
     const rows = groups.get(date) ?? [];
     rows.push({
       id: movement.id,
+      sourceDocumentId: movement.sourceDocumentId,
       occurredAt: movement.occurredAt.toISOString(),
       sourceType: movement.sourceType,
       documentCode: movement.documentCode,
@@ -216,17 +263,25 @@ function groupMovementsByDate(movements: Array<{ id: number; occurredAt: Date; s
   return groups;
 }
 
-function closestSnapshotBefore(snapshots: Array<{ snapshotDate: Date; onHand: unknown }>, boundary: Date) {
-  for (let index = snapshots.length - 1; index >= 0; index -= 1) {
-    if (snapshots[index].snapshotDate.getTime() <= boundary.getTime()) {
-      return snapshots[index];
-    }
-  }
-  return undefined;
+export function operationalDateForMovement(value: Date) {
+  const shifted = new Date(value.getTime() + (businessTimezoneOffsetHours - closingSnapshotHour) * 60 * 60 * 1000);
+  shifted.setUTCDate(shifted.getUTCDate() + 1);
+  return formatUtcDate(shifted);
 }
 
-function isFreshSnapshot(snapshot: { snapshotDate: Date } | undefined, boundary: Date) {
-  return Boolean(snapshot && boundary.getTime() - snapshot.snapshotDate.getTime() <= snapshotToleranceMs);
+export function closestSnapshotTo<T extends { snapshotDate: Date }>(snapshots: T[], target: Date, toleranceMs = snapshotTargetToleranceMs) {
+  let closest: T | undefined;
+  let distance = Number.POSITIVE_INFINITY;
+
+  for (const snapshot of snapshots) {
+    const nextDistance = Math.abs(snapshot.snapshotDate.getTime() - target.getTime());
+    if (nextDistance <= toleranceMs && nextDistance < distance) {
+      closest = snapshot;
+      distance = nextDistance;
+    }
+  }
+
+  return closest;
 }
 
 function inventoryStatus(variance: number | null): ProductDailyInventoryRow["status"] {
@@ -262,6 +317,10 @@ function parseDateParts(value: string): [number, number, number] {
 
 function formatUtcDate(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+function businessDayHour(date: string, hour: number) {
+  return new Date(`${date}T${String(hour).padStart(2, "0")}:00:00.000${businessTimezoneSuffix}`);
 }
 
 function sum(values: number[]) {

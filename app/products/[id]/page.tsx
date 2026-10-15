@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { DatabaseUnavailable, isDatabaseConnectionError } from "@/components/layout/database-unavailable";
 import { CustomerInvoiceSearch } from "@/components/products/customer-invoice-search";
 import { CustomerInvoiceSummaryTable } from "@/components/products/customer-invoice-summary-table";
-import { ProductDailyInventoryAnalysis } from "@/components/products/product-daily-inventory-analysis";
 import { ProductSwitcher } from "@/components/products/product-switcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
@@ -78,7 +77,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
         : {})
     };
 
-    const [productOptions, salesRows, periodInvoiceCustomers, customerSourceInvoices, relatedSummaryItems, relatedItems, inventoryRows, branchOptions] = await Promise.all([
+    const [productOptions, salesRows, periodInvoiceCustomers, customerSourceInvoices, relatedSummaryItems, relatedItems, inventoryRows] = await Promise.all([
       prisma.product.findMany({
         orderBy: [{ isActive: "desc" }, { name: "asc" }],
         select: { id: true, code: true, name: true, categoryName: true, unit: true }
@@ -162,11 +161,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
             include: { branch: { select: { id: true, name: true } } },
             orderBy: { branch: { name: "asc" } }
           })
-        : [],
-      prisma.branch.findMany({
-        orderBy: { name: "asc" },
-        select: { id: true, name: true }
-      })
+        : []
     ]);
     const branchSummary = summarizeByBranch(salesRows);
     const monthSummary = summarizeByMonth(salesRows);
@@ -421,8 +416,6 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
             </Card>
           </AnimatedPanel>
         </div>
-
-        <ProductDailyInventoryAnalysis branches={branchOptions} productId={productId} />
 
         <AnimatedPanel delay={0.14}>
           <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">

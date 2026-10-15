@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
+import { kiotVietInvoiceUrl } from "@/lib/kiotviet/links";
 import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
 
 type InvoicesPageProps = {
@@ -228,7 +229,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                       delay={Math.min(index, 12) * 0.015}
                     >
                       <td className="px-3 py-2 text-slate-500">{index + 1}</td>
-                      <td className="px-3 py-2 font-medium text-slate-900">{invoice.code ?? "-"}</td>
+                      <td className="px-3 py-2 font-medium text-slate-900">{invoice.code ? <a className="text-indigo-700 underline decoration-dotted underline-offset-4 hover:text-indigo-900" href={kiotVietInvoiceUrl(invoice.code)} rel="noreferrer" target="_blank">{invoice.code}</a> : "-"}</td>
                       <td className="px-3 py-2">{formatDateTime(invoice.purchaseDate)}</td>
                       <td className="px-3 py-2">
                         <div className="font-medium text-slate-900">{invoice.customer?.name ?? "Khách lẻ"}</div>

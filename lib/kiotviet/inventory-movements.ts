@@ -13,6 +13,7 @@ export type InventoryMovementSyncStats = {
 type IdMaps = {
   productIds: Map<number, number>;
   branchIds: Map<number, number>;
+  branchNames: Map<number, string>;
 };
 
 const pageSize = 100;
@@ -46,10 +47,10 @@ export async function syncReturnMovements(fromDate: Date): Promise<InventoryMove
 }
 
 export async function syncTransferMovements(fromDate: Date, toDate: Date): Promise<InventoryMovementSyncStats> {
-  const base = `&toTransferDate=${encodeURIComponent(toDate.toISOString())}&toReceivedDate=${encodeURIComponent(toDate.toISOString())}`;
+  const [sentEndpoint, receivedEndpoint] = transferMovementEndpoints(fromDate, toDate);
   const [sentRecords, receivedRecords] = await Promise.all([
-    fetchPagedRecords(`/transfers?fromTransferDate=${encodeURIComponent(fromDate.toISOString())}${base}`),
-    fetchPagedRecords(`/transfers?fromReceivedDate=${encodeURIComponent(fromDate.toISOString())}${base}`)
+    fetchPagedRecords(sentEndpoint),
+    fetchPagedRecords(receivedEndpoint)
   ]);
   const records = uniqueRecords([...sentRecords, ...receivedRecords]);
   const maps = await loadIdMaps();
@@ -60,6 +61,15 @@ export async function syncTransferMovements(fromDate: Date, toDate: Date): Promi
   }
 
   return { totalRecords: records.length, savedRecords };
+}
+
+export function transferMovementEndpoints(fromDate: Date, toDate: Date) {
+  const from = encodeURIComponent(fromDate.toISOString());
+  const to = encodeURIComponent(toDate.toISOString());
+  return [
+    `/transfers?fromTransferDate=${from}&toTransferDate=${to}`,
+    `/transfers?fromReceivedDate=${from}&toReceivedDate=${to}`
+  ] as const;
 }
 
 export async function syncInvoiceSaleMovements(fromDate: Date, toDate: Date): Promise<InventoryMovementSyncStats> {
@@ -234,7 +244,7 @@ async function saveTransferMovements(record: unknown, maps: IdMaps) {
     data: { isActive: false }
   });
 
-  const active = item.isActive !== false;
+  const active = !isCancelledTransfer(item);
   let saved = 0;
   for (const [index, detail] of details.entries()) {
     const row = asObject(detail);
@@ -254,6 +264,7 @@ async function saveTransferMovements(record: unknown, maps: IdMaps) {
         branchId: sourceBranchId,
         quantityDelta: -number(row.sendQuantity),
         status: string(item.status),
+        partnerName: destinationBranchId ? `Đến: ${maps.branchNames.get(destinationBranchId) ?? "Kho chưa xác định"}` : undefined,
         isActive: active,
         rawJson: JSON.stringify(detail)
       });
@@ -272,6 +283,7 @@ async function saveTransferMovements(record: unknown, maps: IdMaps) {
         branchId: destinationBranchId,
         quantityDelta: number(row.receiveQuantity),
         status: string(item.status),
+        partnerName: sourceBranchId ? `Từ: ${maps.branchNames.get(sourceBranchId) ?? "Kho chưa xác định"}` : undefined,
         isActive: active,
         rawJson: JSON.stringify(detail)
       });
@@ -319,12 +331,18 @@ async function fetchPagedRecords(endpoint: string) {
 async function loadIdMaps(): Promise<IdMaps> {
   const [products, branches] = await Promise.all([
     prisma.product.findMany({ select: { id: true, kvProductId: true } }),
-    prisma.branch.findMany({ select: { id: true, kvBranchId: true } })
+    prisma.branch.findMany({ select: { id: true, kvBranchId: true, name: true } })
   ]);
   return {
     productIds: new Map(products.map((item) => [item.kvProductId, item.id])),
-    branchIds: new Map(branches.map((item) => [item.kvBranchId, item.id]))
+    branchIds: new Map(branches.map((item) => [item.kvBranchId, item.id])),
+    branchNames: new Map(branches.map((item) => [item.id, item.name]))
   };
+}
+
+function isCancelledTransfer(item: ObjectRecord) {
+  const status = string(item.status)?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() ?? "";
+  return status.includes("huy") || status.includes("cancel");
 }
 
 function uniqueRecords(records: unknown[]) {

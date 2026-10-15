@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
 import { prisma } from "@/lib/prisma";
+import { kiotVietInvoiceUrl, kiotVietOrderUrl } from "@/lib/kiotviet/links";
 import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
 
 type OrdersPageProps = {
@@ -292,7 +293,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                           <td className="px-5 py-4">
                             <TypeBadge type={row.kind} />
                           </td>
-                          <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">{row.code}</td>
+                          <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">{row.code === "-" ? row.code : <a className="text-indigo-700 underline decoration-dotted underline-offset-4 hover:text-indigo-900 dark:text-indigo-300 dark:hover:text-indigo-200" href={row.kind === "temporary" ? kiotVietOrderUrl(row.code) : kiotVietInvoiceUrl(row.code)} rel="noreferrer" target="_blank">{row.code}</a>}</td>
                           <td className="px-5 py-4">{formatDateTime(row.date)}</td>
                           <td className="px-5 py-4">
                             <div className="font-semibold text-slate-900 dark:text-white">{row.customerName}</div>

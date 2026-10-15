@@ -229,6 +229,9 @@ function syncTypeLabel(syncType: string) {
     orders: "Đơn đặt hàng",
     invoices: "Hóa đơn gần đây",
     invoiceHistory: "Lịch sử hóa đơn",
+    internalUses: "Xuất dùng nội bộ",
+    stocktakes: "Phiếu kiểm kho",
+    stocktakeHistory: "Lịch sử kiểm kho",
     inventory: "Tồn kho",
     scheduledSync: "Đồng bộ theo lịch",
   };

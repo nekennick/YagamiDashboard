@@ -4,9 +4,13 @@ import { useSidebar } from "@/context/SidebarContext";
 import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
+import { usePathname } from "next/navigation";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, role, displayName }: { children: React.ReactNode; role?: "ADMIN" | "MEMBER"; displayName?: string }) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+  const pathname = usePathname();
+
+  if (pathname === "/login") return <>{children}</>;
 
   const mainContentMargin = isMobileOpen
     ? "ml-0"
@@ -16,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col">
-      <AppSidebar />
+      <AppSidebar displayName={displayName} role={role} />
       <Backdrop />
       <div className={`flex-1 flex flex-col transition-all duration-300 ${mainContentMargin}`}>
         <AppHeader />

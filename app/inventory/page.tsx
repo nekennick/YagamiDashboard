@@ -4,29 +4,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPanel, AnimatedTableRow, FadeIn, MotionMetricCard, MotionMetricGrid } from "@/components/ui/motion-primitives";
 import { TableSearch } from "@/components/ui/table-search";
 import { InventoryGroupManager } from "@/components/inventory/inventory-group-manager";
+import { InventoryAutoSelect } from "@/components/inventory/inventory-auto-select";
+import { InventoryDatePicker } from "@/components/inventory/inventory-date-picker";
 import { InventoryScreenshotButton } from "@/components/inventory/inventory-screenshot-button";
+import { InventoryQuickCategoryButtons } from "@/components/inventory/inventory-quick-category-buttons";
+import { InventoryDailyMovementTable, type InventoryDailyMovementTableRow } from "@/components/inventory/inventory-daily-movement-table";
+import { calculateProvisionalClosing, closestSnapshotTo, operationalDayEnd, operationalDayStart } from "@/lib/inventory-ledger";
+import { inventoryCategoryFilter, inventoryCategoryQuickFilters, quickFilterProductOrder } from "@/lib/inventory-category-filter";
 import { prisma } from "@/lib/prisma";
 import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
-import { inventoryStorageOptions, normalizeInventoryStorage } from "@/lib/inventory-storage";
 
 type InventoryPageProps = {
   searchParams?: Promise<{
     q?: string;
     branch?: string;
     warehouse?: string;
-    storage?: string;
+    category?: string;
     stock?: string;
+    date?: string;
   }>;
 };
 
 const inventoryPageSize = 200;
+const defaultInventoryWarehouse = "CAO_LANH";
+const defaultInventoryCategory = "HÀNG ĐÔNG LẠNH";
 
 export default async function InventoryPage({ searchParams }: InventoryPageProps) {
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
-  const warehouse = normalizeWarehouseFilter(params.warehouse ?? params.branch);
-  const storage = normalizeInventoryStorage(params.storage);
+  const warehouse = normalizeWarehouseFilter(params.warehouse ?? params.branch ?? defaultInventoryWarehouse);
+  const category = params.category === undefined ? defaultInventoryCategory : params.category.trim();
   const stock = params.stock?.trim() ?? "all";
+  const operationalDate = isBusinessDate(params.date) ? params.date : formatBusinessDate(new Date());
 
   let data;
 
@@ -36,28 +45,27 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
     });
     const snapshotDate = latestInventoryDate._max.snapshotDate;
     const branchWhere = warehouseBranchWhere(warehouse);
-    const productWhere: Prisma.ProductWhereInput | undefined = query || storage
-      ? {
-        ...(storage ? { manualGroupAssignment: { is: { group: { storageArea: storage } } } } : {}),
-        ...(query
-          ? {
-            OR: [
-              { name: { contains: query } },
-              { code: { contains: query } },
-              { fullName: { contains: query } }
-            ]
-          }
-          : {})
-      }
-      : undefined;
+    const productWhere: Prisma.ProductWhereInput = {
+      isActive: true,
+      ...(category ? inventoryCategoryFilter(category) : {}),
+      ...(query
+        ? {
+          OR: [
+            { name: { contains: query } },
+            { code: { contains: query } },
+            { fullName: { contains: query } }
+          ]
+        }
+        : {})
+    };
     const inventoryWhere: Prisma.InventorySnapshotWhereInput = {
       ...(snapshotDate ? { snapshotDate } : {}),
       ...(branchWhere ? { branch: branchWhere } : {}),
-      ...(productWhere ? { product: productWhere } : {}),
+      product: productWhere,
       ...stockFilter(stock)
     };
 
-    const [unsortedItems, stats] = await Promise.all([
+    const [unsortedItems, stats, categories] = await Promise.all([
       prisma.inventorySnapshot.findMany({
         where: inventoryWhere,
         include: {
@@ -71,10 +79,22 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
         where: inventoryWhere,
         _count: { _all: true },
         _sum: { onHand: true, reserved: true, actualReserved: true }
+      }),
+      prisma.product.groupBy({
+        by: ["categoryName"],
+        where: { isActive: true, categoryName: { not: null } },
+        _count: { _all: true },
+        orderBy: { _count: { categoryName: "desc" } }
       })
     ]);
 
+    const quickProductOrder = quickFilterProductOrder(category);
     const items = unsortedItems.sort((left, right) => {
+      if (quickProductOrder) {
+        const leftIndex = quickProductOrder.get(`${left.product.name.toLocaleLowerCase()}\u0000${(left.product.unit ?? "").toLocaleLowerCase()}`) ?? Number.MAX_SAFE_INTEGER;
+        const rightIndex = quickProductOrder.get(`${right.product.name.toLocaleLowerCase()}\u0000${(right.product.unit ?? "").toLocaleLowerCase()}`) ?? Number.MAX_SAFE_INTEGER;
+        if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+      }
       const leftGroup = left.product.manualGroupAssignment?.group;
       const rightGroup = right.product.manualGroupAssignment?.group;
       const leftGroupPosition = leftGroup?.position ?? Number.MAX_SAFE_INTEGER;
@@ -88,10 +108,148 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       return left.product.name.localeCompare(right.product.name, "vi");
     });
 
+    const operationalStart = operationalDayStart(operationalDate);
+    const operationalEnd = operationalDayEnd(operationalDate);
+    const selectedProductIds = [...new Set(items.map((item) => item.productId))];
+    const selectedBranchIds = [...new Set(items.map((item) => item.branchId))];
+    const [dailySnapshots, dailyMovements, cancelledStocktakeLines, invoiceItemChanges] = selectedProductIds.length === 0
+      ? [[], [], [], []]
+      : await Promise.all([
+        prisma.inventorySnapshot.findMany({
+          where: {
+            productId: { in: selectedProductIds },
+            branchId: { in: selectedBranchIds },
+            snapshotDate: {
+              gte: new Date(operationalStart.getTime() - 2 * 60 * 60 * 1000),
+              lte: new Date(operationalEnd.getTime() + 2 * 60 * 60 * 1000)
+            }
+          },
+          select: { productId: true, branchId: true, snapshotDate: true, onHand: true },
+          orderBy: { snapshotDate: "asc" }
+        }),
+        prisma.inventoryMovement.findMany({
+          where: {
+            productId: { in: selectedProductIds },
+            branchId: { in: selectedBranchIds },
+            isActive: true,
+            occurredAt: { gte: operationalStart, lt: operationalEnd }
+          },
+          select: { id: true, productId: true, branchId: true, sourceDocumentId: true, sourceType: true, documentCode: true, occurredAt: true, quantityDelta: true, partnerName: true }
+        }),
+        prisma.stocktakeLine.findMany({
+          where: {
+            isActive: true,
+            productId: { in: selectedProductIds },
+            adjustmentValue: { not: 0 },
+            stocktakeDocument: {
+              branchId: { in: selectedBranchIds },
+              status: 0,
+              OR: [
+                { sourceModifiedAt: { gte: operationalStart, lt: operationalEnd } },
+                { sourceModifiedAt: null, sourceCreatedAt: { gte: operationalStart, lt: operationalEnd } }
+              ]
+            }
+          },
+          select: {
+            productId: true,
+            adjustmentValue: true,
+            stocktakeDocument: { select: { branchId: true, code: true, sourceCreatedAt: true } }
+          }
+        }),
+        prisma.invoiceItemChange.findMany({
+          where: {
+            productId: { in: selectedProductIds },
+            branchId: { in: selectedBranchIds },
+            detectedAt: { gte: operationalStart, lt: operationalEnd }
+          },
+          select: {
+            productId: true,
+            branchId: true,
+            invoiceCode: true,
+            previousQuantity: true,
+            currentQuantity: true,
+            inventoryDelta: true,
+            detectedAt: true
+          }
+        })
+      ]);
+    const saleDocumentIds = [...new Set(dailyMovements.filter((movement) => movement.sourceType === "SALE" && !movement.partnerName).map((movement) => Number(movement.sourceDocumentId)).filter(Number.isInteger))];
+    const saleInvoices = saleDocumentIds.length === 0 ? [] : await prisma.invoice.findMany({
+      where: { kvInvoiceId: { in: saleDocumentIds } },
+      select: { kvInvoiceId: true, customer: { select: { code: true, name: true } } }
+    });
+    const salePartnerByDocumentId = new Map(saleInvoices.map((invoice) => [String(invoice.kvInvoiceId), invoice.customer ? [invoice.customer.code, invoice.customer.name].filter(Boolean).join(" ") : null]));
+    const enrichedDailyMovements = dailyMovements.map((movement) => movement.sourceType === "SALE" && !movement.partnerName ? { ...movement, partnerName: salePartnerByDocumentId.get(movement.sourceDocumentId) ?? null } : movement);
+    const snapshotsByProductBranch = groupByProductBranch(dailySnapshots);
+    const movementsByProductBranch = groupByProductBranch(enrichedDailyMovements);
+    const cancelledStocktakesByProductBranch = groupByProductBranch(cancelledStocktakeLines.filter((line) => line.productId !== null && line.stocktakeDocument.branchId !== null).map((line) => ({
+      productId: line.productId!,
+      branchId: line.stocktakeDocument.branchId!,
+      code: line.stocktakeDocument.code,
+      quantityDelta: toNumber(line.adjustmentValue),
+      occurredAt: line.stocktakeDocument.sourceCreatedAt?.toISOString() ?? null
+    })));
+    const invoiceChangesByProductBranch = groupByProductBranch(invoiceItemChanges.filter((line) => line.productId !== null && line.branchId !== null).map((line) => ({
+      productId: line.productId!,
+      branchId: line.branchId!,
+      code: line.invoiceCode,
+      previousQuantity: toNumber(line.previousQuantity),
+      currentQuantity: toNumber(line.currentQuantity),
+      inventoryDelta: toNumber(line.inventoryDelta),
+      occurredAt: line.detectedAt.toISOString()
+    })));
+    const dailyByInventoryId = new Map(items.map((item) => {
+      const key = productBranchKey(item.productId, item.branchId);
+      const snapshots = snapshotsByProductBranch.get(key) ?? [];
+      const movements = movementsByProductBranch.get(key) ?? [];
+      const openingSnapshot = closestSnapshotTo(snapshots, operationalStart);
+      const closingSnapshot = closestSnapshotTo(snapshots, operationalEnd);
+      const transfer = sum(movements.filter((movement) => isTransferMovement(movement.sourceType)).map((movement) => toNumber(movement.quantityDelta)));
+      const stocktake = sum(movements.filter((movement) => isStocktakeMovement(movement.sourceType)).map((movement) => toNumber(movement.quantityDelta)));
+      const incoming = sum(movements.filter((movement) => !isTransferMovement(movement.sourceType) && !isStocktakeMovement(movement.sourceType) && toNumber(movement.quantityDelta) > 0).map((movement) => toNumber(movement.quantityDelta)));
+      const outgoing = Math.abs(sum(movements.filter((movement) => !isTransferMovement(movement.sourceType) && !isStocktakeMovement(movement.sourceType) && toNumber(movement.quantityDelta) < 0).map((movement) => toNumber(movement.quantityDelta))));
+      const openingOnHand = openingSnapshot ? toNumber(openingSnapshot.onHand) : null;
+      const closingOnHand = closingSnapshot ? toNumber(closingSnapshot.onHand) : null;
+      const adjustment = openingOnHand !== null && closingOnHand !== null
+        ? closingOnHand - (openingOnHand + incoming - outgoing + transfer + stocktake)
+        : null;
+      const cancelledStocktakes = (cancelledStocktakesByProductBranch.get(key) ?? [])
+        .filter((line) => adjustment !== null && Math.abs(line.quantityDelta - adjustment) < 0.000001);
+      const invoiceChanges = (invoiceChangesByProductBranch.get(key) ?? [])
+        .filter((line) => adjustment !== null && Math.abs(line.inventoryDelta - adjustment) < 0.000001);
+
+      return [item.id, {
+        openingOnHand,
+        incoming,
+        outgoing,
+        transfer,
+        stocktake,
+        adjustment,
+        closingOnHand,
+        provisionalClosingOnHand: closingOnHand === null && openingOnHand !== null
+          ? calculateProvisionalClosing(openingOnHand, incoming, outgoing, transfer, stocktake)
+          : null,
+        cancelledStocktakes,
+        invoiceChanges,
+        movements: movements.map((movement) => ({
+          id: movement.id,
+          sourceDocumentId: movement.sourceDocumentId,
+          sourceType: movement.sourceType,
+          documentCode: movement.documentCode,
+          occurredAt: movement.occurredAt.toISOString(),
+          quantityDelta: toNumber(movement.quantityDelta),
+          partnerName: movement.partnerName
+        }))
+      }];
+    }));
+
     data = {
       snapshotDate,
+      operationalDate,
       items,
+      dailyByInventoryId,
       stats,
+      categories,
       negativeCount: items.filter((item) => toNumber(item.onHand) < 0).length,
       zeroCount: items.filter((item) => toNumber(item.onHand) === 0).length,
       lowCount: items.filter((item) => toNumber(item.onHand) > 0 && toNumber(item.onHand) <= 10).length
@@ -111,18 +269,51 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
   }));
   const groupNameForItem = (item: (typeof data.items)[number]) => item.product.manualGroupAssignment?.group.name ?? "Chưa phân nhóm";
   const screenshotRows = data.items.map((item, index) => {
-    const onHand = toNumber(item.onHand);
+    const daily = data.dailyByInventoryId.get(item.id);
+    const closingOnHand = daily?.closingOnHand ?? daily?.provisionalClosingOnHand ?? toNumber(item.onHand);
 
     return {
       index: index + 1,
       groupName: groupNameForItem(item),
       productName: item.product.name,
       unit: item.product.unit ?? "-",
-      branchName: item.branch.name,
-      onHand: formatNumber(onHand),
-      onHandValue: onHand,
-      reserved: formatNumber(toNumber(item.reserved)),
-      actualReserved: formatNumber(toNumber(item.actualReserved))
+      openingOnHand: formatInventoryNumber(daily?.openingOnHand ?? null),
+      incoming: formatNumber(daily?.incoming ?? 0),
+      outgoing: formatNumber(daily?.outgoing ?? 0),
+      transfer: formatSignedNumber(daily?.transfer ?? 0),
+      stocktake: formatSignedNumber(daily?.stocktake ?? 0),
+      adjustment: formatNullableSignedNumber(daily?.adjustment ?? null),
+      closingOnHand: formatInventoryNumber(daily?.closingOnHand ?? daily?.provisionalClosingOnHand ?? null),
+      closingOnHandValue: closingOnHand
+    };
+  });
+  const tableRows: InventoryDailyMovementTableRow[] = data.items.map((item, index) => {
+    const daily = data.dailyByInventoryId.get(item.id);
+    const groupName = groupNameForItem(item);
+    const isGroupStart = index === 0 || groupNameForItem(data.items[index - 1]) !== groupName;
+    const nextGroupOffset = data.items.slice(index).findIndex((candidate) => groupNameForItem(candidate) !== groupName);
+    const closingOnHand = daily?.closingOnHand ?? daily?.provisionalClosingOnHand;
+
+    return {
+      id: item.id,
+      index: index + 1,
+      groupName,
+      isGroupStart,
+      groupRowSpan: nextGroupOffset === -1 ? data.items.length - index : nextGroupOffset,
+      productName: item.product.name,
+      unit: item.product.unit ?? "-",
+      openingOnHand: daily?.openingOnHand ?? null,
+      incoming: daily?.incoming ?? 0,
+      outgoing: daily?.outgoing ?? 0,
+      transfer: daily?.transfer ?? 0,
+      stocktake: daily?.stocktake ?? 0,
+      adjustment: daily?.adjustment ?? null,
+      closingOnHand: daily?.closingOnHand ?? null,
+      provisionalClosingOnHand: daily?.provisionalClosingOnHand ?? null,
+      statusOnHand: closingOnHand ?? toNumber(item.onHand),
+      cancelledStocktakes: daily?.cancelledStocktakes ?? [],
+      invoiceChanges: daily?.invoiceChanges ?? [],
+      movements: daily?.movements ?? []
     };
   });
 
@@ -141,7 +332,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             href={`/api/export/inventory?${new URLSearchParams({
               ...(query ? { q: query } : {}),
               ...(warehouse ? { warehouse } : {}),
-              ...(storage ? { storage } : {}),
+              ...(category ? { category } : {}),
               ...(stock !== "all" ? { stock } : {})
             }).toString()}`}
           >
@@ -166,53 +357,47 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             <CardTitle>Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="grid gap-3 xl:grid-cols-[1fr_190px_220px_180px_auto]">
+            <InventoryQuickCategoryButtons filters={inventoryCategoryQuickFilters} value={category} />
+            <form className="grid gap-3 xl:grid-cols-[1fr_190px_220px_220px_180px]">
               <TableSearch
                 baseParams={{
                   ...(warehouse ? { warehouse } : {}),
-                  ...(storage ? { storage } : {}),
+                  ...(category ? { category } : {}),
+                  ...(params.date ? { date: operationalDate } : {}),
                   ...(stock !== "all" ? { stock } : {})
                 }}
                 placeholder="Tìm theo tên hoặc mã sản phẩm"
                 suggestions={searchSuggestions}
                 value={query}
               />
-              <select
+              <InventoryAutoSelect
+                ariaLabel="Kho"
                 className={warehouseSelectClassName()}
-                defaultValue={warehouse}
                 name="warehouse"
-              >
-                <option value="">Tất cả kho</option>
-                {warehouseFilterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <select
+                options={[{ value: "", label: "Tất cả kho" }, ...warehouseFilterOptions]}
+                value={warehouse}
+              />
+              <InventoryDatePicker value={operationalDate} max={formatBusinessDate(new Date())} />
+              <InventoryAutoSelect
+                ariaLabel="Nhóm hàng"
                 className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                defaultValue={storage ?? ""}
-                name="storage"
-              >
-                <option value="">Tất cả khu kho</option>
-                {inventoryStorageOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-              <select
+                name="category"
+                options={[{ value: "", label: "Tất cả nhóm hàng" }, ...data.categories.map((option) => ({ value: option.categoryName ?? "", label: `${option.categoryName} (${option._count._all})` }))]}
+                value={category}
+              />
+              <InventoryAutoSelect
+                ariaLabel="Trạng thái tồn"
                 className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-                defaultValue={stock}
                 name="stock"
-              >
-                <option value="all">Tất cả tồn kho</option>
-                <option value="negative">Tồn âm</option>
-                <option value="zero">Hết hàng</option>
-                <option value="low">Tồn thấp</option>
-                <option value="available">Còn hàng</option>
-              </select>
-              <button className="h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
-                Lọc
-              </button>
+                options={[
+                  { value: "all", label: "Tất cả tồn kho" },
+                  { value: "negative", label: "Tồn âm" },
+                  { value: "zero", label: "Hết hàng" },
+                  { value: "low", label: "Tồn thấp" },
+                  { value: "available", label: "Còn hàng" }
+                ]}
+                value={stock}
+              />
             </form>
           </CardContent>
         </Card>
@@ -221,68 +406,82 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       <AnimatedPanel className="relative z-10" delay={0.08}>
         <Card className="shadow-sm transition-shadow duration-200 hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between gap-3">
-            <CardTitle>Bảng tồn kho</CardTitle>
+            <div>
+              <CardTitle>Bảng tồn kho</CardTitle>
+              <p className="mt-1 text-xs font-normal text-slate-500">Biến động ngày {formatDate(data.operationalDate)} · Từ 17:00 hôm trước đến 17:00 hôm nay</p>
+            </div>
             <InventoryScreenshotButton
               rows={screenshotRows}
-              snapshotLabel={`Snapshot: ${formatDateTime(data.snapshotDate)}`}
+              snapshotLabel={`Biến động ngày ${formatDate(data.operationalDate)} · 17:00 hôm trước–17:00 hôm nay`}
             />
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <InventoryDailyMovementTable rows={tableRows} />
+            <div className="hidden overflow-x-auto">
               <div className="inventory-table-capture w-max min-w-full bg-white dark:bg-slate-950">
-                <table className="inventory-table w-full min-w-[1120px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b bg-slate-50 text-left">
-                    <th className="px-3 py-2 font-medium">STT</th>
-                    <th className="px-3 py-2 font-medium">Nhóm hàng</th>
-                    <th className="px-3 py-2 font-medium">Sản phẩm</th>
-                    <th className="px-3 py-2 font-medium">ĐVT</th>
-                    <th className="px-3 py-2 font-medium">Chi nhánh</th>
-                    <th className="px-3 py-2 text-right font-medium">Tồn</th>
-                    <th className="px-3 py-2 text-right font-medium">Đặt giữ</th>
-                    <th className="px-3 py-2 text-right font-medium">Giữ thực tế</th>
-                    <th className="px-3 py-2 font-medium">Tình trạng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-8 text-center text-slate-500" colSpan={9}>
-                        Không có dòng tồn kho phù hợp với bộ lọc.
-                      </td>
+                <table className="inventory-table w-full min-w-[1220px] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b bg-slate-50 text-left">
+                      <th className="px-3 py-2 font-medium">STT</th>
+                      <th className="px-3 py-2 font-medium">Nhóm hàng</th>
+                      <th className="px-3 py-2 font-medium">Sản phẩm</th>
+                      <th className="px-3 py-2 font-medium">ĐVT</th>
+                      <th className="px-3 py-2 text-right font-medium">Tồn đầu</th>
+                      <th className="px-3 py-2 text-right font-medium">Nhập kho</th>
+                      <th className="px-3 py-2 text-right font-medium">Xuất kho</th>
+                      <th className="px-3 py-2 text-right font-medium">Chuyển kho</th>
+                      <th className="px-3 py-2 text-right font-medium">Lệch +/-</th>
+                      <th className="px-3 py-2 text-right font-medium">Tồn cuối</th>
+                      <th className="px-3 py-2 font-medium">Tình trạng</th>
                     </tr>
-                  ) : (
-                    data.items.map((item, index) => {
-                      const onHand = toNumber(item.onHand);
-                      const groupName = groupNameForItem(item);
-                      const isGroupStart = index === 0 || groupNameForItem(data.items[index - 1]) !== groupName;
-                      const nextGroupOffset = data.items.slice(index).findIndex((candidate) => groupNameForItem(candidate) !== groupName);
-                      const groupRowSpan = nextGroupOffset === -1 ? data.items.length - index : nextGroupOffset;
+                  </thead>
+                  <tbody>
+                    {data.items.length === 0 ? (
+                      <tr>
+                        <td className="px-3 py-8 text-center text-slate-500" colSpan={11}>
+                          Không có dòng tồn kho phù hợp với bộ lọc.
+                        </td>
+                      </tr>
+                    ) : (
+                      data.items.map((item, index) => {
+                        const onHand = toNumber(item.onHand);
+                        const daily = data.dailyByInventoryId.get(item.id);
+                        const closingOnHand = daily?.closingOnHand ?? daily?.provisionalClosingOnHand;
+                        const statusOnHand = closingOnHand ?? onHand;
+                        const groupName = groupNameForItem(item);
+                        const isGroupStart = index === 0 || groupNameForItem(data.items[index - 1]) !== groupName;
+                        const nextGroupOffset = data.items.slice(index).findIndex((candidate) => groupNameForItem(candidate) !== groupName);
+                        const groupRowSpan = nextGroupOffset === -1 ? data.items.length - index : nextGroupOffset;
 
-                      return (
-                        <AnimatedTableRow
-                          key={item.id}
-                          className="h-9 border-b last:border-0"
-                          delay={Math.min(index, 12) * 0.015}
-                        >
-                          <td className="h-9 px-3 py-0.5 leading-5 text-slate-500">{index + 1}</td>
-                          {isGroupStart ? <td className="h-9 px-3 py-0.5 align-middle font-semibold leading-5 text-slate-700 dark:text-slate-200" rowSpan={groupRowSpan}>{groupName}</td> : null}
-                          <td className="h-9 px-3 py-0.5 leading-5">
-                            <div className="font-medium leading-5 text-slate-900">{item.product.name}</div>
-                          </td>
-                          <td className="h-9 px-3 py-0.5 leading-5">{item.product.unit ?? "-"}</td>
-                          <td className="h-9 px-3 py-0.5 leading-5">{item.branch.name}</td>
-                          <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatNumber(onHand)}</td>
-                          <td className="h-9 px-3 py-0.5 text-right leading-5">{formatNumber(toNumber(item.reserved))}</td>
-                          <td className="h-9 px-3 py-0.5 text-right leading-5">{formatNumber(toNumber(item.actualReserved))}</td>
-                          <td className="h-9 px-3 py-0.5 leading-5">
-                            <StockBadge onHand={onHand} />
-                          </td>
-                        </AnimatedTableRow>
-                      );
-                    })
-                  )}
-                </tbody>
+                        return (
+                          <AnimatedTableRow
+                            key={item.id}
+                            className="h-9 border-b last:border-0"
+                            delay={Math.min(index, 12) * 0.015}
+                          >
+                            <td className="h-9 px-3 py-0.5 leading-5 text-slate-500">{index + 1}</td>
+                            {isGroupStart ? <td className="h-9 px-3 py-0.5 align-middle font-semibold leading-5 text-slate-700 dark:text-slate-200" rowSpan={groupRowSpan}>{groupName}</td> : null}
+                            <td className="h-9 px-3 py-0.5 leading-5">
+                              <div className="font-medium leading-5 text-slate-900">{item.product.name}</div>
+                            </td>
+                            <td className="h-9 px-3 py-0.5 leading-5">{item.product.unit ?? "-"}</td>
+                            <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatInventoryNumber(daily?.openingOnHand ?? null)}</td>
+                            <td className="h-9 px-3 py-0.5 text-right leading-5">{formatNumber(daily?.incoming ?? 0)}</td>
+                            <td className="h-9 px-3 py-0.5 text-right leading-5">{formatNumber(daily?.outgoing ?? 0)}</td>
+                            <td className="h-9 px-3 py-0.5 text-right leading-5">{formatSignedNumber(daily?.transfer ?? 0)}</td>
+                            <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatNullableSignedNumber(daily?.adjustment ?? null)}</td>
+                            <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">
+                              {formatInventoryNumber(closingOnHand ?? null)}
+                              {daily?.closingOnHand === null && daily?.provisionalClosingOnHand !== null ? <span className="ml-1 text-[10px] font-medium text-amber-600">tạm tính</span> : null}
+                            </td>
+                            <td className="h-9 px-3 py-0.5 leading-5">
+                              <StockBadge onHand={statusOnHand} />
+                            </td>
+                          </AnimatedTableRow>
+                        );
+                      })
+                    )}
+                  </tbody>
                 </table>
               </div>
             </div>
@@ -366,6 +565,69 @@ function toNumber(value: unknown) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value);
+}
+
+function formatInventoryNumber(value: number | null) {
+  return value === null ? "—" : formatNumber(value);
+}
+
+function formatSignedNumber(value: number) {
+  if (value === 0) return "—";
+  return `${value > 0 ? "+" : ""}${formatNumber(value)}`;
+}
+
+function formatNullableSignedNumber(value: number | null) {
+  return value === null ? "—" : formatSignedNumber(value);
+}
+
+function productBranchKey(productId: number, branchId: number) {
+  return `${productId}:${branchId}`;
+}
+
+function groupByProductBranch<T extends { productId: number; branchId: number }>(rows: T[]) {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = productBranchKey(row.productId, row.branchId);
+    const values = groups.get(key) ?? [];
+    values.push(row);
+    groups.set(key, values);
+  }
+  return groups;
+}
+
+function isTransferMovement(sourceType: string) {
+  return sourceType === "TRANSFER_OUT" || sourceType === "TRANSFER_IN";
+}
+
+function isStocktakeMovement(sourceType: string) {
+  return sourceType === "STOCKTAKE";
+}
+
+function sum(values: number[]) {
+  return values.reduce((total, value) => total + value, 0);
+}
+
+function formatBusinessDate(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(value);
+  const map = new Map(parts.map((part) => [part.type, part.value]));
+  return `${map.get("year")}-${map.get("month")}-${map.get("day")}`;
+}
+
+function isBusinessDate(value: string | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+}
+
+function formatDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
 }
 
 function formatDateTime(date: Date | null) {

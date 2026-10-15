@@ -11,6 +11,9 @@ const allowedTypes = new Set<SyncType>([
   "purchases",
   "returns",
   "transfers",
+  "internalUses",
+  "stocktakes",
+  "stocktakeHistory",
   "inventoryMovementHistory",
   "inventory",
   "all"

@@ -7,6 +7,9 @@ import {
   syncReturnMovements,
   syncTransferMovements
 } from "@/lib/kiotviet/inventory-movements";
+import { syncInternalStocktakes } from "@/lib/kiotviet/internal-stocktakes";
+import { syncInternalUses } from "@/lib/kiotviet/internal-uses";
+import { buildInvoiceItemChanges } from "@/lib/invoice-item-change-audit";
 
 export type SyncType =
   | "products"
@@ -18,6 +21,9 @@ export type SyncType =
   | "purchases"
   | "returns"
   | "transfers"
+  | "internalUses"
+  | "stocktakes"
+  | "stocktakeHistory"
   | "inventoryMovementHistory"
   | "inventory"
   | "all";
@@ -49,6 +55,9 @@ const sqliteWriteChunkSize = 100;
 const staleRunningLogMinutes = 30;
 const recentSyncLookbackDays = 7;
 const incrementalBufferDays = 2;
+// Re-read a short invoice window so recent cancellations/replacements are
+// reflected in the ledger without adding unnecessary API/database load.
+const invoiceIncrementalBufferDays = 5;
 const syncGlobal = globalThis as typeof globalThis & {
   yagamiKiotVietSyncRunning?: boolean;
 };
@@ -91,7 +100,7 @@ async function syncKiotVietUnlocked(type: SyncType): Promise<SyncResult[]> {
   if (type === "all") {
     const results: SyncResult[] = [];
 
-    for (const syncType of ["branches", "products", "customers", "orders", "invoices", "purchases", "returns", "transfers", "inventory"] as const) {
+    for (const syncType of ["branches", "products", "customers", "orders", "invoices", "purchases", "returns", "transfers", "internalUses", "stocktakes", "inventory"] as const) {
       results.push(await syncOne(syncType));
     }
 
@@ -183,11 +192,41 @@ async function syncByType(type: Exclude<SyncType, "all">): Promise<SyncStats> {
       return syncInventoryMovements("returns");
     case "transfers":
       return syncInventoryMovements("transfers");
+    case "internalUses":
+      return syncInternalUseDocuments(7);
+    case "stocktakes":
+      return syncStocktakes(7);
+    case "stocktakeHistory":
+      return syncStocktakes(90);
     case "inventoryMovementHistory":
       return syncInventoryMovementHistory();
     case "inventory":
       return syncInventory();
   }
+}
+
+async function syncStocktakes(lookbackDays: number): Promise<SyncStats> {
+  const fromDate = addDays(new Date(), -lookbackDays);
+  const result = await syncInternalStocktakes(fromDate);
+  return {
+    ...result,
+    warnings: [
+      ...(result.warnings ?? []),
+      `Phiếu kiểm kho lấy từ API quản trị KiotViet trong ${lookbackDays} ngày gần nhất.`
+    ]
+  };
+}
+
+async function syncInternalUseDocuments(lookbackDays: number): Promise<SyncStats> {
+  const fromDate = addDays(new Date(), -lookbackDays);
+  const result = await syncInternalUses(fromDate);
+  return {
+    ...result,
+    warnings: [
+      ...(result.warnings ?? []),
+      `Phiếu xuất dùng nội bộ lấy từ API quản trị KiotViet trong ${lookbackDays} ngày gần nhất.`
+    ]
+  };
 }
 
 async function syncProducts(): Promise<SyncStats> {
@@ -579,6 +618,12 @@ async function saveInvoice(record: unknown, maps: InvoiceMaps) {
 
   await withDatabaseRetry(`Ghi hóa đơn ${kvInvoiceId}`, () =>
     prisma.$transaction(async (tx) => {
+      const previousInvoice = await tx.invoice.findUnique({
+        where: { kvInvoiceId },
+        include: { items: { select: { productId: true, quantity: true } } }
+      });
+      const currentStatus = asString(item.status) ?? asString(item.statusValue);
+      const currentPurchaseDate = asDate(item.purchaseDate) ?? new Date();
       const invoice = await tx.invoice.upsert({
         where: { kvInvoiceId },
         create: {
@@ -586,20 +631,20 @@ async function saveInvoice(record: unknown, maps: InvoiceMaps) {
           code: asString(item.code),
           customerId,
           branchId,
-          purchaseDate: asDate(item.purchaseDate) ?? new Date(),
+          purchaseDate: currentPurchaseDate,
           total: asNumber(item.total) ?? 0,
           discount: asNumber(item.discount) ?? 0,
-          status: asString(item.status) ?? asString(item.statusValue),
+          status: currentStatus,
           rawJson: JSON.stringify(record)
         },
         update: {
           code: asString(item.code),
           customerId,
           branchId,
-          purchaseDate: asDate(item.purchaseDate) ?? new Date(),
+          purchaseDate: currentPurchaseDate,
           total: asNumber(item.total) ?? 0,
           discount: asNumber(item.discount) ?? 0,
-          status: asString(item.status) ?? asString(item.statusValue),
+          status: currentStatus,
           rawJson: JSON.stringify(record)
         }
       });
@@ -624,6 +669,58 @@ async function saveInvoice(record: unknown, maps: InvoiceMaps) {
           rawJson: JSON.stringify(detail)
         };
       });
+
+      if (previousInvoice) {
+        const changes = buildInvoiceItemChanges({
+          previousItems: previousInvoice.items.map((line) => ({
+            productId: line.productId,
+            quantity: Number(line.quantity)
+          })),
+          currentItems: invoiceItems.map((line) => ({
+            productId: line.productId ?? null,
+            quantity: line.quantity
+          })),
+          previousStatus: previousInvoice.status,
+          currentStatus
+        });
+
+        if (changes.length > 0) {
+          const products = await tx.product.findMany({
+            where: { id: { in: changes.map((change) => change.productId) } },
+            select: { id: true, code: true, name: true }
+          });
+          const productById = new Map(products.map((product) => [product.id, product]));
+
+          await tx.invoiceItemChange.createMany({
+            data: changes.map((change) => {
+              const product = productById.get(change.productId);
+              return {
+                kvInvoiceId,
+                invoiceCode: invoice.code,
+                branchId: invoice.branchId,
+                purchaseDate: invoice.purchaseDate,
+                productId: change.productId,
+                productCode: product?.code ?? null,
+                productName: product?.name ?? null,
+                previousQuantity: change.previousQuantity,
+                currentQuantity: change.currentQuantity,
+                inventoryDelta: change.inventoryDelta,
+                previousStatus: previousInvoice.status,
+                currentStatus,
+                changeType: change.changeType,
+                sourceModifiedAt: asDate(item.modifiedDate),
+                rawJson: JSON.stringify({
+                  previousStatus: previousInvoice.status,
+                  currentStatus,
+                  previousQuantity: change.previousQuantity,
+                  currentQuantity: change.currentQuantity,
+                  inventoryDelta: change.inventoryDelta
+                })
+              };
+            })
+          });
+        }
+      }
 
       for (const chunk of chunkArray(invoiceItems, sqliteWriteChunkSize)) {
         if (chunk.length > 0) {
@@ -729,7 +826,7 @@ async function getRecentInvoiceFromDate(toDate: Date) {
   const settingDate = parseSettingDate(await getAppSetting("invoiceRecentSyncedAt"));
 
   if (settingDate) {
-    return addDays(settingDate, -incrementalBufferDays);
+    return addDays(settingDate, -invoiceIncrementalBufferDays);
   }
 
   const latestInvoice = await prisma.invoice.aggregate({
@@ -737,7 +834,7 @@ async function getRecentInvoiceFromDate(toDate: Date) {
   });
 
   if (latestInvoice._max.purchaseDate) {
-    return addDays(latestInvoice._max.purchaseDate, -incrementalBufferDays);
+    return addDays(latestInvoice._max.purchaseDate, -invoiceIncrementalBufferDays);
   }
 
   return addDays(toDate, -recentSyncLookbackDays);

@@ -31,6 +31,7 @@ services:
   web:
     secrets:
       - goclaw_gateway_token
+      - kiotviet_internal_requests
     build:
       context: .
       dockerfile: Dockerfile
@@ -49,6 +50,10 @@ services:
       GOCLAW_MORNING_REPORT_PATH: "/goclaw-workspace/quan-ly-kim/zlo-ql-kim/group_zlo-ql-kim_6244108299423959453/outputs/morning-report.json"
       GOCLAW_MORNING_REPORT_TEXT_PATH: "/goclaw-workspace/quan-ly-kim/zlo-ql-kim/group_zlo-ql-kim_6244108299423959453/outputs/morning-report.txt"
       GOCLAW_GATEWAY_TOKEN_FILE: "/run/secrets/goclaw_gateway_token"
+      KIOTVIET_INTERNAL_REQUEST_FILE: "/run/secrets/kiotviet_internal_requests"
+      AUTH_SESSION_SECRET: "${AUTH_SESSION_SECRET:?Set AUTH_SESSION_SECRET in .env}"
+      AUTH_INITIAL_ADMIN_PASSWORD: "${AUTH_INITIAL_ADMIN_PASSWORD:?Set AUTH_INITIAL_ADMIN_PASSWORD in .env}"
+      AUTH_COOKIE_SECURE: "false"
     volumes:
       - goclaw_goclaw-workspace:/goclaw-workspace:ro
     networks:
@@ -57,6 +62,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    command: ["sh", "-c", "node scripts/ensure-user-access.mjs && npm start"]
 
 volumes:
   postgres_data:
@@ -70,3 +76,5 @@ networks:
 secrets:
   goclaw_gateway_token:
     file: ./secrets/goclaw_gateway_token.txt
+  kiotviet_internal_requests:
+    file: ./secrets/stocktakes-request.txt

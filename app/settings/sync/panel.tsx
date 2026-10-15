@@ -15,6 +15,9 @@ type SyncType =
   | "purchases"
   | "returns"
   | "transfers"
+  | "internalUses"
+  | "stocktakes"
+  | "stocktakeHistory"
   | "inventoryMovementHistory"
   | "inventory"
   | "all";
@@ -38,6 +41,9 @@ const syncActions: Array<{ syncType: SyncType; label: string; hint: string }> = 
   { syncType: "purchases", label: "Đồng bộ phiếu nhập", hint: "Cập nhật sổ kho từ phiếu nhập, lùi 3 ngày để bắt chỉnh sửa." },
   { syncType: "returns", label: "Đồng bộ trả hàng", hint: "Cập nhật hàng khách trả vào sổ kho." },
   { syncType: "transfers", label: "Đồng bộ chuyển kho", hint: "Cập nhật xuất/gửi, nhập/nhận và hóa đơn bán vào sổ kho." },
+  { syncType: "internalUses", label: "Đồng bộ xuất dùng nội bộ", hint: "Dùng phiên quản trị KiotViet, tải lại 7 ngày gần nhất." },
+  { syncType: "stocktakes", label: "Đồng bộ phiếu kiểm kho", hint: "Dùng phiên quản trị KiotViet, tải lại 7 ngày gần nhất." },
+  { syncType: "stocktakeHistory", label: "Đồng bộ lịch sử kiểm kho", hint: "Tải lại phiếu kiểm kho trong 90 ngày, chạy thủ công khi cần." },
   { syncType: "inventoryMovementHistory", label: "Đồng bộ lịch sử sổ kho 90 ngày", hint: "Tác vụ nặng, chạy thủ công khi cần đối chiếu lịch sử." },
   { syncType: "inventory", label: "Đồng bộ tồn kho", hint: "Lấy snapshot hiện tại, nên chạy sau cùng." },
   { syncType: "all", label: "Đồng bộ tất cả", hint: "Chạy theo thứ tự an toàn, bỏ lịch sử hóa đơn." }
@@ -53,6 +59,9 @@ const syncTypeLabels: Record<SyncType, string> = {
   purchases: "Phiếu nhập",
   returns: "Trả hàng",
   transfers: "Chuyển kho",
+  internalUses: "Xuất dùng nội bộ",
+  stocktakes: "Phiếu kiểm kho",
+  stocktakeHistory: "Lịch sử kiểm kho",
   inventoryMovementHistory: "Lịch sử sổ kho",
   inventory: "Tồn kho",
   all: "Tất cả"

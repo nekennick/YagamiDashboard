@@ -1,38 +1,37 @@
 import { Prisma } from "@prisma/client";
 import { createWorkbookBuffer, excelResponse } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
+import { inventoryCategoryFilter, quickFilterProductOrder } from "@/lib/inventory-category-filter";
 import { normalizeWarehouseFilter, warehouseBranchWhere } from "@/lib/warehouse-filter";
-import { normalizeInventoryStorage } from "@/lib/inventory-storage";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim() ?? "";
   const warehouse = normalizeWarehouseFilter(searchParams.get("warehouse") ?? searchParams.get("branch"));
-  const storage = normalizeInventoryStorage(searchParams.get("storage"));
+  const category = searchParams.get("category")?.trim() ?? "";
   const stock = searchParams.get("stock")?.trim() ?? "all";
   const latestInventoryDate = await prisma.inventorySnapshot.aggregate({
     _max: { snapshotDate: true }
   });
   const snapshotDate = latestInventoryDate._max.snapshotDate;
   const branchWhere = warehouseBranchWhere(warehouse);
-  const productWhere: Prisma.ProductWhereInput | undefined = query || storage
-    ? {
-        ...(storage ? { manualGroupAssignment: { is: { group: { storageArea: storage } } } } : {}),
-        ...(query
+  const productWhere: Prisma.ProductWhereInput = {
+      isActive: true,
+      ...(category ? inventoryCategoryFilter(category) : {}),
+      ...(query
           ? {
               OR: [
                 { name: { contains: query } },
                 { code: { contains: query } },
                 { fullName: { contains: query } }
               ]
-            }
-          : {})
-      }
-    : undefined;
+        }
+        : {})
+    };
   const inventoryWhere: Prisma.InventorySnapshotWhereInput = {
     ...(snapshotDate ? { snapshotDate } : {}),
     ...(branchWhere ? { branch: branchWhere } : {}),
-    ...(productWhere ? { product: productWhere } : {}),
+    product: productWhere,
     ...stockFilter(stock)
   };
   const items = await prisma.inventorySnapshot.findMany({
@@ -43,6 +42,14 @@ export async function GET(request: Request) {
     },
     orderBy: [{ onHand: "asc" }, { product: { name: "asc" } }]
   });
+  const quickProductOrder = quickFilterProductOrder(category);
+  if (quickProductOrder) {
+    items.sort((left, right) => {
+      const leftIndex = quickProductOrder.get(`${left.product.name.toLocaleLowerCase()}\u0000${(left.product.unit ?? "").toLocaleLowerCase()}`) ?? Number.MAX_SAFE_INTEGER;
+      const rightIndex = quickProductOrder.get(`${right.product.name.toLocaleLowerCase()}\u0000${(right.product.unit ?? "").toLocaleLowerCase()}`) ?? Number.MAX_SAFE_INTEGER;
+      return leftIndex - rightIndex;
+    });
+  }
   const rows = items.map((item) => {
     const onHand = toNumber(item.onHand);
 

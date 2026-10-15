@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { kiotVietInvoiceUrl } from "@/lib/kiotviet/links";
 
 export type CustomerInvoiceSummaryRow = {
   customerKey: string;
@@ -107,7 +108,7 @@ export function CustomerInvoiceSummaryTable({ rows }: CustomerInvoiceSummaryTabl
                               row.invoices.map((invoice, invoiceIndex) => (
                                 <tr className="border-b last:border-0" key={invoice.id}>
                                   <td className="px-3 py-2 text-slate-500">{invoiceIndex + 1}</td>
-                                  <td className="px-3 py-2 font-medium text-slate-900">{invoice.code}</td>
+                                  <td className="px-3 py-2 font-medium text-slate-900"><a className="text-indigo-700 underline decoration-dotted underline-offset-4 hover:text-indigo-900" href={kiotVietInvoiceUrl(invoice.code)} rel="noreferrer" target="_blank">{invoice.code}</a></td>
                                   <td className="px-3 py-2">{invoice.date}</td>
                                   <td className="px-3 py-2">
                                     <div>{invoice.customerName}</div>

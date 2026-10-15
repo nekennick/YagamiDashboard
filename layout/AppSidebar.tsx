@@ -17,7 +17,10 @@ import {
   DatabaseZap,
   Clock3,
   Database,
-  Building2
+  Building2,
+  ClipboardCheck,
+  Users,
+  LogOut
 } from "lucide-react";
 
 type SubItem = {
@@ -55,6 +58,11 @@ const navItems: NavItem[] = [
     path: "/inventory",
   },
   {
+    name: "Kiểm tồn",
+    icon: <ClipboardCheck className="h-5 w-5" />,
+    path: "/stocktake",
+  },
+  {
     name: "Báo cáo nhanh",
     icon: <ClipboardList className="h-5 w-5" />,
     path: "/reports",
@@ -77,11 +85,12 @@ const subMenuGroups: NavItem[] = [
       { name: "Đồng bộ dữ liệu", path: "/settings/sync", icon: <DatabaseZap className="h-4 w-4" /> },
       { name: "Lịch đồng bộ", path: "/settings/schedule", icon: <Clock3 className="h-4 w-4" /> },
       { name: "Cài đặt API", path: "/settings/api-test", icon: <Settings className="h-4 w-4" /> },
+      { name: "User và phân quyền", path: "/settings/users", icon: <Users className="h-4 w-4" /> },
     ],
   },
 ];
 
-const AppSidebar: React.FC = () => {
+const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string }> = ({ role = "MEMBER", displayName }) => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
@@ -121,6 +130,12 @@ const AppSidebar: React.FC = () => {
   };
 
   const showFullMenu = isExpanded || isHovered || isMobileOpen;
+  const visibleNavItems = role === "ADMIN" ? navItems : navItems.filter((item) => item.path === "/order-schedule" || item.path === "/stocktake");
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.assign("/login");
+  }
 
   return (
     <aside
@@ -174,7 +189,7 @@ const AppSidebar: React.FC = () => {
               </h2>
               
               <ul className="flex flex-col gap-1.5">
-                {navItems.map((nav) => (
+                {visibleNavItems.map((nav) => (
                   <li key={nav.name}>
                     <Link
                       href={nav.path || "/"}
@@ -197,7 +212,7 @@ const AppSidebar: React.FC = () => {
             </div>
 
             {/* Advanced Section */}
-            <div>
+            <div className={role === "ADMIN" ? "" : "hidden"}>
               <h2
                 className={`mb-3 text-[10px] font-bold tracking-wider uppercase flex leading-[20px] text-gray-400 dark:text-gray-400 ${
                   !showFullMenu ? "justify-center" : "justify-start"
@@ -286,6 +301,7 @@ const AppSidebar: React.FC = () => {
 
       {/* SQLite Status Widget */}
       <div className="py-4 border-t border-gray-100 dark:border-gray-800 mt-auto">
+        {showFullMenu ? <div className="mb-3 flex items-center justify-between gap-2 px-1"><div className="min-w-0"><p className="truncate text-xs font-semibold text-gray-800 dark:text-white">{displayName ?? "User"}</p><p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{role === "ADMIN" ? "Quản trị viên" : "User thường"}</p></div><button className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-white" onClick={() => void logout()} title="Đăng xuất" type="button"><LogOut className="h-4 w-4" /></button></div> : <button className="mx-auto mb-3 flex rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-white" onClick={() => void logout()} title="Đăng xuất" type="button"><LogOut className="h-4 w-4" /></button>}
         {showFullMenu ? (
           <div className="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl flex items-center gap-3 border border-gray-100 dark:border-gray-800">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">

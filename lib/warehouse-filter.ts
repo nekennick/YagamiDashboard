@@ -4,7 +4,7 @@ export type WarehouseFilterValue = "BINH_DUONG" | "CAO_LANH";
 
 export const warehouseFilterOptions: Array<{ value: WarehouseFilterValue; label: string; kvBranchId: number }> = [
   { value: "BINH_DUONG", label: "Kho Bình Dương", kvBranchId: 421136 },
-  { value: "CAO_LANH", label: "Tổng kho Cao Lãnh", kvBranchId: 385885 }
+  { value: "CAO_LANH", label: "Tổng kho YAGAMI", kvBranchId: 385885 }
 ];
 
 export function normalizeWarehouseFilter(value: string | null | undefined) {

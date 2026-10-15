@@ -1,6 +1,6 @@
 export const inventoryStorageOptions = [
-  { value: "DRY", label: "Kho khô" },
-  { value: "COLD", label: "Kho đông" }
+  { value: "DRY", label: "Hàng khô" },
+  { value: "COLD", label: "Hàng đồ đông" }
 ] as const;
 
 export type InventoryStorageValue = (typeof inventoryStorageOptions)[number]["value"];

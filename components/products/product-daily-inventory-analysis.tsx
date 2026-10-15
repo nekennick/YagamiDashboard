@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { kiotVietInternalUseUrl, kiotVietInvoiceUrl, kiotVietPurchaseOrderUrl } from "@/lib/kiotviet/links";
 
 type BranchOption = { id: number; name: string };
 type Movement = {
   id: number;
+  sourceDocumentId: string;
   occurredAt: string;
   sourceType: string;
   documentCode: string | null;
@@ -20,6 +22,8 @@ type Row = {
   openingOnHand: number | null;
   incoming: number;
   outgoing: number;
+  transfer: number;
+  stocktake: number;
   adjustment: number | null;
   closingOnHand: number | null;
   provisionalClosingOnHand: number | null;
@@ -46,7 +50,19 @@ export function ProductDailyInventoryAnalysis({ productId, branches }: { product
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(Boolean(branches[0]));
   const [savingDate, setSavingDate] = useState<string | null>(null);
+  const [detailSelection, setDetailSelection] = useState<{ date: string; source: "outgoing" | "incoming" | "transfer" } | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
   const [message, setMessage] = useState(branches.length ? "" : "Chưa có kho để phân tích sản phẩm này.");
+  const movementGroups = useMemo(() => groupMovementsByDate(rows), [rows]);
+  const selectedDetail = useMemo(() => {
+    if (!detailSelection) return null;
+    const row = rows.find((item) => item.date === detailSelection.date);
+    if (!row) return null;
+    const movements = row.movements.filter((movement) => detailSelection.source === "transfer" ? isTransferMovement(movement) : detailSelection.source === "outgoing" ? !isTransferMovement(movement) && !isStocktakeMovement(movement) && movement.quantityDelta < 0 : !isTransferMovement(movement) && !isStocktakeMovement(movement) && movement.quantityDelta > 0);
+    return { row, movements };
+  }, [detailSelection, rows]);
+  const selectedDetailDate = detailSelection?.date;
+  const selectedDetailSource = detailSelection?.source;
 
   const load = useCallback(async () => {
     if (!branchId) return;
@@ -69,6 +85,11 @@ export function ProductDailyInventoryAnalysis({ productId, branches }: { product
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!selectedDetailDate || !selectedDetailSource) return;
+    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedDetailDate, selectedDetailSource]);
 
   function patchRow(date: string, patch: Partial<Row>) {
     setRows((current) => current.map((row) => (row.date === date ? { ...row, ...patch } : row)));
@@ -107,7 +128,7 @@ export function ProductDailyInventoryAnalysis({ productId, branches }: { product
           <div>
             <CardTitle>Phân tích tồn kho theo ngày</CardTitle>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Sổ kho tổng hợp từ hóa đơn, nhập hàng, trả hàng, chuyển kho và snapshot tồn kho.
+              Sổ kho tính từ snapshot gần 17:00 hôm trước đến snapshot gần 17:00 hôm nay; tồn cuối ngày trước là tồn đầu ngày sau.
             </p>
           </div>
           <Button disabled={loading || !branchId} onClick={() => void load()} variant="secondary">
@@ -135,10 +156,10 @@ export function ProductDailyInventoryAnalysis({ productId, branches }: { product
       <CardContent className="space-y-4 p-0">
         {message ? <div className="mx-6 mt-5 flex items-start gap-2 rounded-lg bg-warning-50 p-3 text-sm text-warning-800 dark:bg-warning-950/40 dark:text-warning-200"><TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />{message}</div> : null}
         <div className="overflow-x-auto">
-          <table className="min-w-[1330px] w-full border-collapse text-sm">
+          <table className="min-w-[1510px] w-full border-collapse text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
               <tr>
-                {['Ngày', 'Tồn đầu', 'Nhập', 'Xuất', 'Điều chỉnh +/-', 'Tồn cuối', 'Tồn thực tế', 'Dư/Thiếu', 'Lệch trong ngày', 'Trạng thái', 'Ghi chú'].map((title) => <th className="whitespace-nowrap px-3 py-3 font-semibold" key={title}>{title}</th>)}
+                {['Ngày', 'Tồn đầu', 'Nhập', 'Xuất', 'Chuyển kho +/-', 'Kiểm kê +/-', 'Điều chỉnh +/-', 'Tồn cuối', 'Tồn thực tế', 'Dư/Thiếu', 'Lệch trong ngày', 'Trạng thái', 'Ghi chú'].map((title) => <th className="whitespace-nowrap px-3 py-3 font-semibold" key={title}>{title}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -146,8 +167,10 @@ export function ProductDailyInventoryAnalysis({ productId, branches }: { product
                 <tr className="border-t border-slate-100 align-top dark:border-slate-800" key={row.date}>
                   <td className="whitespace-nowrap px-3 py-3 font-medium text-slate-900 dark:text-white">{formatDate(row.date)}</td>
                   <td className="px-3 py-2"><EditableNumber onChange={(value) => patchRow(row.date, { openingOnHand: value, openingOverride: value })} onSave={() => void saveRow(row)} value={row.openingOnHand} /></td>
-                  <td className="px-3 py-3 text-right font-medium text-emerald-700 dark:text-emerald-300">{formatNumber(row.incoming)}</td>
-                  <td className="px-3 py-3 text-right font-medium text-rose-700 dark:text-rose-300">{formatNumber(row.outgoing)}</td>
+                  <td className="px-3 py-3 text-right font-medium text-emerald-700 dark:text-emerald-300">{row.incoming > 0 ? <button className="underline decoration-dotted underline-offset-4" onClick={() => setDetailSelection({ date: row.date, source: "incoming" })} type="button">{formatNumber(row.incoming)}</button> : formatNumber(row.incoming)}</td>
+                  <td className="px-3 py-3 text-right font-medium text-rose-700 dark:text-rose-300">{row.outgoing > 0 ? <button className="underline decoration-dotted underline-offset-4" onClick={() => setDetailSelection({ date: row.date, source: "outgoing" })} type="button">{formatNumber(row.outgoing)}</button> : formatNumber(row.outgoing)}</td>
+                  <td className={row.transfer === 0 ? "px-3 py-3 text-right" : row.transfer > 0 ? "px-3 py-3 text-right font-medium text-sky-700 dark:text-sky-300" : "px-3 py-3 text-right font-medium text-amber-700 dark:text-amber-300"}>{row.transfer !== 0 ? <button className="underline decoration-dotted underline-offset-4" onClick={() => setDetailSelection({ date: row.date, source: "transfer" })} type="button">{formatSignedNumber(row.transfer)}</button> : "—"}</td>
+                  <td className="px-3 py-3 text-right font-medium text-violet-700 dark:text-violet-300">{row.stocktake === 0 ? "—" : formatSignedNumber(row.stocktake)}</td>
                   <td className="px-3 py-3 text-right">{row.adjustment === null ? '—' : formatSignedNumber(row.adjustment)}</td>
                   <td className="px-3 py-3 text-right font-semibold">
                     {row.closingOnHand !== null ? formatNumber(row.closingOnHand) : row.provisionalClosingOnHand !== null ? (
@@ -164,25 +187,43 @@ export function ProductDailyInventoryAnalysis({ productId, branches }: { product
                   <td className="px-3 py-2"><input className="h-9 min-w-48 rounded-md border border-slate-200 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900" onBlur={() => void saveRow(row)} onChange={(event) => patchRow(row.date, { note: event.target.value || null })} value={row.note ?? ''} /></td>
                 </tr>
               ))}
-              {!loading && rows.length === 0 ? <tr><td className="px-6 py-8 text-center text-slate-500" colSpan={11}>Chưa có dữ liệu trong khoảng ngày này.</td></tr> : null}
+              {!loading && rows.length === 0 ? <tr><td className="px-6 py-8 text-center text-slate-500" colSpan={13}>Chưa có dữ liệu trong khoảng ngày này.</td></tr> : null}
             </tbody>
           </table>
         </div>
         <div className="px-6 pb-6">
           <details className="rounded-xl border border-slate-200 dark:border-slate-700">
             <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 font-semibold text-slate-900 dark:text-white">
-              Giao dịch trong khoảng ngày
+              Chi tiết giao dịch
               <ChevronDown className="h-4 w-4" />
             </summary>
             <div className="overflow-x-auto border-t border-slate-100 dark:border-slate-800">
-              <table className="min-w-[760px] w-full text-sm">
-                <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-900/70"><tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Chứng từ</th><th className="px-4 py-3">Loại</th><th className="px-4 py-3 text-right">Tăng/Giảm</th><th className="px-4 py-3">Đối tác</th></tr></thead>
-                <tbody>{rows.flatMap((row) => row.movements).map((movement) => <tr className="border-t border-slate-100 dark:border-slate-800" key={movement.id}><td className="px-4 py-3">{formatDateTime(movement.occurredAt)}</td><td className="px-4 py-3 font-medium">{movement.documentCode ?? '—'}</td><td className="px-4 py-3">{movementLabel(movement.sourceType)}</td><td className={movement.quantityDelta >= 0 ? 'px-4 py-3 text-right text-emerald-700' : 'px-4 py-3 text-right text-rose-700'}>{formatSignedNumber(movement.quantityDelta)}</td><td className="px-4 py-3">{movement.partnerName ?? '—'}</td></tr>)}</tbody>
+              <table className="min-w-[620px] w-full text-sm">
+                <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-900/70"><tr><th className="px-4 py-3">Ngày</th><th className="px-4 py-3 text-right">Số giao dịch</th><th className="px-4 py-3">Loại</th><th className="px-4 py-3 text-right">Tổng tăng/giảm</th></tr></thead>
+                <tbody>{movementGroups.map((group) => <tr className="border-t border-slate-100 dark:border-slate-800" key={group.date}><td className="px-4 py-3 font-medium">{formatDate(group.date)}</td><td className="px-4 py-3 text-right">{group.count}</td><td className="px-4 py-3">{group.labels}</td><td className={group.quantityDelta >= 0 ? 'px-4 py-3 text-right text-emerald-700' : 'px-4 py-3 text-right text-rose-700'}>{formatSignedNumber(group.quantityDelta)}</td></tr>)}</tbody>
               </table>
             </div>
           </details>
         </div>
       </CardContent>
+      {selectedDetail ? (
+        <div className="mt-3 scroll-mt-6 overflow-hidden rounded-xl border border-indigo-200 bg-indigo-50/40 dark:border-indigo-900 dark:bg-indigo-950/20" ref={detailRef}>
+          <div className="flex items-center justify-between gap-3 border-b border-indigo-100 px-4 py-3 dark:border-indigo-900">
+            <div>
+              <h3 className="font-semibold text-slate-900 dark:text-white">{detailSelection?.source === "outgoing" ? "Hóa đơn và chi nhánh liên quan" : detailSelection?.source === "transfer" ? "Phiếu chuyển kho trong ngày" : "Phiếu nhập trong ngày"}</h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{formatDate(selectedDetail.row.date)} · {selectedDetail.movements.length} chứng từ</p>
+            </div>
+            <Button onClick={() => setDetailSelection(null)} variant="secondary">Đóng</Button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-[760px] w-full text-sm">
+              <thead className="bg-white/70 text-left text-xs uppercase text-slate-500 dark:bg-slate-900/40 dark:text-slate-400"><tr><th className="px-4 py-3">Chứng từ</th><th className="px-4 py-3">{detailSelection?.source === "outgoing" ? "Chi nhánh / đối tác" : detailSelection?.source === "transfer" ? "Kho liên quan" : "Nhà cung cấp"}</th><th className="px-4 py-3">Loại</th><th className="px-4 py-3 text-right">Số lượng</th></tr></thead>
+              <tbody>{selectedDetail.movements.map((movement) => { const code = movement.documentCode ?? movement.sourceDocumentId; const url = movementLinkUrl(movement.sourceType, movement.documentCode); return <tr className="border-t border-indigo-100 dark:border-indigo-900" key={movement.id}><td className="px-4 py-3 font-medium">{url ? <a className="text-indigo-700 underline decoration-dotted underline-offset-4 hover:text-indigo-900 dark:text-indigo-300 dark:hover:text-indigo-200" href={url} rel="noreferrer" target="_blank">{code}</a> : code}</td><td className="px-4 py-3">{movement.partnerName ?? "—"}</td><td className="px-4 py-3">{movementLabel(movement.sourceType)}</td><td className="px-4 py-3 text-right font-semibold">{formatSignedNumber(movement.quantityDelta)}</td></tr>; })}</tbody>
+            </table>
+          </div>
+          <div className="border-t border-indigo-100 px-4 py-3 text-right text-sm font-semibold dark:border-indigo-900">Tổng: {formatSignedNumber(selectedDetail.movements.reduce((sum, movement) => sum + movement.quantityDelta, 0))}</div>
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -204,6 +245,24 @@ function currentMonthRange() {
   return { from: formatIsoDate(from), to: end };
 }
 
+function groupMovementsByDate(rows: Row[]) {
+  const groups = new Map<string, { date: string; count: number; quantityDelta: number; labels: Set<string> }>();
+
+  for (const row of rows) {
+    for (const movement of row.movements) {
+      const current = groups.get(row.date) ?? { date: row.date, count: 0, quantityDelta: 0, labels: new Set<string>() };
+      current.count += 1;
+      current.quantityDelta += movement.quantityDelta;
+      current.labels.add(movementLabel(movement.sourceType));
+      groups.set(row.date, current);
+    }
+  }
+
+  return [...groups.values()]
+    .map((group) => ({ ...group, labels: [...group.labels].join(", ") }))
+    .sort((left, right) => right.date.localeCompare(left.date));
+}
+
 function formatIsoDate(value: Date) {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
 }
@@ -211,8 +270,16 @@ function normalizeBranchName(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 function formatDate(value: string) { return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${value}T00:00:00+07:00`)); }
-function formatDateTime(value: string) { return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
 function formatNumber(value: number) { return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value); }
 function formatSignedNumber(value: number) { return `${value > 0 ? '+' : ''}${formatNumber(value)}`; }
+function movementLinkUrl(sourceType: string, code: string | null) {
+  if (!code) return null;
+  if (sourceType === "SALE") return kiotVietInvoiceUrl(code);
+  if (sourceType === "PURCHASE") return kiotVietPurchaseOrderUrl(code);
+  if (sourceType === "INTERNAL_USE") return kiotVietInternalUseUrl(code);
+  return null;
+}
+function isTransferMovement(movement: Movement) { return movement.sourceType === "TRANSFER_OUT" || movement.sourceType === "TRANSFER_IN"; }
+function isStocktakeMovement(movement: Movement) { return movement.sourceType === "STOCKTAKE"; }
 function formatOptionalSignedNumber(value: number | null) { return value === null ? '—' : formatSignedNumber(value); }
-function movementLabel(value: string) { return ({ SALE: 'Bán hàng', PURCHASE: 'Nhập hàng', CUSTOMER_RETURN: 'Khách trả hàng', TRANSFER_OUT: 'Chuyển đi', TRANSFER_IN: 'Chuyển đến' } as Record<string, string>)[value] ?? value; }
+function movementLabel(value: string) { return ({ SALE: 'Bán hàng', PURCHASE: 'Nhập hàng', CUSTOMER_RETURN: 'Khách trả hàng', TRANSFER_OUT: 'Chuyển đi', TRANSFER_IN: 'Chuyển đến', STOCKTAKE: 'Kiểm kê', INTERNAL_USE: 'Xuất dùng nội bộ' } as Record<string, string>)[value] ?? value; }

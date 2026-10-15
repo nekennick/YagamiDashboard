@@ -8,11 +8,14 @@ export type InventoryScreenshotRow = {
   groupName: string;
   productName: string;
   unit: string;
-  branchName: string;
-  onHand: string;
-  onHandValue: number;
-  reserved: string;
-  actualReserved: string;
+  openingOnHand: string;
+  incoming: string;
+  outgoing: string;
+  transfer: string;
+  stocktake: string;
+  adjustment: string;
+  closingOnHand: string;
+  closingOnHandValue: number;
 };
 
 type InventoryScreenshotButtonProps = {
@@ -20,7 +23,7 @@ type InventoryScreenshotButtonProps = {
   snapshotLabel: string;
 };
 
-const imageWidth = 1800;
+const imageWidth = 1930;
 const titleHeight = 104;
 const headerHeight = 58;
 const rowHeight = 42;
@@ -30,13 +33,16 @@ const imageScale = 1.5;
 const columns = [
   { key: "index", label: "STT", width: 70, align: "center" },
   { key: "groupName", label: "Nhóm hàng", width: 220, align: "left" },
-  { key: "productName", label: "Sản phẩm", width: 450, align: "left" },
+  { key: "productName", label: "Sản phẩm", width: 360, align: "left" },
   { key: "unit", label: "ĐVT", width: 90, align: "center" },
-  { key: "branchName", label: "Chi nhánh", width: 290, align: "left" },
-  { key: "onHand", label: "Tồn", width: 150, align: "right" },
-  { key: "reserved", label: "Đặt giữ", width: 150, align: "right" },
-  { key: "actualReserved", label: "Giữ thực tế", width: 170, align: "right" },
-  { key: "status", label: "Tình trạng", width: 180, align: "center" }
+  { key: "openingOnHand", label: "Tồn đầu", width: 130, align: "right" },
+  { key: "incoming", label: "Nhập kho", width: 130, align: "right" },
+  { key: "outgoing", label: "Xuất kho", width: 130, align: "right" },
+  { key: "transfer", label: "Chuyển kho", width: 150, align: "right" },
+  { key: "stocktake", label: "Kiểm kê +/-", width: 150, align: "right" },
+  { key: "adjustment", label: "Lệch +/-", width: 130, align: "right" },
+  { key: "closingOnHand", label: "Tồn cuối", width: 130, align: "right" },
+  { key: "status", label: "Tình trạng", width: 150, align: "center" }
 ] as const;
 
 export function InventoryScreenshotButton({ rows, snapshotLabel }: InventoryScreenshotButtonProps) {
@@ -141,7 +147,7 @@ function drawRows(context: CanvasRenderingContext2D, rows: InventoryScreenshotRo
 
   rows.forEach((row, rowIndex) => {
     const y = titleHeight + headerHeight + rowIndex * rowHeight;
-    const status = stockStatus(row.onHandValue);
+    const status = stockStatus(row.closingOnHandValue);
     const values = {
       ...row,
       groupName: row.groupName === previousGroup ? "" : row.groupName,
@@ -167,7 +173,7 @@ function drawRows(context: CanvasRenderingContext2D, rows: InventoryScreenshotRo
           rowHeight,
           column.align,
           column.key === "productName" ? "#0f172a" : "#334155",
-          column.key === "productName" || column.key === "onHand" ? 600 : 400
+          column.key === "productName" || column.key === "closingOnHand" ? 600 : 400
         );
       }
 
