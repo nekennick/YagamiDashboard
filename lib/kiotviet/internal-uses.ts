@@ -15,7 +15,7 @@ export async function syncInternalUses(fromDate: Date): Promise<InternalUseSyncS
   const documents = await fetchInternalUseDocuments(session);
   const selected = documents.filter((document) => {
     const sourceDate = date(document.ModifiedDate) ?? date(document.TransDate) ?? date(document.CreatedDate);
-    return sourceDate !== null && sourceDate >= fromDate;
+    return sourceDate instanceof Date && sourceDate >= fromDate;
   });
   const [products, branches] = await Promise.all([
     prisma.product.findMany({ select: { id: true, kvProductId: true, code: true } }),

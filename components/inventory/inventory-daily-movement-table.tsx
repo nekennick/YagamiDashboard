@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { kiotVietInternalUseUrl, kiotVietInvoiceUrl, kiotVietPurchaseOrderUrl, kiotVietStocktakeUrl } from "@/lib/kiotviet/links";
@@ -18,16 +18,54 @@ export type InventoryDailyMovementTableRow = {
 };
 
 type DetailSource = "incoming" | "outgoing" | "transfer" | "stocktake" | "adjustment";
+type FloatingHeaderState = { visible: boolean; top: number; left: number; width: number; tableWidth: number; scrollLeft: number; columnWidths: number[] };
 
 export function InventoryDailyMovementTable({ rows }: { rows: InventoryDailyMovementTableRow[] }) {
   const [selection, setSelection] = useState<{ row: InventoryDailyMovementTableRow; source: DetailSource } | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [floatingHeader, setFloatingHeader] = useState<FloatingHeaderState>({ visible: false, top: 0, left: 0, width: 0, tableWidth: 0, scrollLeft: 0, columnWidths: [] });
   useEffect(() => { if (!selection) return; const close = (event: KeyboardEvent) => event.key === "Escape" && setSelection(null); window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close); }, [selection]);
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    const updateFloatingHeader = () => {
+      const scroll = scrollRef.current;
+      const table = tableRef.current;
+      if (!scroll || !table) return;
+      const header = table.querySelector("thead");
+      if (!header) return;
+      const appHeaderBottom = document.querySelector("header")?.getBoundingClientRect().bottom ?? 0;
+      const headerRect = header.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      const scrollRect = scroll.getBoundingClientRect();
+      const visible = headerRect.top < appHeaderBottom && tableRect.bottom > appHeaderBottom + headerRect.height;
+      const next: FloatingHeaderState = {
+        visible,
+        top: appHeaderBottom,
+        left: scrollRect.left,
+        width: scrollRect.width,
+        tableWidth: tableRect.width,
+        scrollLeft: scroll.scrollLeft,
+        columnWidths: Array.from(header.querySelectorAll("th")).map((cell) => cell.getBoundingClientRect().width)
+      };
+      setFloatingHeader((current) => current.visible === next.visible && current.top === next.top && current.left === next.left && current.width === next.width && current.tableWidth === next.tableWidth && current.scrollLeft === next.scrollLeft ? current : next);
+    };
+    updateFloatingHeader();
+    window.addEventListener("scroll", updateFloatingHeader, { passive: true });
+    window.addEventListener("resize", updateFloatingHeader);
+    scrollElement?.addEventListener("scroll", updateFloatingHeader, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", updateFloatingHeader);
+      window.removeEventListener("resize", updateFloatingHeader);
+      scrollElement?.removeEventListener("scroll", updateFloatingHeader);
+    };
+  }, [rows]);
 
   return <>
-    <div className="overflow-x-auto"><div className="inventory-table-capture w-max min-w-full bg-white dark:bg-slate-950"><table className="inventory-table w-full min-w-[1320px] border-collapse text-sm">
+    <div ref={scrollRef} className="overflow-x-auto"><div className="inventory-table-capture w-max min-w-full bg-white dark:bg-slate-950"><table ref={tableRef} className="inventory-table inventory-daily-table w-full min-w-[1320px] border-collapse text-sm">
       <thead><tr className="border-b bg-slate-50 text-left">
-        <th className="px-3 py-2 font-medium">STT</th><th className="px-3 py-2 font-medium">Nhóm hàng</th><th className="px-3 py-2 font-medium">Sản phẩm</th><th className="px-3 py-2 font-medium">ĐVT</th>
-        <th className="px-3 py-2 text-right font-medium">Tồn đầu</th><th className="px-3 py-2 text-right font-medium">Nhập kho</th><th className="px-3 py-2 text-right font-medium">Xuất kho</th><th className="px-3 py-2 text-right font-medium">Chuyển kho</th><th className="px-3 py-2 text-right font-medium">Kiểm kê +/-</th><th className="px-3 py-2 text-right font-medium">Lệch +/-</th><th className="px-3 py-2 text-right font-medium">Tồn cuối</th><th className="px-3 py-2 font-medium">Tình trạng</th><th className="px-3 py-2 font-medium">Ghi chú</th>
+        <th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">STT</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Nhóm hàng</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Sản phẩm</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">ĐVT</th>
+        <th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 text-right font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Tồn đầu</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 text-right font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Nhập kho</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 text-right font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Xuất kho</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 text-right font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Chuyển kho</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 text-right font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Kiểm kê +/-</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 text-right font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Lệch +/-</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 text-right font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Tồn cuối</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Tình trạng</th><th className="sticky top-16 z-20 bg-slate-50 px-3 py-2 font-medium shadow-sm lg:top-[76px] dark:bg-slate-900">Ghi chú</th>
       </tr></thead>
       <tbody>{rows.length === 0 ? <tr><td className="px-3 py-8 text-center text-slate-500" colSpan={13}>Không có dòng tồn kho phù hợp với bộ lọc.</td></tr> : rows.map((row) => <tr className="h-9 border-b last:border-0" key={row.id}>
         <td className="h-9 px-3 py-0.5 leading-5 text-slate-500">{row.index}</td>
@@ -40,8 +78,23 @@ export function InventoryDailyMovementTable({ rows }: { rows: InventoryDailyMove
         <td className="h-9 px-3 py-0.5 leading-5"><StockBadge onHand={row.statusOnHand} /></td><td className="h-9 px-3 py-0.5 leading-5 text-slate-600">{adjustmentNote(row)}</td>
       </tr>)}</tbody>
     </table></div></div>
+    <FloatingInventoryHeader state={floatingHeader} />
     {selection ? <MovementDialog selection={selection} onClose={() => setSelection(null)} /> : null}
   </>;
+}
+
+function FloatingInventoryHeader({ state }: { state: FloatingHeaderState }) {
+  if (!state.visible || state.columnWidths.length !== 13) return null;
+  const cells = [
+    ["STT", ""], ["Nhóm hàng", ""], ["Sản phẩm", ""], ["ĐVT", ""], ["Tồn đầu", "text-right"], ["Nhập kho", "text-right"], ["Xuất kho", "text-right"], ["Chuyển kho", "text-right"], ["Kiểm kê +/-", "text-right"], ["Lệch +/-", "text-right"], ["Tồn cuối", "text-right"], ["Tình trạng", ""], ["Ghi chú", ""]
+  ];
+  const content = <div className="pointer-events-none fixed z-30 overflow-hidden border-b border-slate-200 bg-slate-50 shadow-md dark:border-slate-700 dark:bg-slate-900" style={{ top: state.top, left: state.left, width: state.width }}>
+    <table className="inventory-table border-collapse text-sm" style={{ width: state.tableWidth, transform: `translateX(-${state.scrollLeft}px)` }}>
+      <colgroup>{state.columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
+      <thead><tr className="text-left">{cells.map(([label, alignment], index) => <th className={`bg-slate-50 px-3 py-2 font-medium dark:bg-slate-900 ${alignment}`} key={index}>{label}</th>)}</tr></thead>
+    </table>
+  </div>;
+  return typeof document === "undefined" ? null : createPortal(content, document.body);
 }
 
 function AmountCell({ value, onClick, positive = false }: { value: number; onClick: () => void; positive?: boolean }) { return <td className={`h-9 px-3 py-0.5 text-right leading-5 ${value ? "font-medium" : ""} ${positive && value ? "text-emerald-700" : value ? "text-rose-700" : ""}`}>{value ? <button className="underline decoration-dotted underline-offset-4" onClick={onClick} type="button">{formatNumber(value)}</button> : formatNumber(value)}</td>; }

@@ -437,6 +437,12 @@ table.inventory-table td[rowspan] {
   vertical-align: middle;
 }
 
+.inventory-daily-table th.sticky {
+  position: static !important;
+  top: auto !important;
+  box-shadow: none !important;
+}
+
 .dark .text-slate-950,
 .dark .text-slate-900,
 .dark .text-slate-800 {
