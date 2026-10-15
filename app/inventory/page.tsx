@@ -472,7 +472,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                             <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatNullableSignedNumber(daily?.adjustment ?? null)}</td>
                             <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">
                               {formatInventoryNumber(closingOnHand ?? null)}
-                              {daily?.closingOnHand === null && daily?.provisionalClosingOnHand !== null ? <span className="ml-1 text-[10px] font-medium text-amber-600">tạm tính</span> : null}
+                              {daily?.closingOnHand === null && daily?.provisionalClosingOnHand !== null ? <span className="ml-1 text-[10px] font-medium text-amber-600">tt</span> : null}
                             </td>
                             <td className="h-9 px-3 py-0.5 leading-5">
                               <StockBadge onHand={statusOnHand} />
