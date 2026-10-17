@@ -70,7 +70,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       prisma.inventorySnapshot.findMany({
         where: inventoryWhere,
         include: {
-          product: { select: { code: true, name: true, categoryName: true, unit: true, isActive: true, manualGroupAssignment: { select: { position: true, group: { select: { name: true, position: true, storageArea: true } } } } } },
+          product: { select: { id: true, code: true, name: true, categoryName: true, unit: true, isActive: true, manualGroupAssignment: { select: { position: true, group: { select: { name: true, position: true, storageArea: true } } } } } },
           branch: { select: { id: true, name: true } }
         },
         orderBy: [{ product: { name: "asc" } }],
@@ -297,6 +297,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
 
     return {
       id: item.id,
+      productId: item.productId,
+      branchId: item.branchId,
       index: index + 1,
       groupName,
       isGroupStart,

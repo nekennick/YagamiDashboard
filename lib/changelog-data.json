@@ -1,5 +1,19 @@
 [
   {
+    "hash": "3aff09deecb855a8ab0beb3b539800d441a22027",
+    "shortHash": "3aff09d",
+    "message": "Sửa lỗi hiển thị báo cáo trong Tổng Quan",
+    "author": "nekennick",
+    "date": "2026-10-15"
+  },
+  {
+    "hash": "489ae70d14937b1e747ad8d441152ca6e9eda677",
+    "shortHash": "489ae70",
+    "message": "Sửa lỗi hiển thị thông báo",
+    "author": "nekennick",
+    "date": "2026-10-15"
+  },
+  {
     "hash": "cb908edc5939ab6b9ec0696f0aa7dc8f21b62e26",
     "shortHash": "cb908ed",
     "message": "Phân quyền user",

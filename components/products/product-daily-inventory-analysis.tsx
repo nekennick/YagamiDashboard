@@ -38,12 +38,23 @@ type Row = {
 };
 type DailyResponse = { branch: BranchOption; rows: Row[] };
 
-export function ProductDailyInventoryAnalysis({ productId, branches }: { productId: number; branches: BranchOption[] }) {
+export function ProductDailyInventoryAnalysis({
+  productId,
+  branches,
+  initialBranchId
+}: {
+  productId: number;
+  branches: BranchOption[];
+  initialBranchId?: string;
+}) {
   const defaultRange = useMemo(() => currentMonthRange(), []);
-  const defaultBranch = branches.find((branch) => {
-    const name = normalizeBranchName(branch.name);
-    return name.includes("tong kho yagami") || name.includes("cao lanh");
-  }) ?? branches[0];
+  const defaultBranch =
+    (initialBranchId ? branches.find((branch) => String(branch.id) === String(initialBranchId)) : undefined) ??
+    branches.find((branch) => {
+      const name = normalizeBranchName(branch.name);
+      return name.includes("tong kho yagami") || name.includes("cao lanh");
+    }) ??
+    branches[0];
   const [branchId, setBranchId] = useState(String(defaultBranch?.id ?? ""));
   const [fromDate, setFromDate] = useState(defaultRange.from);
   const [toDate, setToDate] = useState(defaultRange.to);

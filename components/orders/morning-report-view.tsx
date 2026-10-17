@@ -155,7 +155,7 @@ function RefreshButton({ loading, onClick }: { loading: boolean; onClick: () => 
 function parseStockPressure(summary: string) {
   const section = summary.split("📦 4 mã siết tồn")[1]?.split("⚠️ Cần theo dõi:")[0];
   if (!section) return [];
-  return [...section.matchAll(/🏭\s*([^:\n]+):\s*([\s\S]*?)(?=🏭|$)/g)].flatMap(([, warehouse, rows]) => [...rows.matchAll(/•\s*([A-Z0-9]+):\s*cần\s*([\d.]+)\s*\|\s*tồn\s*([\d.]+)\s*\|\s*giữ\s*([\d.]+)\s*\|\s*khả dụng\s*([\d.]+)/gi)].map(([, code, demand, stock, reserved, available]) => ({ warehouse: warehouse.trim(), code, demand: toNumber(demand), stock: toNumber(stock), reserved: toNumber(reserved), available: toNumber(available) })));
+  return [...section.matchAll(/🏭\s*([^:\n]+):\s*([\s\S]*?)(?=🏭|$)/g)].flatMap(([, warehouse, rows]) => [...rows.matchAll(/•\s*([A-Z0-9]+):\s*cần\s*(-?[\d.]+)\s*\|\s*tồn\s*(-?[\d.]+)\s*\|\s*giữ\s*(-?[\d.]+)\s*\|\s*khả dụng\s*(-?[\d.]+)/gi)].map(([, code, demand, stock, reserved, available]) => ({ warehouse: warehouse.trim(), code, demand: toNumber(demand), stock: toNumber(stock), reserved: toNumber(reserved), available: toNumber(available) })));
 }
 
 function groupStockByCode(rows: StockPressure[]) {

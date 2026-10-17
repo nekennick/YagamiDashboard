@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { kiotVietInternalUseUrl, kiotVietInvoiceUrl, kiotVietPurchaseOrderUrl, kiotVietStocktakeUrl } from "@/lib/kiotviet/links";
@@ -9,9 +10,24 @@ export type InventoryMovementDetail = { id: number; sourceDocumentId: string; so
 export type InvoiceChangeDetail = { code: string | null; previousQuantity: number; currentQuantity: number; inventoryDelta: number; occurredAt: string };
 
 export type InventoryDailyMovementTableRow = {
-  id: number; index: number; groupName: string; isGroupStart: boolean; groupRowSpan: number; productName: string; unit: string;
-  openingOnHand: number | null; incoming: number; outgoing: number; transfer: number; stocktake: number; adjustment: number | null;
-  closingOnHand: number | null; provisionalClosingOnHand: number | null; statusOnHand: number;
+  id: number;
+  productId?: number;
+  branchId?: number;
+  index: number;
+  groupName: string;
+  isGroupStart: boolean;
+  groupRowSpan: number;
+  productName: string;
+  unit: string;
+  openingOnHand: number | null;
+  incoming: number;
+  outgoing: number;
+  transfer: number;
+  stocktake: number;
+  adjustment: number | null;
+  closingOnHand: number | null;
+  provisionalClosingOnHand: number | null;
+  statusOnHand: number;
   cancelledStocktakes: { code: string; quantityDelta: number; occurredAt: string | null }[];
   invoiceChanges: InvoiceChangeDetail[];
   movements: InventoryMovementDetail[];
@@ -70,7 +86,19 @@ export function InventoryDailyMovementTable({ rows }: { rows: InventoryDailyMove
       <tbody>{rows.length === 0 ? <tr><td className="px-3 py-8 text-center text-slate-500" colSpan={13}>Không có dòng tồn kho phù hợp với bộ lọc.</td></tr> : rows.map((row) => <tr className="h-9 border-b last:border-0" key={row.id}>
         <td className="h-9 px-3 py-0.5 leading-5 text-slate-500">{row.index}</td>
         {row.isGroupStart ? <td className="h-9 px-3 py-0.5 align-middle font-semibold leading-5 text-slate-700 dark:text-slate-200" rowSpan={row.groupRowSpan}>{row.groupName}</td> : null}
-        <td className="h-9 px-3 py-0.5 leading-5"><div className="font-medium leading-5 text-slate-900">{row.productName}</div></td><td className="h-9 px-3 py-0.5 leading-5">{row.unit}</td>
+        <td className="h-9 px-3 py-0.5 leading-5">
+          {row.productId ? (
+            <Link
+              href={`/stocktake?productId=${row.productId}${row.branchId ? `&branchId=${row.branchId}` : ""}`}
+              className="font-medium leading-5 text-slate-900 transition-colors hover:text-indigo-600 hover:underline decoration-indigo-400 underline-offset-2 dark:text-slate-100 dark:hover:text-indigo-400"
+              title={`Mở sổ kiểm tồn cho "${row.productName}"`}
+            >
+              {row.productName}
+            </Link>
+          ) : (
+            <div className="font-medium leading-5 text-slate-900 dark:text-slate-100">{row.productName}</div>
+          )}
+        </td><td className="h-9 px-3 py-0.5 leading-5">{row.unit}</td>
         <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatOptionalNumber(row.openingOnHand)}</td>
         <AmountCell value={row.incoming} onClick={() => setSelection({ row, source: "incoming" })} positive /><AmountCell value={row.outgoing} onClick={() => setSelection({ row, source: "outgoing" })} />
         <SignedAmountCell value={row.transfer} onClick={() => setSelection({ row, source: "transfer" })} /><SignedAmountCell value={row.stocktake} onClick={() => setSelection({ row, source: "stocktake" })} /><SignedAmountCell value={row.adjustment} onClick={() => setSelection({ row, source: "adjustment" })} />
@@ -115,7 +143,7 @@ function MovementDialog({ selection, onClose }: { selection: { row: InventoryDai
 }
 
 function AdjustmentContent({ row, total }: { row: InventoryDailyMovementTableRow; total: number }) { return <div className="space-y-3 px-5 py-5 text-sm text-slate-700 dark:text-slate-200"><p><span className="font-medium">Nguồn:</span> đối chiếu snapshot chốt tồn lúc 17:00.</p><p><span className="font-medium">Cách tính:</span> tồn cuối snapshot trừ (tồn đầu + nhập − xuất + chuyển kho + kiểm kê).</p>{row.invoiceChanges.length ? <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200"><p className="font-semibold">Nguyên nhân: hóa đơn đã được chỉnh sửa sau đồng bộ</p><ul className="mt-1 space-y-1">{row.invoiceChanges.map((change, index) => <li key={`${change.code}-${index}`}>{change.code ? <a className="font-medium text-indigo-700 underline decoration-dotted underline-offset-4 hover:text-indigo-900 dark:text-indigo-400" href={kiotVietInvoiceUrl(change.code)} rel="noreferrer" target="_blank">{change.code}</a> : "Hóa đơn chưa có mã"} <span>— xuất {formatNumber(change.previousQuantity)} → {formatNumber(change.currentQuantity)}, ảnh hưởng tồn {formatSignedNumber(change.inventoryDelta)}{change.occurredAt ? ` (${formatMovementDateTime(change.occurredAt)})` : ""}</span></li>)}</ul></div> : null}{row.cancelledStocktakes.length ? <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"><p className="font-semibold">Nguyên nhân: phiếu kiểm kho đã hủy</p><ul className="mt-1 space-y-1">{row.cancelledStocktakes.map((stocktake) => <li key={stocktake.code}><a className="font-medium text-indigo-700 underline decoration-dotted underline-offset-4 hover:text-indigo-900 dark:text-indigo-400" href={kiotVietStocktakeUrl(stocktake.code)} rel="noreferrer" target="_blank">{stocktake.code}</a> <span>— {formatSignedNumber(stocktake.quantityDelta)}{stocktake.occurredAt ? ` (${formatMovementDateTime(stocktake.occurredAt)})` : ""}</span></li>)}</ul><p className="mt-2 text-xs">Phiếu hủy không được cộng vào cột Kiểm kê; thông tin này chỉ dùng để giải thích chênh snapshot.</p></div> : null}<p className="font-semibold">Chênh snapshot: {formatSignedNumber(total)}</p></div>; }
-function adjustmentNote(row: InventoryDailyMovementTableRow) { if (!row.adjustment || Math.abs(row.adjustment) < 0.000001) return "—"; if (row.invoiceChanges.length) return `Chỉnh sửa hóa đơn ${row.invoiceChanges.map((item) => item.code ?? "—").join(", ")} (${formatSignedNumber(row.adjustment)})`; if (row.cancelledStocktakes.length) return `Phiếu kiểm kho đã hủy ${row.cancelledStocktakes.map((item) => item.code).join(", ")} (${formatSignedNumber(row.adjustment)})`; return "—"; }
+function adjustmentNote(row: InventoryDailyMovementTableRow) { if (!row.adjustment || Math.abs(row.adjustment) < 0.000001) return "—"; if (row.invoiceChanges.length) return `Sửa hóa đơn ${row.invoiceChanges.map((item) => item.code ?? "—").join(", ")} (${formatSignedNumber(row.adjustment)})`; if (row.cancelledStocktakes.length) return `Phiếu kiểm kho đã hủy ${row.cancelledStocktakes.map((item) => item.code).join(", ")} (${formatSignedNumber(row.adjustment)})`; return "—"; }
 function movementUrl(movement: InventoryMovementDetail) { if (!movement.documentCode) return null; if (movement.sourceType === "SALE") return kiotVietInvoiceUrl(movement.documentCode); if (movement.sourceType === "PURCHASE") return kiotVietPurchaseOrderUrl(movement.documentCode); if (movement.sourceType === "STOCKTAKE") return kiotVietStocktakeUrl(movement.documentCode); if (movement.sourceType === "INTERNAL_USE") return kiotVietInternalUseUrl(movement.documentCode); return null; }
 function isTransfer(sourceType: string) { return sourceType === "TRANSFER_OUT" || sourceType === "TRANSFER_IN"; }
 function movementLabel(value: string) { return ({ SALE: "Bán hàng", PURCHASE: "Nhập hàng", CUSTOMER_RETURN: "Khách trả hàng", TRANSFER_OUT: "Chuyển đi", TRANSFER_IN: "Chuyển đến", STOCKTAKE: "Kiểm kê", INTERNAL_USE: "Xuất dùng nội bộ" } as Record<string, string>)[value] ?? value; }
