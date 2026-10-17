@@ -340,7 +340,11 @@ async function loadIdMaps(): Promise<IdMaps> {
   };
 }
 
-function isCancelledTransfer(item: ObjectRecord) {
+export function isCancelledTransfer(item: ObjectRecord) {
+  // KiotViet Public API trả `status` dạng số cho phiếu chuyển kho: 4 = đã hủy.
+  if (number(item.status) === 4) {
+    return true;
+  }
   const status = string(item.status)?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() ?? "";
   return status.includes("huy") || status.includes("cancel");
 }

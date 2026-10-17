@@ -1,5 +1,12 @@
 [
   {
+    "hash": "e23114818c84b1f533c599cf441944f501f0b672",
+    "shortHash": "e231148",
+    "message": "Fix lổi hiển thị số liệu SMN",
+    "author": "nekennick",
+    "date": "2026-10-17"
+  },
+  {
     "hash": "3aff09deecb855a8ab0beb3b539800d441a22027",
     "shortHash": "3aff09d",
     "message": "Sửa lỗi hiển thị báo cáo trong Tổng Quan",

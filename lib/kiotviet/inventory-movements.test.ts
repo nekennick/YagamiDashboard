@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transferMovementEndpoints } from "./inventory-movements";
+import { isCancelledTransfer, transferMovementEndpoints } from "./inventory-movements";
 
 describe("transferMovementEndpoints", () => {
   it("does not require a received date when loading dispatched transfers", () => {
@@ -14,5 +14,12 @@ describe("transferMovementEndpoints", () => {
     expect(receivedEndpoint).toContain("fromReceivedDate=");
     expect(receivedEndpoint).toContain("toReceivedDate=");
     expect(receivedEndpoint).not.toContain("TransferDate");
+  });
+});
+
+describe("isCancelledTransfer", () => {
+  it("treats KiotViet transfer status 4 as cancelled", () => {
+    expect(isCancelledTransfer({ status: 4 })).toBe(true);
+    expect(isCancelledTransfer({ status: 2 })).toBe(false);
   });
 });
