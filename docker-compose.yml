@@ -32,6 +32,7 @@ services:
     secrets:
       - goclaw_gateway_token
       - kiotviet_internal_requests
+      - kiotviet_stocktake_write_requests
     build:
       context: .
       dockerfile: Dockerfile
@@ -51,6 +52,9 @@ services:
       GOCLAW_MORNING_REPORT_TEXT_PATH: "/goclaw-workspace/quan-ly-kim/zlo-ql-kim/group_zlo-ql-kim_6244108299423959453/outputs/morning-report.txt"
       GOCLAW_GATEWAY_TOKEN_FILE: "/run/secrets/goclaw_gateway_token"
       KIOTVIET_INTERNAL_REQUEST_FILE: "/run/secrets/kiotviet_internal_requests"
+      KIOTVIET_STOCKTAKE_WRITE_REQUEST_FILE: "/run/secrets/kiotviet_stocktake_write_requests"
+      # Keep disabled until the captured write requests are verified in production.
+      KIOTVIET_STOCKTAKE_WRITE_ENABLED: "${KIOTVIET_STOCKTAKE_WRITE_ENABLED:-false}"
       AUTH_SESSION_SECRET: "${AUTH_SESSION_SECRET:?Set AUTH_SESSION_SECRET in .env}"
       AUTH_INITIAL_ADMIN_PASSWORD: "${AUTH_INITIAL_ADMIN_PASSWORD:?Set AUTH_INITIAL_ADMIN_PASSWORD in .env}"
       AUTH_COOKIE_SECURE: "false"
@@ -78,3 +82,5 @@ secrets:
     file: ./secrets/goclaw_gateway_token.txt
   kiotviet_internal_requests:
     file: ./secrets/stocktakes-request.txt
+  kiotviet_stocktake_write_requests:
+    file: ./secrets/stocktakes-write-requests.txt

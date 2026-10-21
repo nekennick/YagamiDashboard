@@ -113,8 +113,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
     const operationalEnd = operationalDayEnd(operationalDate);
     const selectedProductIds = [...new Set(items.map((item) => item.productId))];
     const selectedBranchIds = [...new Set(items.map((item) => item.branchId))];
-    const [dailySnapshots, dailyMovements, cancelledStocktakeLines, invoiceItemChanges] = selectedProductIds.length === 0
-      ? [[], [], [], []]
+    const [dailySnapshots, dailyMovements, cancelledStocktakeLines, invoiceItemChanges, pendingCountLines] = selectedProductIds.length === 0
+      ? [[], [], [], [], []]
       : await Promise.all([
         prisma.inventorySnapshot.findMany({
           where: {
@@ -172,6 +172,14 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             inventoryDelta: true,
             detectedAt: true
           }
+        }),
+        prisma.inventoryCountLine.findMany({
+          where: {
+            productId: { in: selectedProductIds },
+            status: "QUEUED",
+            session: { branchId: { in: selectedBranchIds }, status: "APPROVED" }
+          },
+          select: { productId: true, difference: true, actualCount: true, session: { select: { branchId: true } } }
         })
       ]);
     const saleDocumentIds = [...new Set(dailyMovements.filter((movement) => movement.sourceType === "SALE" && !movement.partnerName).map((movement) => Number(movement.sourceDocumentId)).filter(Number.isInteger))];
@@ -199,6 +207,10 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       inventoryDelta: toNumber(line.inventoryDelta),
       occurredAt: line.detectedAt.toISOString()
     })));
+    const pendingCountByProductBranch = new Map(pendingCountLines.map((line) => [
+      productBranchKey(line.productId, line.session.branchId),
+      { difference: toNumber(line.difference), actualCount: toNumber(line.actualCount) }
+    ]));
     const dailyByInventoryId = new Map(items.map((item) => {
       const key = productBranchKey(item.productId, item.branchId);
       const snapshots = snapshotsByProductBranch.get(key) ?? [];
@@ -232,6 +244,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           : null,
         cancelledStocktakes,
         invoiceChanges,
+        pendingCount: pendingCountByProductBranch.get(key) ?? null,
         movements: movements.map((movement) => ({
           id: movement.id,
           sourceDocumentId: movement.sourceDocumentId,
@@ -316,6 +329,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       statusOnHand: closingOnHand ?? toNumber(item.onHand),
       cancelledStocktakes: daily?.cancelledStocktakes ?? [],
       invoiceChanges: daily?.invoiceChanges ?? [],
+      pendingCount: daily?.pendingCount ?? null,
       movements: daily?.movements ?? []
     };
   });

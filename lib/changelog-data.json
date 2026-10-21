@@ -1,5 +1,12 @@
 [
   {
+    "hash": "99586c0ef1bf6b346e7d5e2c2554ae49a84e9e97",
+    "shortHash": "99586c0",
+    "message": "Fix lỗi không track được phiếu chuyển kho đã huỷ",
+    "author": "nekennick",
+    "date": "2026-10-17"
+  },
+  {
     "hash": "e23114818c84b1f533c599cf441944f501f0b672",
     "shortHash": "e231148",
     "message": "Fix lổi hiển thị số liệu SMN",

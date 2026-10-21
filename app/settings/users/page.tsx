@@ -12,7 +12,8 @@ export default async function UsersPage() {
         displayName: true,
         role: true,
         isActive: true,
-        createdAt: true
+        createdAt: true,
+        countPermissions: { select: { permission: true } }
       }
     }),
     getMemberAllowedTabs()
@@ -35,7 +36,8 @@ export default async function UsersPage() {
       <UserManagement
         initialUsers={users.map((user) => ({
           ...user,
-          createdAt: user.createdAt.toISOString()
+          createdAt: user.createdAt.toISOString(),
+          countPermissions: user.countPermissions.map((item) => item.permission)
         }))}
         initialAllowedTabs={allowedTabs}
         allTabs={MANAGEABLE_TABS}

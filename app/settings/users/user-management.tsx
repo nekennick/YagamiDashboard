@@ -12,7 +12,14 @@ type User = {
   role: "ADMIN" | "MEMBER";
   isActive: boolean;
   createdAt: string;
+  countPermissions: Array<"COUNT_EXECUTE" | "COUNT_MANAGE" | "COUNT_BALANCE">;
 };
+
+const inventoryCountPermissionLabels = {
+  COUNT_EXECUTE: "Nhập kiểm",
+  COUNT_MANAGE: "Quản lý kiểm",
+  COUNT_BALANCE: "Cân bằng kho"
+} as const;
 
 export function UserManagement({
   initialUsers,
@@ -112,7 +119,7 @@ export function UserManagement({
     }
   }
 
-  async function updateUser(user: User, patch: { isActive?: boolean; password?: string }) {
+  async function updateUser(user: User, patch: { isActive?: boolean; password?: string; countPermissions?: User["countPermissions"] }) {
     setMessage("");
     const response = await fetch(`/api/admin/users/${user.id}`, {
       method: "PATCH",
@@ -302,12 +309,13 @@ export function UserManagement({
           <h2 className="font-semibold text-slate-950 dark:text-white">Danh sách tài khoản ({users.length})</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[920px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-gray-800/60 dark:text-gray-400">
               <tr>
                 <th className="px-5 py-3">Tài khoản</th>
                 <th className="px-5 py-3">Vai trò</th>
                 <th className="px-5 py-3">Trạng thái</th>
+                <th className="px-5 py-3">Quyền Kiểm kho</th>
                 <th className="px-5 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
@@ -317,6 +325,9 @@ export function UserManagement({
                   <td className="px-5 py-4">
                     <p className="font-semibold text-slate-900 dark:text-white">{user.displayName}</p>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">{user.username}</p>
+                  </td>
+                  <td className="px-5 py-4">
+                    {user.role === "ADMIN" ? <span className="text-xs text-slate-500">Toàn quyền</span> : <div className="flex flex-wrap gap-2">{(Object.keys(inventoryCountPermissionLabels) as User["countPermissions"]).map((permission) => <label key={permission} className="flex items-center gap-1 text-xs text-slate-600"><input type="checkbox" checked={user.countPermissions.includes(permission)} onChange={() => void updateUser(user, { countPermissions: user.countPermissions.includes(permission) ? user.countPermissions.filter((item) => item !== permission) : [...user.countPermissions, permission] })} />{inventoryCountPermissionLabels[permission]}</label>)}</div>}
                   </td>
                   <td className="px-5 py-4">
                     <span

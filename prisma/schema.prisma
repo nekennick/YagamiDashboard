@@ -12,6 +12,45 @@ enum UserRole {
   MEMBER
 }
 
+enum InventoryCountPermission {
+  COUNT_EXECUTE
+  COUNT_MANAGE
+  COUNT_BALANCE
+}
+
+enum InventoryCountSessionStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  RETURNED
+  APPROVED
+  COMPLETED
+  CANCELLED
+}
+
+enum InventoryCountLineStatus {
+  COUNTING
+  AWAITING_DECISION
+  QUEUED
+  NO_ADJUSTMENT
+  BALANCED
+  DISMISSED
+  CANCELLED
+}
+
+enum InventoryBalanceBatchStatus {
+  PENDING
+  VALIDATING
+  REMOTE_DRAFT
+  BALANCING
+  BALANCED_SYNC_PENDING
+  BALANCED
+  STALE
+  REMOTE_DRAFT_STALE
+  FAILED_RETRYABLE
+  CANCELLED
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   username     String   @unique
@@ -21,6 +60,14 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  countPermissions UserPermission[]
+  countAssignments InventoryCountAssignment[] @relation("InventoryCountAssignee")
+  countAssignmentsCreated InventoryCountAssignment[] @relation("InventoryCountAssignmentCreator")
+  countSessions InventoryCountSession[] @relation("InventoryCountSessionAssignee")
+  countSessionsCreated InventoryCountSession[] @relation("InventoryCountSessionCreator")
+  countSessionsReviewed InventoryCountSession[] @relation("InventoryCountSessionReviewer")
+  countBatchesCreated InventoryBalanceBatch[] @relation("InventoryBalanceBatchCreator")
+  countAudits InventoryCountAudit[]
 
   @@index([role, isActive])
 }
@@ -46,6 +93,9 @@ model Product {
   stocktakeLines     StocktakeLine[]
   dailyInventoryEntries ProductDailyInventoryEntry[]
   manualGroupAssignment InventoryGroupProduct?
+  countAssignments InventoryCountAssignment[]
+  countLines InventoryCountLine[]
+  inventoryPositionVersions InventoryPositionVersion[]
 
   @@index([code])
   @@index([name])
@@ -110,6 +160,10 @@ model Branch {
   inventoryMovements InventoryMovement[]
   stocktakeDocuments StocktakeDocument[]
   dailyInventoryEntries ProductDailyInventoryEntry[]
+  countAssignments InventoryCountAssignment[]
+  countSessions InventoryCountSession[]
+  countBatches InventoryBalanceBatch[]
+  inventoryPositionVersions InventoryPositionVersion[]
 
   @@index([name])
 }
@@ -351,6 +405,160 @@ model ProductDailyInventoryAudit {
   entry     ProductDailyInventoryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId, createdAt])
+}
+
+model UserPermission {
+  id         Int                      @id @default(autoincrement())
+  userId     Int
+  permission InventoryCountPermission
+  createdAt  DateTime                 @default(now())
+  user       User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permission])
+  @@index([permission, userId])
+}
+
+model InventoryCountAssignment {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  branchId     Int
+  assigneeId   Int
+  assignedById Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  branch       Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  assignee     User     @relation("InventoryCountAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  assignedBy   User     @relation("InventoryCountAssignmentCreator", fields: [assignedById], references: [id], onDelete: Restrict)
+  audits       InventoryCountAssignmentAudit[]
+
+  @@unique([productId, branchId])
+  @@index([assigneeId, isActive])
+  @@index([branchId, isActive])
+}
+
+model InventoryCountAssignmentAudit {
+  id           Int      @id @default(autoincrement())
+  assignmentId Int
+  action       String
+  previousJson String?
+  nextJson     String
+  actorId      Int?
+  createdAt    DateTime @default(now())
+  assignment   InventoryCountAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId, createdAt])
+}
+
+model InventoryCountSession {
+  id           String                      @id @default(cuid())
+  branchId     Int
+  assigneeId   Int
+  createdById  Int
+  reviewedById Int?
+  status       InventoryCountSessionStatus @default(DRAFT)
+  submittedAt  DateTime?
+  reviewedAt   DateTime?
+  completedAt  DateTime?
+  returnReason String?
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+  branch       Branch                      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  assignee     User                        @relation("InventoryCountSessionAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  createdBy    User                        @relation("InventoryCountSessionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  reviewedBy   User?                       @relation("InventoryCountSessionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  lines        InventoryCountLine[]
+
+  @@index([assigneeId, status, createdAt])
+  @@index([branchId, status, createdAt])
+}
+
+model InventoryCountLine {
+  id                     String                   @id @default(cuid())
+  sessionId              String
+  productId              Int
+  actualCount            Decimal?
+  countedAt              DateTime?
+  systemOnHandAtSubmit   Decimal?
+  difference             Decimal?
+  inventoryVersionAtSubmit Int?
+  status                 InventoryCountLineStatus @default(COUNTING)
+  activeLockKey          String?                  @unique
+  resolutionReason       String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  session                InventoryCountSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product                Product                  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batchLines             InventoryBalanceBatchLine[]
+
+  @@unique([sessionId, productId])
+  @@index([productId, status])
+  @@index([sessionId, status])
+}
+
+model InventoryPositionVersion {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  branchId    Int
+  version     Int      @default(0)
+  changedAt   DateTime @default(now())
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, branchId])
+  @@index([branchId, changedAt])
+}
+
+model InventoryBalanceBatch {
+  id                String                      @id @default(cuid())
+  branchId          Int
+  createdById       Int
+  status            InventoryBalanceBatchStatus @default(PENDING)
+  marker            String                      @unique
+  kvStocktakeId     Int?
+  kvStocktakeCode   String?
+  kvStocktakeUuid   String?
+  remoteDraftAt     DateTime?
+  validatedAt       DateTime?
+  balancedAt        DateTime?
+  lastError         String?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  branch            Branch                      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  createdBy         User                        @relation("InventoryBalanceBatchCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines             InventoryBalanceBatchLine[]
+
+  @@index([branchId, status, createdAt])
+}
+
+model InventoryBalanceBatchLine {
+  id                       Int                   @id @default(autoincrement())
+  batchId                  String
+  lineId                   String                @unique
+  actualCountSnapshot      Decimal
+  systemOnHandSnapshot     Decimal
+  differenceSnapshot       Decimal
+  inventoryVersionSnapshot Int
+  createdAt                DateTime              @default(now())
+  batch                    InventoryBalanceBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  line                     InventoryCountLine    @relation(fields: [lineId], references: [id], onDelete: Restrict)
+
+  @@index([batchId])
+}
+
+model InventoryCountAudit {
+  id        Int      @id @default(autoincrement())
+  entityType String
+  entityId  String
+  action    String
+  actorId   Int?
+  payloadJson String
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model SyncLog {

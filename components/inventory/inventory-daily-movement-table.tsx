@@ -30,6 +30,7 @@ export type InventoryDailyMovementTableRow = {
   statusOnHand: number;
   cancelledStocktakes: { code: string; quantityDelta: number; occurredAt: string | null }[];
   invoiceChanges: InvoiceChangeDetail[];
+  pendingCount: { difference: number; actualCount: number } | null;
   movements: InventoryMovementDetail[];
 };
 
@@ -101,7 +102,7 @@ export function InventoryDailyMovementTable({ rows }: { rows: InventoryDailyMove
         </td><td className="h-9 px-3 py-0.5 leading-5">{row.unit}</td>
         <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatOptionalNumber(row.openingOnHand)}</td>
         <AmountCell value={row.incoming} onClick={() => setSelection({ row, source: "incoming" })} positive /><AmountCell value={row.outgoing} onClick={() => setSelection({ row, source: "outgoing" })} />
-        <SignedAmountCell value={row.transfer} onClick={() => setSelection({ row, source: "transfer" })} /><SignedAmountCell value={row.stocktake} onClick={() => setSelection({ row, source: "stocktake" })} /><SignedAmountCell value={row.adjustment} onClick={() => setSelection({ row, source: "adjustment" })} />
+        <SignedAmountCell value={row.transfer} onClick={() => setSelection({ row, source: "transfer" })} /><PendingStocktakeCell pendingCount={row.pendingCount} value={row.stocktake} onClick={() => setSelection({ row, source: "stocktake" })} /><SignedAmountCell value={row.adjustment} onClick={() => setSelection({ row, source: "adjustment" })} />
         <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatOptionalNumber(row.closingOnHand ?? row.provisionalClosingOnHand)}{row.closingOnHand === null && row.provisionalClosingOnHand !== null ? <span className="ml-1 text-[10px] font-medium text-amber-600">tt</span> : null}</td>
         <td className="h-9 px-3 py-0.5 leading-5"><StockBadge onHand={row.statusOnHand} /></td><td className="h-9 px-3 py-0.5 leading-5 text-slate-600">{adjustmentNote(row)}</td>
       </tr>)}</tbody>
@@ -127,6 +128,11 @@ function FloatingInventoryHeader({ state }: { state: FloatingHeaderState }) {
 
 function AmountCell({ value, onClick, positive = false }: { value: number; onClick: () => void; positive?: boolean }) { return <td className={`h-9 px-3 py-0.5 text-right leading-5 ${value ? "font-medium" : ""} ${positive && value ? "text-emerald-700" : value ? "text-rose-700" : ""}`}>{value ? <button className="underline decoration-dotted underline-offset-4" onClick={onClick} type="button">{formatNumber(value)}</button> : formatNumber(value)}</td>; }
 function SignedAmountCell({ value, onClick }: { value: number | null; onClick: () => void }) { if (value === null || Math.abs(value) < 0.000001) return <td className="h-9 px-3 py-0.5 text-right leading-5">—</td>; return <td className={`h-9 px-3 py-0.5 text-right font-medium leading-5 ${value > 0 ? "text-emerald-700" : "text-amber-700"}`}><button className="underline decoration-dotted underline-offset-4" onClick={onClick} type="button">{formatSignedNumber(value)}</button></td>; }
+
+function PendingStocktakeCell({ pendingCount, value, onClick }: { pendingCount: InventoryDailyMovementTableRow["pendingCount"]; value: number; onClick: () => void }) {
+  if (!pendingCount) return <SignedAmountCell value={value} onClick={onClick} />;
+  return <td className="h-9 px-3 py-0.5 text-right font-medium leading-5 text-amber-700" title={`Kiểm thực tế ${formatNumber(pendingCount.actualCount)} đang chờ cân bằng`}><span>{formatSignedNumber(pendingCount.difference)}</span><span className="ml-1 text-[10px]">· Chờ cân bằng</span></td>;
+}
 
 function MovementDialog({ selection, onClose }: { selection: { row: InventoryDailyMovementTableRow; source: DetailSource }; onClose: () => void }) {
   const { row, source } = selection;

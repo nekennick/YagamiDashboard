@@ -773,6 +773,25 @@ async function syncInventory(): Promise<SyncStats> {
     }
   }
 
+  // Lưu phiên bản vị trí tồn để luồng Kiểm kho có thể phát hiện chính xác
+  // sản phẩm đã biến động kể từ lúc nhân viên gửi số kiểm.
+  const latestSnapshots = rows.length > 0
+    ? await prisma.inventorySnapshot.findMany({
+        where: {
+          productId: { in: [...new Set(rows.map((row) => row.productId))] },
+          branchId: { in: [...new Set(rows.map((row) => row.branchId))] }
+        },
+        distinct: ["productId", "branchId"],
+        orderBy: { snapshotDate: "desc" },
+        select: { productId: true, branchId: true, onHand: true }
+      })
+    : [];
+  const previousByPosition = new Map(latestSnapshots.map((row) => [`${row.productId}:${row.branchId}`, Number(row.onHand)]));
+  const changedPositions = rows.filter((row) => {
+    const previous = previousByPosition.get(`${row.productId}:${row.branchId}`);
+    return previous === undefined || Math.abs(previous - Number(row.onHand)) > 0.000001;
+  });
+
   let savedRecords = 0;
 
   for (const chunk of chunkArray(rows, sqliteWriteChunkSize)) {
@@ -783,6 +802,14 @@ async function syncInventory(): Promise<SyncStats> {
     );
     savedRecords += chunk.length;
     await delay(50);
+  }
+
+  for (const row of changedPositions) {
+    await prisma.inventoryPositionVersion.upsert({
+      where: { productId_branchId: { productId: row.productId, branchId: row.branchId } },
+      create: { productId: row.productId, branchId: row.branchId, version: 1, changedAt: snapshotDate },
+      update: { version: { increment: 1 }, changedAt: snapshotDate }
+    });
   }
 
   return { totalRecords: records.length, savedRecords };

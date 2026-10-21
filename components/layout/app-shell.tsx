@@ -6,7 +6,7 @@ import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
 import { usePathname } from "next/navigation";
 
-export function AppShell({ children, role, displayName, allowedTabs }: { children: React.ReactNode; role?: "ADMIN" | "MEMBER"; displayName?: string; allowedTabs?: string[] }) {
+export function AppShell({ children, role, displayName, allowedTabs, inventoryCountEnabled }: { children: React.ReactNode; role?: "ADMIN" | "MEMBER"; displayName?: string; allowedTabs?: string[]; inventoryCountEnabled?: boolean }) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
   const pathname = usePathname();
 
@@ -20,7 +20,7 @@ export function AppShell({ children, role, displayName, allowedTabs }: { childre
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col">
-      <AppSidebar displayName={displayName} role={role} allowedTabs={allowedTabs} />
+      <AppSidebar displayName={displayName} role={role} allowedTabs={allowedTabs} inventoryCountEnabled={inventoryCountEnabled} />
       <Backdrop />
       <div className={`flex-1 flex flex-col transition-all duration-300 ${mainContentMargin}`}>
         <AppHeader />

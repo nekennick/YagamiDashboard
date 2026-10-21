@@ -15,6 +15,10 @@ export async function middleware(request: NextRequest) {
     return denyForbidden(request, "/order-schedule");
   }
 
+  if (pathname === "/inventory-count" || pathname.startsWith("/inventory-count/") || pathname.startsWith("/api/inventory-count/")) {
+    return NextResponse.next();
+  }
+
   const allowedSet = getMemberAllowedPages(request);
   const fallbackPath = getFirstAllowedPage(allowedSet);
 

@@ -19,6 +19,7 @@ import {
   Database,
   Building2,
   ClipboardCheck,
+  ClipboardPenLine,
   Users,
   LogOut
 } from "lucide-react";
@@ -63,6 +64,11 @@ const navItems: NavItem[] = [
     path: "/stocktake",
   },
   {
+    name: "Kiểm kho",
+    icon: <ClipboardPenLine className="h-5 w-5" />,
+    path: "/inventory-count",
+  },
+  {
     name: "Báo cáo nhanh",
     icon: <ClipboardList className="h-5 w-5" />,
     path: "/reports",
@@ -90,7 +96,7 @@ const subMenuGroups: NavItem[] = [
   },
 ];
 
-const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string; allowedTabs?: string[] }> = ({ role = "MEMBER", displayName, allowedTabs }) => {
+const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string; allowedTabs?: string[]; inventoryCountEnabled?: boolean }> = ({ role = "MEMBER", displayName, allowedTabs, inventoryCountEnabled = false }) => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
@@ -134,7 +140,7 @@ const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string; al
 
   const visibleNavItems = role === "ADMIN"
     ? navItems
-    : navItems.filter((item) => item.path && allowedSet.has(item.path));
+    : navItems.filter((item) => item.path && (item.path === "/inventory-count" ? inventoryCountEnabled : allowedSet.has(item.path)));
 
   const visibleSubMenuGroups = role === "ADMIN"
     ? subMenuGroups
