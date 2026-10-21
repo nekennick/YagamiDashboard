@@ -22,20 +22,82 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const actor = await requireInventoryCountPermission("COUNT_MANAGE");
-    const body = await request.json() as { branchId?: number; assigneeId?: number; productIds?: number[] };
-    if (!positiveInt(body.branchId) || !positiveInt(body.assigneeId) || !Array.isArray(body.productIds) || body.productIds.length === 0) return NextResponse.json({ message: "Chọn kho, nhân viên và ít nhất một sản phẩm." }, { status: 400 });
-    const productIds = [...new Set(body.productIds.filter(positiveInt))];
-    const assignments = await prisma.inventoryCountAssignment.findMany({ where: { branchId: body.branchId, assigneeId: body.assigneeId, isActive: true, productId: { in: productIds } }, select: { productId: true } });
-    if (assignments.length !== productIds.length) return NextResponse.json({ message: "Chỉ được tạo phiên từ các sản phẩm đã phân công cho nhân viên này." }, { status: 400 });
-    const session = await prisma.$transaction(async (tx) => {
-      const result = await tx.inventoryCountSession.create({
-        data: { branchId: body.branchId!, assigneeId: body.assigneeId!, createdById: actor.sub, status: "IN_PROGRESS", lines: { create: productIds.map((productId) => ({ productId, activeLockKey: `${body.branchId}:${productId}` })) } },
-        include: sessionInclude
-      });
-      await addInventoryCountAudit(tx, { entityType: "SESSION", entityId: result.id, action: "CREATED", actorId: actor.sub, payload: { branchId: body.branchId, assigneeId: body.assigneeId, productIds } });
-      return result;
+    const body = await request.json() as { branchId?: number; assigneeId?: number; assigneeIds?: number[]; productIds?: number[] };
+    if (!positiveInt(body.branchId)) return NextResponse.json({ message: "Chọn kho hợp lệ." }, { status: 400 });
+
+    let targetAssigneeIds: number[] = [];
+    if (Array.isArray(body.assigneeIds)) {
+      targetAssigneeIds = [...new Set(body.assigneeIds.filter(positiveInt))];
+    } else if (positiveInt(body.assigneeId)) {
+      targetAssigneeIds = [body.assigneeId];
+    }
+
+    if (targetAssigneeIds.length === 0) {
+      return NextResponse.json({ message: "Chọn ít nhất một nhân viên hợp lệ." }, { status: 400 });
+    }
+
+    const requestedProductIds = Array.isArray(body.productIds) ? [...new Set(body.productIds.filter(positiveInt))] : null;
+    if (requestedProductIds && requestedProductIds.length === 0) return NextResponse.json({ message: "Chọn ít nhất một sản phẩm." }, { status: 400 });
+
+    const createdSessions = await prisma.$transaction(async (tx) => {
+      const sessions = [];
+      for (const assigneeId of targetAssigneeIds) {
+        const activeSession = await tx.inventoryCountSession.findFirst({
+          where: { branchId: body.branchId, assigneeId, status: { notIn: ["COMPLETED", "CANCELLED"] } },
+          select: { id: true, assignee: { select: { displayName: true } } }
+        });
+        if (activeSession) {
+          const name = activeSession.assignee?.displayName || `ID ${assigneeId}`;
+          throw new Error(`Nhân viên "${name}" đang có một phiên kiểm chưa kết thúc tại kho đã chọn.`);
+        }
+
+        const assignments = await tx.inventoryCountAssignment.findMany({
+          where: {
+            branchId: body.branchId,
+            assigneeId,
+            isActive: true,
+            ...(requestedProductIds ? { productId: { in: requestedProductIds } } : {})
+          },
+          select: { productId: true }
+        });
+        const productIds = assignments.map((assignment) => assignment.productId);
+        if (!productIds.length || (requestedProductIds && assignments.length !== requestedProductIds.length)) {
+          const user = await tx.user.findUnique({ where: { id: assigneeId }, select: { displayName: true } });
+          throw new Error(`Nhân viên "${user?.displayName || assigneeId}" chưa có sản phẩm được phân công phù hợp để lập phiên.`);
+        }
+
+        const session = await tx.inventoryCountSession.create({
+          data: {
+            branchId: body.branchId!,
+            assigneeId,
+            createdById: actor.sub,
+            status: "IN_PROGRESS",
+            lines: {
+              create: productIds.map((productId) => ({
+                productId,
+                activeLockKey: `${body.branchId}:${productId}`
+              }))
+            }
+          },
+          include: sessionInclude
+        });
+        await addInventoryCountAudit(tx, {
+          entityType: "SESSION",
+          entityId: session.id,
+          action: "CREATED",
+          actorId: actor.sub,
+          payload: { branchId: body.branchId, assigneeId, productIds }
+        });
+        sessions.push(session);
+      }
+      return sessions;
     });
-    return NextResponse.json({ session }, { status: 201 });
+
+    return NextResponse.json({
+      sessions: createdSessions,
+      session: createdSessions[0],
+      createdCount: createdSessions.length
+    }, { status: 201 });
   } catch (error) { return responseError(error); }
 }
 

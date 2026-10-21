@@ -15,9 +15,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const line = await prisma.inventoryCountLine.findFirst({ where: { id: body.lineId, sessionId: id }, include: { session: { select: { assigneeId: true, status: true } } } });
     if (!line) return NextResponse.json({ message: "Không tìm thấy dòng kiểm kho." }, { status: 404 });
     if (line.session.assigneeId !== actor.sub || !["DRAFT", "IN_PROGRESS", "RETURNED"].includes(line.session.status)) throw new InventoryCountAccessError("Phiên này không còn cho phép sửa số kiểm.");
+    if (line.session.status === "RETURNED" && line.status !== "COUNTING") throw new InventoryCountAccessError("Chỉ mặt hàng được trả lại mới cần nhập lại trong phiên này.");
     const saved = await prisma.$transaction(async (tx) => {
       const next = await tx.inventoryCountLine.update({ where: { id: line.id }, data: { actualCount, countedAt: new Date(), status: "COUNTING" }, select: { id: true, actualCount: true, countedAt: true } });
-      await tx.inventoryCountSession.update({ where: { id }, data: { status: "IN_PROGRESS", returnReason: null } });
+      if (line.session.status !== "RETURNED") {
+        await tx.inventoryCountSession.update({ where: { id }, data: { status: "IN_PROGRESS", returnReason: null } });
+      }
       await addInventoryCountAudit(tx, { entityType: "LINE", entityId: line.id, action: "COUNT_SAVED", actorId: actor.sub, payload: { actualCount } });
       return next;
     });

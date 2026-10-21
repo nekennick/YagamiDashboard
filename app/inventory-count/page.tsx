@@ -14,7 +14,7 @@ export default async function InventoryCountPage() {
         </section>
       );
     }
-    return <InventoryCountWorkspace permissions={actor.permissions} />;
+    return <InventoryCountWorkspace permissions={actor.permissions} isAdmin={actor.role === "ADMIN"} />;
   } catch (error) {
     if (error instanceof InventoryCountAccessError) {
       return <p className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error.message}</p>;

@@ -1,5 +1,19 @@
 [
   {
+    "hash": "8879618898827ef72c143bec19e3af7826fe6440",
+    "shortHash": "8879618",
+    "message": "Thêm chức năng kiểm kho trên mobile cho nhân viên quản lý kho",
+    "author": "nekennick",
+    "date": "2026-10-21"
+  },
+  {
+    "hash": "e8d0fe16f941ff2df83ebefa0be3e6488b08ab57",
+    "shortHash": "e8d0fe1",
+    "message": "Thêm chức năng kiểm kho trên mobile cho nhân viên quản lý kho",
+    "author": "nekennick",
+    "date": "2026-10-21"
+  },
+  {
     "hash": "99586c0ef1bf6b346e7d5e2c2554ae49a84e9e97",
     "shortHash": "99586c0",
     "message": "Fix lỗi không track được phiếu chuyển kho đã huỷ",
