@@ -3,6 +3,7 @@ node_modules
 .git
 .env
 .env.local
+secrets/
 *.log
 npm-debug.log*
 dev.db*
