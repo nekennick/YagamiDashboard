@@ -14,7 +14,11 @@ import {
   AlertCircle,
   Eye,
   Send,
-  X
+  X,
+  FileSpreadsheet,
+  Download,
+  CheckCircle2,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { numberToVietnameseWords } from "@/lib/utils/number-to-words";
@@ -214,10 +218,121 @@ export const PurchaseOrderForm: React.FC<Props> = ({
   const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
   const [syncingSuppliers, setSyncingSuppliers] = useState(false);
 
+  // Excel Import State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importNotice, setImportNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    totalRows: number;
+    validCount: number;
+    skippedCount: number;
+    validItems: Array<{
+      productId: number;
+      productCode: string;
+      productName: string;
+      unit: string;
+      quantity: number;
+      price: number;
+      amount: number;
+      occurrences: number;
+    }>;
+    skippedItems: Array<{
+      rowNumber: number;
+      code: string;
+      productName?: string;
+      quantity?: number;
+      reason: string;
+    }>;
+  } | null>(null);
+
   // Submission State
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
+
+  // Handle Excel File Upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setIsImporting(true);
+    setErrorMessage(null);
+    setImportNotice(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/purchase-orders/import", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Không thể đọc file Excel.");
+      }
+
+      setImportResult(data);
+      setShowImportModal(true);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Đã xảy ra lỗi khi đọc file Excel.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Confirm and Apply Excel Import Items
+  const handleApplyImport = () => {
+    if (!importResult || !importResult.validItems.length) return;
+
+    let mergedCount = 0;
+    let addedCount = 0;
+
+    setLineItems((prev) => {
+      const next = [...prev];
+      const indexMap = new Map<number, number>();
+      next.forEach((item, idx) => indexMap.set(item.productId, idx));
+
+      for (const item of importResult.validItems) {
+        if (indexMap.has(item.productId)) {
+          // Mã đã tồn tại trong phiếu: Cộng dồn số lượng
+          const idx = indexMap.get(item.productId)!;
+          const current = next[idx];
+          const newQty = current.quantity + item.quantity;
+          next[idx] = {
+            ...current,
+            quantity: newQty,
+            amount: newQty * current.price
+          };
+          mergedCount++;
+        } else {
+          // Mã chưa có: Thêm mới
+          next.push({
+            productId: item.productId,
+            productCode: item.productCode,
+            productName: item.productName,
+            unit: item.unit,
+            quantity: item.quantity,
+            price: item.price,
+            amount: item.amount
+          });
+          indexMap.set(item.productId, next.length - 1);
+          addedCount++;
+        }
+      }
+      return next;
+    });
+
+    setShowImportModal(false);
+    const summaryMsg = `Đã nhập thành công ${addedCount} mặt hàng mới${
+      mergedCount > 0 ? ` và cộng dồn ${mergedCount} mặt hàng đã có sẵn` : ""
+    } từ file Excel!`;
+    setImportNotice({ type: "success", message: summaryMsg });
+    setTimeout(() => setImportNotice(null), 6000);
+  };
 
   // Fetch Suppliers
   const loadSuppliers = async (sync = false) => {
@@ -530,58 +645,95 @@ export const PurchaseOrderForm: React.FC<Props> = ({
       {/* Product Selection & Items Table Card */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-          {/* Quick Search Input (Dời sang bên trái) */}
-          <div ref={searchContainerRef} className="relative w-full sm:w-[420px]">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Gõ tên hoặc mã hàng để thêm nhanh..."
-              value={searchQuery}
-              onFocus={() => setIsSearchOpen(true)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setIsSearchOpen(false);
-              }}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsSearchOpen(true);
-              }}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-xs outline-none transition focus:bg-white focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            />
+          {/* Quick Search Input & Import Excel (Bên trái) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            <div ref={searchContainerRef} className="relative w-full sm:w-[380px]">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Gõ tên hoặc mã hàng để thêm nhanh..."
+                value={searchQuery}
+                onFocus={() => setIsSearchOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setIsSearchOpen(false);
+                }}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchOpen(true);
+                }}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-xs outline-none transition focus:bg-white focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
 
-            {/* Suggestions Dropdown */}
-            {isSearchOpen && searchQuery.trim() && (
-              <div className="absolute left-0 right-0 top-11 z-50 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950">
-                {filteredProducts.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-500">
-                    Không tìm thấy sản phẩm nào khớp hoặc đã thêm rồi.
-                  </div>
-                ) : (
-                  filteredProducts.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => addProduct(p)}
-                      className="flex items-center justify-between px-3.5 py-2.5 hover:bg-indigo-50 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-none transition"
-                    >
-                      <div>
-                        <div className="text-xs font-semibold text-slate-900 dark:text-white">
-                          {p.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          {p.code ? `Mã: ${p.code}` : ""} · ĐVT: {p.unit || "Cái"}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400">
-                          {Number(p.basePrice || 0).toLocaleString("vi-VN")} đ
-                        </div>
-                        <span className="text-[10px] text-slate-400">Giá bán lẻ</span>
-                      </div>
+              {/* Suggestions Dropdown */}
+              {isSearchOpen && searchQuery.trim() && (
+                <div className="absolute left-0 right-0 top-11 z-50 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950">
+                  {filteredProducts.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-500">
+                      Không tìm thấy sản phẩm nào khớp hoặc đã thêm rồi.
                     </div>
-                  ))
+                  ) : (
+                    filteredProducts.map((p) => (
+                      <div
+                        key={p.id}
+                        onClick={() => addProduct(p)}
+                        className="flex items-center justify-between px-3.5 py-2.5 hover:bg-indigo-50 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-none transition"
+                      >
+                        <div>
+                          <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                            {p.name}
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {p.code ? `Mã: ${p.code}` : ""} · ĐVT: {p.unit || "Cái"}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                            {Number(p.basePrice || 0).toLocaleString("vi-VN")} đ
+                          </div>
+                          <span className="text-[10px] text-slate-400">Giá bán lẻ</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Nút Nhập file Excel & File mẫu */}
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isImporting}
+                onClick={() => fileInputRef.current?.click()}
+                className="h-10 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 text-xs font-semibold gap-2 shadow-sm shrink-0"
+              >
+                {isImporting ? (
+                  <RotateCw className="h-4 w-4 animate-spin text-emerald-600" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
                 )}
-              </div>
-            )}
+                <span>{isImporting ? "Đang đọc..." : "Nhập Excel"}</span>
+              </Button>
+
+              <a
+                href="/api/purchase-orders/import-template"
+                download="Mau_Nhap_Hang_Yagami.xlsx"
+                title="Tải file Excel mẫu gồm cột Mã hàng và Số lượng"
+                className="h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 text-xs font-medium flex items-center gap-1.5 transition shrink-0"
+              >
+                <Download className="h-3.5 w-3.5 text-slate-500" />
+                <span className="hidden md:inline">File mẫu</span>
+              </a>
+            </div>
           </div>
 
           <div className="sm:text-right">
@@ -589,10 +741,37 @@ export const PurchaseOrderForm: React.FC<Props> = ({
               Chi tiết hàng hóa nhập ({lineItems.length} mặt hàng)
             </h3>
             <span className="text-xs text-slate-500">
-              Tìm theo mã SKU hoặc tên sản phẩm để thêm vào phiếu
+              Tìm theo mã SKU hoặc nhập từ file Excel để thêm nhanh
             </span>
           </div>
         </div>
+
+        {/* Thông báo kết quả Import Excel */}
+        {importNotice && (
+          <div
+            className={`mt-4 flex items-center justify-between p-3.5 rounded-xl border text-xs animate-in fade-in ${
+              importNotice.type === "success"
+                ? "bg-emerald-50/80 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
+                : "bg-red-50/80 border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {importNotice.type === "success" ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+              )}
+              <span>{importNotice.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setImportNotice(null)}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-3"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Table of items */}
         {lineItems.length === 0 ? (
@@ -901,6 +1080,194 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                 <Send className="h-4 w-4" />
                 {submitting ? "Đang đẩy lên KiotViet..." : "Xác nhận & Đẩy lên KiotViet"}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Import Preview Modal */}
+      {showImportModal && importResult && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between p-6 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                  <FileSpreadsheet className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Xem trước dữ liệu nhập từ Excel
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Kiểm tra danh sách mặt hàng và số lượng trước khi thêm vào phiếu nhập
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href="/api/purchase-orders/import-template"
+                  download="Mau_Nhap_Hang_Yagami.xlsx"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs font-medium transition"
+                >
+                  <Download className="h-3.5 w-3.5 text-slate-500" />
+                  <span>File mẫu</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowImportModal(false)}
+                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+                  <span className="text-[11px] font-medium text-slate-500 block">Tổng số dòng đọc được</span>
+                  <span className="text-xl font-bold text-slate-900 dark:text-white mt-1 block">
+                    {importResult.totalRows} <span className="text-xs font-normal text-slate-400">dòng</span>
+                  </span>
+                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                  <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 block">Mặt hàng hợp lệ</span>
+                  <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400 mt-1 block">
+                    {importResult.validCount} <span className="text-xs font-normal text-emerald-600/70">sản phẩm</span>
+                  </span>
+                </div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+                  <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400 block">Dòng không hợp lệ / Bỏ qua</span>
+                  <span className="text-xl font-bold text-amber-700 dark:text-amber-400 mt-1 block">
+                    {importResult.skippedCount} <span className="text-xs font-normal text-amber-600/70">dòng</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Warning box for skipped items */}
+              {importResult.skippedCount > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/20 text-xs">
+                  <div className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-300 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <span>Chi tiết các dòng bị bỏ qua ({importResult.skippedCount} dòng):</span>
+                  </div>
+                  <div className="max-h-32 overflow-y-auto space-y-1 pr-1 text-slate-700 dark:text-slate-300">
+                    {importResult.skippedItems.map((item, idx) => (
+                      <div key={idx} className="flex items-start justify-between py-1 border-b border-amber-100/60 dark:border-amber-900/30 last:border-none text-[11px]">
+                        <div>
+                          <span className="font-semibold text-slate-900 dark:text-white">Dòng {item.rowNumber}:</span>{" "}
+                          <code className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800 font-mono">
+                            {item.code}
+                          </code>
+                          {item.productName && <span className="text-slate-500 ml-1.5">({item.productName})</span>}
+                        </div>
+                        <span className="text-amber-700 dark:text-amber-400 font-medium ml-2 text-right">
+                          {item.reason}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Valid Items Table */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <span>Danh sách sản phẩm sẽ thêm vào phiếu:</span>
+                    <span className="text-slate-400 font-normal">({importResult.validItems.length} mặt hàng)</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500">
+                    * Các mã đã có trong phiếu sẽ tự động được cộng dồn số lượng
+                  </span>
+                </div>
+
+                {importResult.validItems.length === 0 ? (
+                  <div className="py-10 text-center text-xs text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                    Không tìm thấy mặt hàng hợp lệ nào trong file Excel đã chọn.
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/80 text-[11px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-700 z-10 backdrop-blur-sm">
+                          <tr>
+                            <th className="py-2.5 px-3 w-10 text-center">STT</th>
+                            <th className="py-2.5 px-3">Mã hàng</th>
+                            <th className="py-2.5 px-3">Tên sản phẩm</th>
+                            <th className="py-2.5 px-3 text-center">ĐVT</th>
+                            <th className="py-2.5 px-3 text-center">SL nhập</th>
+                            <th className="py-2.5 px-3 text-right">Đơn giá bán lẻ</th>
+                            <th className="py-2.5 px-3 text-right">Thành tiền</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {importResult.validItems.map((item, idx) => (
+                            <tr key={item.productId} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                              <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                              <td className="py-2.5 px-3 font-mono font-medium text-slate-900 dark:text-white">
+                                {item.productCode}
+                                {item.occurrences > 1 && (
+                                  <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-sans">
+                                    Gộp {item.occurrences} dòng
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-800 dark:text-slate-200">{item.productName}</td>
+                              <td className="py-2.5 px-3 text-center text-slate-500">{item.unit}</td>
+                              <td className="py-2.5 px-3 text-center font-bold text-indigo-600 dark:text-indigo-400">{item.quantity}</td>
+                              <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                                {item.price.toLocaleString("vi-VN")} đ
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                {item.amount.toLocaleString("vi-VN")} đ
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 rounded-b-3xl">
+              <div className="text-xs text-slate-600 dark:text-slate-300 text-center sm:text-left">
+                Tổng cộng nhập:{" "}
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {importResult.validItems.reduce((acc, i) => acc + i.quantity, 0).toLocaleString("vi-VN")}
+                </span>{" "}
+                mặt hàng (Ước tính:{" "}
+                <span className="font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                  {importResult.validItems.reduce((acc, i) => acc + i.amount, 0).toLocaleString("vi-VN")} đ
+                </span>
+                )
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowImportModal(false)}
+                  className="h-10 px-4 text-xs font-semibold"
+                >
+                  Hủy bỏ
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleApplyImport}
+                  disabled={importResult.validItems.length === 0}
+                  className="h-10 px-5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md flex items-center gap-2"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Xác nhận thêm vào phiếu nhập</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
