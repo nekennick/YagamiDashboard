@@ -21,7 +21,8 @@ import {
   ClipboardCheck,
   ClipboardPenLine,
   Users,
-  LogOut
+  LogOut,
+  Truck
 } from "lucide-react";
 
 type SubItem = {
@@ -52,6 +53,11 @@ const navItems: NavItem[] = [
     name: "Tổng Quan",
     icon: <CalendarCheck2 className="h-5 w-5" />,
     path: "/order-schedule",
+  },
+  {
+    name: "Nhập hàng",
+    icon: <Truck className="h-5 w-5" />,
+    path: "/purchase-orders",
   },
   {
     name: "Tồn kho",

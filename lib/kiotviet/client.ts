@@ -77,6 +77,30 @@ export async function fetchKiotVietPage(endpoint: string, currentItem = 0, pageS
   };
 }
 
+export async function postToKiotViet(endpoint: string, data: unknown) {
+  const token = await getKiotVietAccessToken();
+  const config = getKiotVietConfig();
+  const url = new URL(`${config.apiUrl}${endpoint}`);
+
+  const response = await fetchWithRetry(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Retailer: config.retailer,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data),
+    cache: "no-store"
+  });
+
+  const json = await readJsonSafely(response);
+  if (!response.ok) {
+    throw new Error(getErrorMessage(json, response.statusText));
+  }
+
+  return json;
+}
+
 async function fetchWithRetry(url: URL, init: RequestInit, retries = 3) {
   let lastError: unknown;
 

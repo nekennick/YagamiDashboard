@@ -52,50 +52,52 @@ enum InventoryBalanceBatchStatus {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  displayName  String
-  passwordHash String
-  role         UserRole @default(MEMBER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  countPermissions UserPermission[]
-  countAssignments InventoryCountAssignment[] @relation("InventoryCountAssignee")
+  id                      Int                        @id @default(autoincrement())
+  username                String                     @unique
+  displayName             String
+  passwordHash            String
+  role                    UserRole                   @default(MEMBER)
+  isActive                Boolean                    @default(true)
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  countPermissions        UserPermission[]
+  countAssignments        InventoryCountAssignment[] @relation("InventoryCountAssignee")
   countAssignmentsCreated InventoryCountAssignment[] @relation("InventoryCountAssignmentCreator")
-  countSessions InventoryCountSession[] @relation("InventoryCountSessionAssignee")
-  countSessionsCreated InventoryCountSession[] @relation("InventoryCountSessionCreator")
-  countSessionsReviewed InventoryCountSession[] @relation("InventoryCountSessionReviewer")
-  countBatchesCreated InventoryBalanceBatch[] @relation("InventoryBalanceBatchCreator")
-  countAudits InventoryCountAudit[]
+  countSessions           InventoryCountSession[]    @relation("InventoryCountSessionAssignee")
+  countSessionsCreated    InventoryCountSession[]    @relation("InventoryCountSessionCreator")
+  countSessionsReviewed   InventoryCountSession[]    @relation("InventoryCountSessionReviewer")
+  countBatchesCreated     InventoryBalanceBatch[]    @relation("InventoryBalanceBatchCreator")
+  countAudits             InventoryCountAudit[]
+  purchaseOrders          PurchaseOrder[]            @relation("PurchaseOrderCreator")
 
   @@index([role, isActive])
 }
 
 model Product {
-  id                 Int                 @id @default(autoincrement())
-  kvProductId        Int                 @unique
-  code               String?
-  name               String
-  fullName           String?
-  categoryName       String?
-  basePrice          Decimal?            @default(0)
-  cost               Decimal?            @default(0)
-  unit               String?
-  isActive           Boolean             @default(true)
-  rawJson            String
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  invoiceItems       InvoiceItem[]
-  orderItems         OrderItem[]
-  inventorySnapshots InventorySnapshot[]
-  inventoryMovements InventoryMovement[]
-  stocktakeLines     StocktakeLine[]
-  dailyInventoryEntries ProductDailyInventoryEntry[]
-  manualGroupAssignment InventoryGroupProduct?
-  countAssignments InventoryCountAssignment[]
-  countLines InventoryCountLine[]
+  id                        Int                          @id @default(autoincrement())
+  kvProductId               Int                          @unique
+  code                      String?
+  name                      String
+  fullName                  String?
+  categoryName              String?
+  basePrice                 Decimal?                     @default(0)
+  cost                      Decimal?                     @default(0)
+  unit                      String?
+  isActive                  Boolean                      @default(true)
+  rawJson                   String
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
+  invoiceItems              InvoiceItem[]
+  orderItems                OrderItem[]
+  inventorySnapshots        InventorySnapshot[]
+  inventoryMovements        InventoryMovement[]
+  stocktakeLines            StocktakeLine[]
+  dailyInventoryEntries     ProductDailyInventoryEntry[]
+  manualGroupAssignment     InventoryGroupProduct?
+  countAssignments          InventoryCountAssignment[]
+  countLines                InventoryCountLine[]
   inventoryPositionVersions InventoryPositionVersion[]
+  purchaseOrderItems        PurchaseOrderItem[]
 
   @@index([code])
   @@index([name])
@@ -103,12 +105,12 @@ model Product {
 }
 
 model InventoryGroup {
-  id          Int                    @id @default(autoincrement())
-  name        String                 @unique
-  storageArea String                 @default("UNASSIGNED")
-  position    Int                    @default(0)
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
+  id          Int                     @id @default(autoincrement())
+  name        String                  @unique
+  storageArea String                  @default("UNASSIGNED")
+  position    Int                     @default(0)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
   assignments InventoryGroupProduct[]
 
   @@index([position])
@@ -116,12 +118,12 @@ model InventoryGroup {
 }
 
 model InventoryGroupProduct {
-  id        Int           @id @default(autoincrement())
+  id        Int            @id @default(autoincrement())
   groupId   Int
-  productId Int           @unique
-  position  Int           @default(0)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  productId Int            @unique
+  position  Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
   group     InventoryGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -147,23 +149,24 @@ model Customer {
 }
 
 model Branch {
-  id                 Int                 @id @default(autoincrement())
-  kvBranchId         Int                 @unique
-  name               String
-  address            String?
-  rawJson            String
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  invoices           Invoice[]
-  orders             Order[]
-  inventorySnapshots InventorySnapshot[]
-  inventoryMovements InventoryMovement[]
-  stocktakeDocuments StocktakeDocument[]
-  dailyInventoryEntries ProductDailyInventoryEntry[]
-  countAssignments InventoryCountAssignment[]
-  countSessions InventoryCountSession[]
-  countBatches InventoryBalanceBatch[]
+  id                        Int                          @id @default(autoincrement())
+  kvBranchId                Int                          @unique
+  name                      String
+  address                   String?
+  rawJson                   String
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
+  invoices                  Invoice[]
+  orders                    Order[]
+  inventorySnapshots        InventorySnapshot[]
+  inventoryMovements        InventoryMovement[]
+  stocktakeDocuments        StocktakeDocument[]
+  dailyInventoryEntries     ProductDailyInventoryEntry[]
+  countAssignments          InventoryCountAssignment[]
+  countSessions             InventoryCountSession[]
+  countBatches              InventoryBalanceBatch[]
   inventoryPositionVersions InventoryPositionVersion[]
+  purchaseOrders            PurchaseOrder[]
 
   @@index([name])
 }
@@ -213,23 +216,23 @@ model InvoiceItem {
 /// Immutable audit records for quantity or status changes detected when an
 /// already-synced invoice is refreshed from KiotViet.
 model InvoiceItemChange {
-  id                 Int      @id @default(autoincrement())
-  kvInvoiceId        Int
-  invoiceCode        String?
-  branchId           Int?
-  purchaseDate       DateTime
-  productId          Int?
-  productCode        String?
-  productName        String?
-  previousQuantity   Decimal  @default(0)
-  currentQuantity    Decimal  @default(0)
-  inventoryDelta     Decimal  @default(0)
-  previousStatus     String?
-  currentStatus      String?
-  changeType         String
-  sourceModifiedAt   DateTime?
-  detectedAt         DateTime @default(now())
-  rawJson            String
+  id               Int       @id @default(autoincrement())
+  kvInvoiceId      Int
+  invoiceCode      String?
+  branchId         Int?
+  purchaseDate     DateTime
+  productId        Int?
+  productCode      String?
+  productName      String?
+  previousQuantity Decimal   @default(0)
+  currentQuantity  Decimal   @default(0)
+  inventoryDelta   Decimal   @default(0)
+  previousStatus   String?
+  currentStatus    String?
+  changeType       String
+  sourceModifiedAt DateTime?
+  detectedAt       DateTime  @default(now())
+  rawJson          String
 
   @@index([productId, branchId, detectedAt])
   @@index([kvInvoiceId, detectedAt])
@@ -332,45 +335,45 @@ model InventoryMovement {
 }
 
 model StocktakeDocument {
-  id              Int             @id @default(autoincrement())
-  kvStocktakeId   Int             @unique
-  code            String          @unique
-  kvBranchId      Int
-  branchId        Int?
-  status          Int
-  adjustmentDate  DateTime?
-  sourceCreatedAt DateTime?
+  id               Int             @id @default(autoincrement())
+  kvStocktakeId    Int             @unique
+  code             String          @unique
+  kvBranchId       Int
+  branchId         Int?
+  status           Int
+  adjustmentDate   DateTime?
+  sourceCreatedAt  DateTime?
   sourceModifiedAt DateTime?
-  createdByName   String?
-  description     String?
-  rawJson         String
-  lastSyncedAt    DateTime        @default(now())
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  lines           StocktakeLine[]
+  createdByName    String?
+  description      String?
+  rawJson          String
+  lastSyncedAt     DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  branch           Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  lines            StocktakeLine[]
 
   @@index([branchId, adjustmentDate])
   @@index([status, adjustmentDate])
 }
 
 model StocktakeLine {
-  id                    Int               @id @default(autoincrement())
-  kvStocktakeDetailId   Int               @unique
-  stocktakeDocumentId   Int
-  kvProductId           Int
-  productId             Int?
-  productCode           String?
-  productName           String?
-  systemCount           Decimal           @default(0)
-  actualCount           Decimal           @default(0)
-  adjustmentValue       Decimal           @default(0)
-  isActive              Boolean           @default(true)
-  rawJson               String
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  stocktakeDocument     StocktakeDocument @relation(fields: [stocktakeDocumentId], references: [id], onDelete: Cascade)
-  product               Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  id                  Int               @id @default(autoincrement())
+  kvStocktakeDetailId Int               @unique
+  stocktakeDocumentId Int
+  kvProductId         Int
+  productId           Int?
+  productCode         String?
+  productName         String?
+  systemCount         Decimal           @default(0)
+  actualCount         Decimal           @default(0)
+  adjustmentValue     Decimal           @default(0)
+  isActive            Boolean           @default(true)
+  rawJson             String
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  stocktakeDocument   StocktakeDocument @relation(fields: [stocktakeDocumentId], references: [id], onDelete: Cascade)
+  product             Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([stocktakeDocumentId, isActive])
   @@index([productId, isActive])
@@ -378,17 +381,17 @@ model StocktakeLine {
 }
 
 model ProductDailyInventoryEntry {
-  id              Int      @id @default(autoincrement())
+  id              Int                          @id @default(autoincrement())
   productId       Int
   branchId        Int
-  businessDate    DateTime @db.Date
+  businessDate    DateTime                     @db.Date
   openingOverride Decimal?
   actualOnHand    Decimal?
   note            String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  product         Product                      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branch          Branch                       @relation(fields: [branchId], references: [id], onDelete: Cascade)
   audits          ProductDailyInventoryAudit[]
 
   @@unique([productId, branchId, businessDate])
@@ -396,13 +399,13 @@ model ProductDailyInventoryEntry {
 }
 
 model ProductDailyInventoryAudit {
-  id        Int      @id @default(autoincrement())
-  entryId   Int
+  id           Int                        @id @default(autoincrement())
+  entryId      Int
   previousJson String?
-  nextJson  String
-  actor     String   @default("local-admin")
-  createdAt DateTime @default(now())
-  entry     ProductDailyInventoryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  nextJson     String
+  actor        String                     @default("local-admin")
+  createdAt    DateTime                   @default(now())
+  entry        ProductDailyInventoryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId, createdAt])
 }
@@ -419,18 +422,18 @@ model UserPermission {
 }
 
 model InventoryCountAssignment {
-  id           Int      @id @default(autoincrement())
+  id           Int                             @id @default(autoincrement())
   productId    Int
   branchId     Int
   assigneeId   Int
   assignedById Int
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  product      Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  branch       Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  assignee     User     @relation("InventoryCountAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
-  assignedBy   User     @relation("InventoryCountAssignmentCreator", fields: [assignedById], references: [id], onDelete: Restrict)
+  isActive     Boolean                         @default(true)
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+  product      Product                         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  branch       Branch                          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  assignee     User                            @relation("InventoryCountAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  assignedBy   User                            @relation("InventoryCountAssignmentCreator", fields: [assignedById], references: [id], onDelete: Restrict)
   audits       InventoryCountAssignmentAudit[]
 
   @@unique([productId, branchId])
@@ -439,13 +442,13 @@ model InventoryCountAssignment {
 }
 
 model InventoryCountAssignmentAudit {
-  id           Int      @id @default(autoincrement())
+  id           Int                      @id @default(autoincrement())
   assignmentId Int
   action       String
   previousJson String?
   nextJson     String
   actorId      Int?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime                 @default(now())
   assignment   InventoryCountAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@index([assignmentId, createdAt])
@@ -475,22 +478,22 @@ model InventoryCountSession {
 }
 
 model InventoryCountLine {
-  id                     String                   @id @default(cuid())
-  sessionId              String
-  productId              Int
-  actualCount            Decimal?
-  countedAt              DateTime?
-  systemOnHandAtSubmit   Decimal?
-  difference             Decimal?
+  id                       String                      @id @default(cuid())
+  sessionId                String
+  productId                Int
+  actualCount              Decimal?
+  countedAt                DateTime?
+  systemOnHandAtSubmit     Decimal?
+  difference               Decimal?
   inventoryVersionAtSubmit Int?
-  status                 InventoryCountLineStatus @default(COUNTING)
-  activeLockKey          String?                  @unique
-  resolutionReason       String?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  session                InventoryCountSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  product                Product                  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  batchLines             InventoryBalanceBatchLine[]
+  status                   InventoryCountLineStatus    @default(COUNTING)
+  activeLockKey            String?                     @unique
+  resolutionReason         String?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+  session                  InventoryCountSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product                  Product                     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batchLines               InventoryBalanceBatchLine[]
 
   @@unique([sessionId, productId])
   @@index([productId, status])
@@ -498,36 +501,36 @@ model InventoryCountLine {
 }
 
 model InventoryPositionVersion {
-  id          Int      @id @default(autoincrement())
-  productId   Int
-  branchId    Int
-  version     Int      @default(0)
-  changedAt   DateTime @default(now())
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement())
+  productId Int
+  branchId  Int
+  version   Int      @default(0)
+  changedAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@unique([productId, branchId])
   @@index([branchId, changedAt])
 }
 
 model InventoryBalanceBatch {
-  id                String                      @id @default(cuid())
-  branchId          Int
-  createdById       Int
-  status            InventoryBalanceBatchStatus @default(PENDING)
-  marker            String                      @unique
-  kvStocktakeId     Int?
-  kvStocktakeCode   String?
-  kvStocktakeUuid   String?
-  remoteDraftAt     DateTime?
-  validatedAt       DateTime?
-  balancedAt        DateTime?
-  lastError         String?
-  createdAt         DateTime                    @default(now())
-  updatedAt         DateTime                    @updatedAt
-  branch            Branch                      @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  createdBy         User                        @relation("InventoryBalanceBatchCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  lines             InventoryBalanceBatchLine[]
+  id              String                      @id @default(cuid())
+  branchId        Int
+  createdById     Int
+  status          InventoryBalanceBatchStatus @default(PENDING)
+  marker          String                      @unique
+  kvStocktakeId   Int?
+  kvStocktakeCode String?
+  kvStocktakeUuid String?
+  remoteDraftAt   DateTime?
+  validatedAt     DateTime?
+  balancedAt      DateTime?
+  lastError       String?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  branch          Branch                      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  createdBy       User                        @relation("InventoryBalanceBatchCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines           InventoryBalanceBatchLine[]
 
   @@index([branchId, status, createdAt])
 }
@@ -548,14 +551,14 @@ model InventoryBalanceBatchLine {
 }
 
 model InventoryCountAudit {
-  id        Int      @id @default(autoincrement())
-  entityType String
-  entityId  String
-  action    String
-  actorId   Int?
+  id          Int      @id @default(autoincrement())
+  entityType  String
+  entityId    String
+  action      String
+  actorId     Int?
   payloadJson String
-  createdAt DateTime @default(now())
-  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId, createdAt])
   @@index([actorId, createdAt])
@@ -576,8 +579,8 @@ model SyncLog {
 }
 
 model ReportSnapshot {
-  id               Int      @id @default(autoincrement())
-  reportKey        String   @unique
+  id               Int       @id @default(autoincrement())
+  reportKey        String    @unique
   reportType       String
   periodLabel      String?
   periodFrom       DateTime?
@@ -587,8 +590,8 @@ model ReportSnapshot {
   markdown         String
   sourceTablesJson String
   filtersJson      String
-  generatedAt      DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  generatedAt      DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([reportType])
   @@index([periodFrom])
@@ -639,4 +642,69 @@ model BranchDirectoryAudit {
 
   @@index([branchDirectoryId, createdAt])
   @@index([action])
+}
+
+model Supplier {
+  id             Int             @id @default(autoincrement())
+  kvSupplierId   Int?            @unique
+  code           String?
+  name           String
+  phone          String?
+  address        String?
+  email          String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  purchaseOrders PurchaseOrder[]
+
+  @@index([code])
+  @@index([name])
+}
+
+model PurchaseOrder {
+  id                Int                 @id @default(autoincrement())
+  code              String              @unique
+  kvPurchaseOrderId Int?                @unique
+  branchId          Int
+  branch            Branch              @relation(fields: [branchId], references: [id])
+  supplierId        Int?
+  supplier          Supplier?           @relation(fields: [supplierId], references: [id])
+  supplierName      String?
+  delivererName     String?
+  purchaseDate      DateTime            @default(now())
+  totalAmount       Decimal             @default(0)
+  totalQuantity     Decimal             @default(0)
+  note              String?
+  status            String              @default("COMPLETED")
+  syncStatus        String              @default("LOCAL_ONLY")
+  syncError         String?
+  createdById       Int?
+  createdBy         User?               @relation("PurchaseOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items             PurchaseOrderItem[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([code])
+  @@index([branchId])
+  @@index([supplierId])
+  @@index([purchaseDate])
+  @@index([syncStatus])
+}
+
+model PurchaseOrderItem {
+  id              Int           @id @default(autoincrement())
+  purchaseOrderId Int
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       Int
+  product         Product       @relation(fields: [productId], references: [id])
+  productCode     String?
+  productName     String
+  unit            String?
+  quantity        Decimal
+  price           Decimal       @default(0)
+  amount          Decimal       @default(0)
+  note            String?
+
+  @@index([purchaseOrderId])
+  @@index([productId])
 }
