@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
-
-export const DEFAULT_PRINT_SETTINGS = {
-  companyName: "CÔNG TY TNHH YAGAMI KITCHEN",
-  warehouseName: "TỔNG KHO YAGAMI",
-  formNumber: "Mẫu số: 01 - VT",
-  circular: "(Kèm theo Thông tư số 99/2025/TT-BTC ngày 27 tháng 10 năm 2025 của Bộ trưởng Bộ Tài chính)",
-  defaultAddress: "Phường 2, Thành phố Cao Lãnh, Đồng Tháp",
-  footerNote: "“Đơn giá và thành tiền trên phiếu chỉ phục vụ quản lý nội bộ theo giá bán; không phải giá nhập, giá vốn hoặc căn cứ ghi sổ kế toán.”",
-  showLogo: true,
-  showSignatures: true
-};
+import { DEFAULT_PRINT_SETTINGS } from "@/components/purchase/purchase-order-print";
 
 const SETTING_KEY = "PRINT_TEMPLATE_PURCHASE_ORDER";
 

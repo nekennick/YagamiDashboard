@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { createPurchaseOrderOnKiotViet } from "@/lib/kiotviet/purchase";
 
 export async function GET(request: NextRequest) {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(searchParams.get("page") || 1));
     const pageSize = Math.max(1, Math.min(100, Number(searchParams.get("pageSize") || 20)));
 
-    const where: any = {};
+    const where: Prisma.PurchaseOrderWhereInput = {};
     if (branchId) where.branchId = branchId;
     if (search) {
       where.OR = [

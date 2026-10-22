@@ -1,5 +1,26 @@
 [
   {
+    "hash": "c9a8eb8801346ec7375659c20e779287c20d59a6",
+    "shortHash": "c9a8eb8",
+    "message": "fix(permissions): add purchase-orders to MANAGEABLE_TABS",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "4c114e6ac74cfd072e436396bcc7973add09c2b9",
+    "shortHash": "4c114e6",
+    "message": "feat(purchase-orders): add purchase orders tab with KiotViet sync and printable receipts",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "8d5e0691fb46d6d2af9e0f471263ffeec56bfcde",
+    "shortHash": "8d5e069",
+    "message": "fix lỗi trả sp kiểm kho sai",
+    "author": "nekennick",
+    "date": "2026-10-21"
+  },
+  {
     "hash": "8879618898827ef72c143bec19e3af7826fe6440",
     "shortHash": "8879618",
     "message": "Thêm chức năng kiểm kho trên mobile cho nhân viên quản lý kho",

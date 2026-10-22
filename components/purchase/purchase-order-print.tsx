@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
-import { Printer, X, Download } from "lucide-react";
+import { Printer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { numberToVietnameseWords } from "@/lib/utils/number-to-words";
 

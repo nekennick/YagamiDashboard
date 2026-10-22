@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Search,
-  Plus,
   Trash2,
   Printer,
   Save,
@@ -13,8 +12,7 @@ import {
   User,
   Truck,
   FileText,
-  AlertCircle,
-  CheckCircle2
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { numberToVietnameseWords } from "@/lib/utils/number-to-words";
@@ -53,10 +51,31 @@ export type FormLineItem = {
   amount: number;
 };
 
+export type CreatedPurchaseOrder = {
+  id: number;
+  code: string;
+  purchaseDate: string | Date;
+  delivererName?: string | null;
+  supplierName?: string | null;
+  branch?: { name: string; address?: string | null };
+  supplier?: { name: string };
+  note?: string | null;
+  totalAmount: number | string;
+  totalQuantity: number | string;
+  items: Array<{
+    productCode?: string | null;
+    productName: string;
+    unit?: string | null;
+    quantity: number | string;
+    price: number | string;
+    amount: number | string;
+  }>;
+};
+
 type Props = {
   branches: BranchItem[];
   products: ProductItem[];
-  onSuccess: (order: any, shouldPrint: boolean) => void;
+  onSuccess: (order: CreatedPurchaseOrder, shouldPrint: boolean) => void;
   onCancel?: () => void;
 };
 
@@ -85,7 +104,6 @@ export const PurchaseOrderForm: React.FC<Props> = ({
 
   // Supplier State & Sync
   const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
-  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
   const [syncingSuppliers, setSyncingSuppliers] = useState(false);
 
   // Submission State
@@ -95,7 +113,6 @@ export const PurchaseOrderForm: React.FC<Props> = ({
   // Fetch Suppliers
   const loadSuppliers = async (sync = false) => {
     if (sync) setSyncingSuppliers(true);
-    else setLoadingSuppliers(true);
 
     try {
       const res = await fetch(`/api/suppliers${sync ? "?sync=true" : ""}`);
@@ -106,7 +123,6 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     } catch (err) {
       console.error("Không thể tải danh sách nhà cung cấp", err);
     } finally {
-      setLoadingSuppliers(false);
       setSyncingSuppliers(false);
     }
   };

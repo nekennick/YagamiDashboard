@@ -64,7 +64,6 @@ export default async function PurchaseOrdersPage() {
       initialBranches={branches}
       initialProducts={serializedProducts}
       initialPrintConfig={parsedPrintConfig}
-      userRole={session.role}
     />
   );
 }

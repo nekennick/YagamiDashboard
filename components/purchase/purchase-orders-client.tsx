@@ -1,47 +1,63 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Truck,
   Plus,
   Printer,
   Search,
-  Filter,
   RotateCw,
   Settings2,
-  Calendar,
-  Building2,
   CheckCircle2,
-  AlertTriangle,
-  FileText,
   Clock,
-  ArrowLeft,
-  ChevronRight,
-  ExternalLink
+  ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PurchaseOrderForm, ProductItem, BranchItem } from "./purchase-order-form";
 import { PurchaseOrderPrint, PurchaseOrderPrintData, PrintTemplateConfig } from "./purchase-order-print";
 import { PurchasePrintSettings } from "./purchase-print-settings";
 
+export type PurchaseOrderRowItem = {
+  id?: number;
+  productCode?: string | null;
+  productName: string;
+  unit?: string | null;
+  quantity: number | string;
+  price: number | string;
+  amount: number | string;
+};
+
+export type PurchaseOrderRow = {
+  id: number;
+  code: string;
+  purchaseDate: string | Date;
+  delivererName?: string | null;
+  supplierName?: string | null;
+  note?: string | null;
+  totalAmount: number | string;
+  totalQuantity: number | string;
+  syncStatus?: string;
+  branch?: { id?: number; name?: string; address?: string | null; kvBranchId?: number };
+  supplier?: { id?: number; name?: string; phone?: string | null };
+  items?: PurchaseOrderRowItem[];
+};
+
 type Props = {
   initialBranches: BranchItem[];
   initialProducts: ProductItem[];
   initialPrintConfig?: PrintTemplateConfig;
-  userRole?: string;
 };
 
 export const PurchaseOrdersClient: React.FC<Props> = ({
   initialBranches,
   initialProducts,
-  initialPrintConfig,
-  userRole = "ADMIN"
+  initialPrintConfig
 }) => {
   // Navigation View: "list" | "create" | "settings"
   const [activeView, setActiveView] = useState<"list" | "create" | "settings">("list");
 
   // Orders State
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<PurchaseOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -56,12 +72,10 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
   const [printOrder, setPrintOrder] = useState<PurchaseOrderPrintData | null>(null);
   const [autoTriggerPrint, setAutoTriggerPrint] = useState(false);
   const [printConfig, setPrintConfig] = useState<PrintTemplateConfig | undefined>(initialPrintConfig);
-
-  // Sync / Action Loading
   const [retryingId, setRetryingId] = useState<number | null>(null);
 
   // Fetch Orders
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -83,11 +97,11 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedBranchId, searchQuery, fromDate, toDate, page]);
 
   useEffect(() => {
     fetchOrders();
-  }, [selectedBranchId, fromDate, toDate, page]);
+  }, [fetchOrders]);
 
   // Handle Search submit
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -97,7 +111,7 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
   };
 
   // Open Print for an order
-  const handleOpenPrint = (order: any, auto = false) => {
+  const handleOpenPrint = (order: PurchaseOrderRow, auto = false) => {
     const printData: PurchaseOrderPrintData = {
       code: order.code,
       purchaseDate: order.purchaseDate,
@@ -108,7 +122,7 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
       note: order.note,
       totalAmount: Number(order.totalAmount || 0),
       totalQuantity: Number(order.totalQuantity || 0),
-      items: (order.items || []).map((i: any, idx: number) => ({
+      items: (order.items || []).map((i: PurchaseOrderRowItem, idx: number) => ({
         stt: idx + 1,
         productCode: i.productCode,
         productName: i.productName,
@@ -348,7 +362,7 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
                   Chưa có phiếu nhập hàng nào phù hợp
                 </p>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Nhấn "Lập phiếu nhập mới" để tạo chứng từ nhập kho đầu tiên.
+                  Nhấn &quot;Lập phiếu nhập mới&quot; để tạo chứng từ nhập kho đầu tiên.
                 </p>
               </div>
             ) : (
@@ -458,12 +472,12 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
   );
 };
 
-function formatDateTime(dateStr: string) {
+function formatDateTime(dateStr: string | Date) {
   try {
     const d = new Date(dateStr);
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   } catch {
-    return dateStr;
+    return String(dateStr);
   }
 }
