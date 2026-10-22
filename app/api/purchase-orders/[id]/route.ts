@@ -238,6 +238,22 @@ export async function PUT(
     let syncError: string | null = null;
 
     if (!isDraft) {
+      for (const item of validatedItems) {
+        const prod = productMap.get(item.productId);
+        if (prod?.rawJson) {
+          try {
+            const raw = JSON.parse(prod.rawJson);
+            if (raw.type === 1 || raw.type === 3) {
+              const typeLabel = raw.type === 1 ? "đóng gói / combo" : "dịch vụ";
+              return NextResponse.json(
+                { message: `Không thể nhập hàng đối với sản phẩm ${typeLabel}: ${prod.name} (${prod.code || prod.id})` },
+                { status: 400 }
+              );
+            }
+          } catch {}
+        }
+      }
+
       if (!branch.kvBranchId) {
         return NextResponse.json(
           { message: "Chi nhánh chưa liên kết KiotViet Branch ID" },

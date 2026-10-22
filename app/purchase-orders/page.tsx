@@ -42,7 +42,8 @@ export default async function PurchaseOrdersPage() {
         name: true,
         unit: true,
         basePrice: true,
-        categoryName: true
+        categoryName: true,
+        rawJson: true
       }
     }),
     prisma.appSetting.findUnique({
@@ -54,10 +55,29 @@ export default async function PurchaseOrdersPage() {
     ? { ...DEFAULT_PRINT_SETTINGS, ...JSON.parse(printSetting.value) }
     : DEFAULT_PRINT_SETTINGS;
 
-  const serializedProducts = products.map((p) => ({
-    ...p,
-    basePrice: p.basePrice ? Number(p.basePrice) : 0
-  }));
+  const serializedProducts = products
+    .filter((p) => {
+      try {
+        const raw = JSON.parse(p.rawJson || "{}");
+        // KiotViet product type:
+        // 1: Hàng combo / đóng gói (không nhập kho)
+        // 3: Dịch vụ (không nhập kho)
+        if (raw.type === 1 || raw.type === 3) {
+          return false;
+        }
+      } catch {
+        // Bỏ qua lỗi parse, giữ lại sản phẩm
+      }
+      return true;
+    })
+    .map((p) => ({
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      unit: p.unit,
+      categoryName: p.categoryName,
+      basePrice: p.basePrice ? Number(p.basePrice) : 0
+    }));
 
   return (
     <PurchaseOrdersClient

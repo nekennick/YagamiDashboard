@@ -192,6 +192,23 @@ export const PurchaseOrderForm: React.FC<Props> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Supplier State & Sync
   const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
@@ -513,17 +530,8 @@ export const PurchaseOrderForm: React.FC<Props> = ({
       {/* Product Selection & Items Table Card */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Chi tiết hàng hóa nhập ({lineItems.length} mặt hàng)
-            </h3>
-            <span className="text-xs text-slate-500">
-              Tìm theo mã SKU hoặc tên sản phẩm để thêm vào phiếu
-            </span>
-          </div>
-
-          {/* Quick Search Input */}
-          <div className="relative w-full sm:w-96">
+          {/* Quick Search Input (Dời sang bên trái) */}
+          <div ref={searchContainerRef} className="relative w-full sm:w-[420px]">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               ref={searchInputRef}
@@ -531,6 +539,9 @@ export const PurchaseOrderForm: React.FC<Props> = ({
               placeholder="Gõ tên hoặc mã hàng để thêm nhanh..."
               value={searchQuery}
               onFocus={() => setIsSearchOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setIsSearchOpen(false);
+              }}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setIsSearchOpen(true);
@@ -571,6 +582,15 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                 )}
               </div>
             )}
+          </div>
+
+          <div className="sm:text-right">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              Chi tiết hàng hóa nhập ({lineItems.length} mặt hàng)
+            </h3>
+            <span className="text-xs text-slate-500">
+              Tìm theo mã SKU hoặc tên sản phẩm để thêm vào phiếu
+            </span>
           </div>
         </div>
 
