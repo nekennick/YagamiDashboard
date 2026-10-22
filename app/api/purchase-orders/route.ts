@@ -75,13 +75,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Chỉ quản lý mới có quyền tạo phiếu nhập hàng" }, { status: 403 });
     }
 
-    const body = await request.json() as {
+    const body = (await request.json()) as {
       branchId: number;
       supplierId?: number;
       supplierName?: string;
       delivererName?: string;
       purchaseDate?: string;
       note?: string;
+      isDraft?: boolean;
       items: Array<{
         productId: number;
         quantity: number;
@@ -170,7 +171,7 @@ export async function POST(request: NextRequest) {
     }
 
     const purchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : new Date();
-    const isDraft = (body as any).isDraft === true;
+    const isDraft = body.isDraft === true;
 
     // Sinh mã phiếu dự phòng (PT: Phiếu tạm, PN: Phiếu nhập)
     const datePrefix = purchaseDate.toISOString().slice(2, 10).replace(/-/g, "");
