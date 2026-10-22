@@ -34,11 +34,18 @@ export type SkippedImportItem = {
   reason: string;
 };
 
+import { canUserPurchase } from "@/lib/auth/purchase-permissions";
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getCurrentSession();
     if (!session) {
       return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const hasPermission = await canUserPurchase(session.sub, session.role);
+    if (!hasPermission) {
+      return NextResponse.json({ message: "Bạn chưa được cấp quyền Nhập kho" }, { status: 403 });
     }
 
     const formData = await request.formData();

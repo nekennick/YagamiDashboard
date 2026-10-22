@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import { createPurchaseOrderOnKiotViet } from "@/lib/kiotviet/purchase";
+import { canUserPurchase } from "@/lib/auth/purchase-permissions";
 
 export async function GET(
   _request: NextRequest,
@@ -11,6 +12,11 @@ export async function GET(
     const session = await getCurrentSession();
     if (!session) {
       return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const hasPermission = await canUserPurchase(session.sub, session.role);
+    if (!hasPermission) {
+      return NextResponse.json({ message: "Bạn chưa được cấp quyền Nhập kho" }, { status: 403 });
     }
 
     const { id } = await params;
@@ -51,8 +57,13 @@ export async function POST(
   let orderId = 0;
   try {
     const session = await getCurrentSession();
-    if (!session || session.role !== "ADMIN") {
-      return NextResponse.json({ message: "Không có quyền thực hiện" }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const hasPermission = await canUserPurchase(session.sub, session.role);
+    if (!hasPermission) {
+      return NextResponse.json({ message: "Bạn chưa được cấp quyền đẩy phiếu lên KiotViet" }, { status: 403 });
     }
 
     const { id } = await params;
@@ -130,8 +141,13 @@ export async function PUT(
 ) {
   try {
     const session = await getCurrentSession();
-    if (!session || session.role !== "ADMIN") {
-      return NextResponse.json({ message: "Không có quyền thực hiện" }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const hasPermission = await canUserPurchase(session.sub, session.role);
+    if (!hasPermission) {
+      return NextResponse.json({ message: "Bạn chưa được cấp quyền chỉnh sửa phiếu nhập" }, { status: 403 });
     }
 
     const { id } = await params;
@@ -360,8 +376,13 @@ export async function DELETE(
 ) {
   try {
     const session = await getCurrentSession();
-    if (!session || session.role !== "ADMIN") {
-      return NextResponse.json({ message: "Không có quyền thực hiện" }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const hasPermission = await canUserPurchase(session.sub, session.role);
+    if (!hasPermission) {
+      return NextResponse.json({ message: "Bạn chưa được cấp quyền xóa phiếu tạm" }, { status: 403 });
     }
 
     const { id } = await params;

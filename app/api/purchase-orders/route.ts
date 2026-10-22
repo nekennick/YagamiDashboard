@@ -3,12 +3,18 @@ import { getCurrentSession } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { createPurchaseOrderOnKiotViet } from "@/lib/kiotviet/purchase";
+import { canUserPurchase } from "@/lib/auth/purchase-permissions";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getCurrentSession();
     if (!session) {
       return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const hasPermission = await canUserPurchase(session.sub, session.role);
+    if (!hasPermission) {
+      return NextResponse.json({ message: "Bạn chưa được cấp quyền Nhập kho" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -71,8 +77,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getCurrentSession();
-    if (!session || session.role !== "ADMIN") {
-      return NextResponse.json({ message: "Chỉ quản lý mới có quyền tạo phiếu nhập hàng" }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const hasPermission = await canUserPurchase(session.sub, session.role);
+    if (!hasPermission) {
+      return NextResponse.json({ message: "Bạn chưa được cấp quyền tạo phiếu nhập hàng" }, { status: 403 });
     }
 
     const body = (await request.json()) as {

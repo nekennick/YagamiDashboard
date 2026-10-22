@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { PurchaseOrdersClient } from "@/components/purchase/purchase-orders-client";
 import { DEFAULT_PRINT_SETTINGS } from "@/components/purchase/purchase-order-print";
 
+import { canUserPurchase } from "@/lib/auth/purchase-permissions";
+
 export const dynamic = "force-dynamic";
 
 export default async function PurchaseOrdersPage() {
@@ -12,16 +14,17 @@ export default async function PurchaseOrdersPage() {
     redirect("/login");
   }
 
-  // Phân quyền: Chỉ ADMIN / Quản lý được phép truy cập
-  if (session.role !== "ADMIN") {
+  // Phân quyền: ADMIN hoặc User thường được cấp quyền Nhập kho
+  const hasPermission = await canUserPurchase(session.sub, session.role);
+  if (!hasPermission) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50/50 p-8 max-w-md dark:border-red-900/50 dark:bg-red-950/20">
-          <h2 className="text-lg font-bold text-red-900 dark:text-red-400">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-8 max-w-md dark:border-amber-900/50 dark:bg-amber-950/20">
+          <h2 className="text-lg font-bold text-amber-900 dark:text-amber-400">
             Truy cập bị giới hạn
           </h2>
-          <p className="mt-2 text-xs text-red-700 dark:text-red-300 leading-relaxed">
-            Phân hệ Nhập hàng chỉ dành riêng cho tài khoản Quản lý (Admin). Vui lòng liên hệ quản trị viên nếu bạn cần cấp quyền.
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+            Bạn chưa được cấp quyền Nhập kho. Vui lòng liên hệ Quản trị viên để được cấp quyền trong Cài đặt tài khoản.
           </p>
         </div>
       </div>

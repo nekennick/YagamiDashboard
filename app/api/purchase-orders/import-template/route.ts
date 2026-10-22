@@ -3,11 +3,18 @@ import { getCurrentSession } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
 import ExcelJS from "exceljs";
 
+import { canUserPurchase } from "@/lib/auth/purchase-permissions";
+
 export async function GET() {
   try {
     const session = await getCurrentSession();
     if (!session) {
       return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    const hasPermission = await canUserPurchase(session.sub, session.role);
+    if (!hasPermission) {
+      return NextResponse.json({ message: "Bạn chưa được cấp quyền Nhập kho" }, { status: 403 });
     }
 
     const sampleProducts = await prisma.product.findMany({

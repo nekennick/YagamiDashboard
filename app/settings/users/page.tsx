@@ -12,6 +12,7 @@ export default async function UsersPage() {
         displayName: true,
         role: true,
         isActive: true,
+        canPurchaseOrder: true,
         createdAt: true,
         countPermissions: { select: { permission: true } }
       }

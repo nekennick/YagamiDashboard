@@ -11,6 +11,7 @@ type User = {
   displayName: string;
   role: "ADMIN" | "MEMBER";
   isActive: boolean;
+  canPurchaseOrder?: boolean;
   createdAt: string;
   countPermissions: Array<"COUNT_EXECUTE" | "COUNT_MANAGE" | "COUNT_BALANCE">;
 };
@@ -102,7 +103,8 @@ export function UserManagement({
           username: form.get("username"),
           displayName: form.get("displayName"),
           password: form.get("password"),
-          role: form.get("role")
+          role: form.get("role"),
+          canPurchaseOrder: form.get("canPurchaseOrder") === "on"
         })
       });
       const data = (await response.json()) as { user?: User; message?: string };
@@ -119,7 +121,15 @@ export function UserManagement({
     }
   }
 
-  async function updateUser(user: User, patch: { isActive?: boolean; password?: string; countPermissions?: User["countPermissions"] }) {
+  async function updateUser(
+    user: User,
+    patch: {
+      isActive?: boolean;
+      password?: string;
+      canPurchaseOrder?: boolean;
+      countPermissions?: User["countPermissions"];
+    }
+  ) {
     setMessage("");
     const response = await fetch(`/api/admin/users/${user.id}`, {
       method: "PATCH",
@@ -291,6 +301,16 @@ export function UserManagement({
             <option value="MEMBER">User thường (MEMBER)</option>
             <option value="ADMIN">Quản trị viên (ADMIN)</option>
           </select>
+          <div className="flex items-center gap-2 md:col-span-2 xl:col-span-4 py-1">
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                name="canPurchaseOrder"
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>Cấp quyền Nhập kho (cho phép tạo & đẩy phiếu nhập lên KiotViet)</span>
+            </label>
+          </div>
           <Button
             className="md:col-span-2 xl:col-span-4 xl:justify-self-start"
             disabled={saving}
@@ -309,13 +329,14 @@ export function UserManagement({
           <h2 className="font-semibold text-slate-950 dark:text-white">Danh sách tài khoản ({users.length})</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-sm">
+          <table className="w-full min-w-[980px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-gray-800/60 dark:text-gray-400">
               <tr>
                 <th className="px-5 py-3">Tài khoản</th>
                 <th className="px-5 py-3">Vai trò</th>
                 <th className="px-5 py-3">Trạng thái</th>
                 <th className="px-5 py-3">Quyền Kiểm kho</th>
+                <th className="px-5 py-3">Quyền Nhập kho</th>
                 <th className="px-5 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
@@ -325,9 +346,6 @@ export function UserManagement({
                   <td className="px-5 py-4">
                     <p className="font-semibold text-slate-900 dark:text-white">{user.displayName}</p>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">{user.username}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    {user.role === "ADMIN" ? <span className="text-xs text-slate-500">Toàn quyền</span> : <div className="flex flex-wrap gap-2">{(Object.keys(inventoryCountPermissionLabels) as User["countPermissions"]).map((permission) => <label key={permission} className="flex items-center gap-1 text-xs text-slate-600"><input type="checkbox" checked={user.countPermissions.includes(permission)} onChange={() => void updateUser(user, { countPermissions: user.countPermissions.includes(permission) ? user.countPermissions.filter((item) => item !== permission) : [...user.countPermissions, permission] })} />{inventoryCountPermissionLabels[permission]}</label>)}</div>}
                   </td>
                   <td className="px-5 py-4">
                     <span
@@ -351,6 +369,48 @@ export function UserManagement({
                       />
                       {user.isActive ? "Đang hoạt động" : "Đã khóa"}
                     </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    {user.role === "ADMIN" ? (
+                      <span className="text-xs text-slate-400">Toàn quyền</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {(Object.keys(inventoryCountPermissionLabels) as User["countPermissions"]).map((permission) => (
+                          <label key={permission} className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={user.countPermissions.includes(permission)}
+                              onChange={() =>
+                                void updateUser(user, {
+                                  countPermissions: user.countPermissions.includes(permission)
+                                    ? user.countPermissions.filter((item) => item !== permission)
+                                    : [...user.countPermissions, permission]
+                                })
+                              }
+                              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            {inventoryCountPermissionLabels[permission]}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    {user.role === "ADMIN" ? (
+                      <span className="text-xs text-slate-400">Toàn quyền</span>
+                    ) : (
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.canPurchaseOrder)}
+                          onChange={() => void updateUser(user, { canPurchaseOrder: !user.canPurchaseOrder })}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className={user.canPurchaseOrder ? "font-semibold text-indigo-600 dark:text-indigo-400" : ""}>
+                          Cho phép nhập hàng
+                        </span>
+                      </label>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex justify-end gap-2">

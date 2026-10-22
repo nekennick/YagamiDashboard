@@ -5,6 +5,7 @@ import { SidebarProvider } from "@/context/SidebarContext";
 import { getCurrentSession } from "@/lib/auth/server";
 import { getMemberAllowedTabs } from "@/lib/auth/permissions";
 import { getInventoryCountPermissions } from "@/lib/auth/inventory-count";
+import { canUserPurchase } from "@/lib/auth/purchase-permissions";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,6 +25,9 @@ export default async function RootLayout({
   ]);
   const inventoryCountEnabled = session
     ? session.role === "ADMIN" || (await getInventoryCountPermissions(session.sub, session.role)).length > 0
+    : false;
+  const purchaseOrderEnabled = session
+    ? session.role === "ADMIN" || (await canUserPurchase(session.sub, session.role))
     : false;
 
   return (
@@ -45,7 +49,15 @@ try {
       </head>
       <body>
         <SidebarProvider>
-          <AppShell displayName={session?.displayName} role={session?.role} allowedTabs={allowedTabs} inventoryCountEnabled={inventoryCountEnabled}>{children}</AppShell>
+          <AppShell
+            displayName={session?.displayName}
+            role={session?.role}
+            allowedTabs={allowedTabs}
+            inventoryCountEnabled={inventoryCountEnabled}
+            purchaseOrderEnabled={purchaseOrderEnabled}
+          >
+            {children}
+          </AppShell>
         </SidebarProvider>
       </body>
     </html>

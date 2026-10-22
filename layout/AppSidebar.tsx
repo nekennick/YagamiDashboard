@@ -102,7 +102,19 @@ const subMenuGroups: NavItem[] = [
   },
 ];
 
-const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string; allowedTabs?: string[]; inventoryCountEnabled?: boolean }> = ({ role = "MEMBER", displayName, allowedTabs, inventoryCountEnabled = false }) => {
+const AppSidebar: React.FC<{
+  role?: "ADMIN" | "MEMBER";
+  displayName?: string;
+  allowedTabs?: string[];
+  inventoryCountEnabled?: boolean;
+  purchaseOrderEnabled?: boolean;
+}> = ({
+  role = "MEMBER",
+  displayName,
+  allowedTabs,
+  inventoryCountEnabled = false,
+  purchaseOrderEnabled = false
+}) => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
@@ -144,9 +156,15 @@ const AppSidebar: React.FC<{ role?: "ADMIN" | "MEMBER"; displayName?: string; al
   const showFullMenu = isExpanded || isHovered || isMobileOpen;
   const allowedSet = React.useMemo(() => new Set(allowedTabs || ["/order-schedule", "/stocktake"]), [allowedTabs]);
 
-  const visibleNavItems = role === "ADMIN"
-    ? navItems
-    : navItems.filter((item) => item.path && (item.path === "/inventory-count" ? inventoryCountEnabled : allowedSet.has(item.path)));
+  const visibleNavItems =
+    role === "ADMIN"
+      ? navItems
+      : navItems.filter((item) => {
+          if (!item.path) return false;
+          if (item.path === "/inventory-count") return inventoryCountEnabled;
+          if (item.path === "/purchase-orders") return purchaseOrderEnabled;
+          return allowedSet.has(item.path);
+        });
 
   const visibleSubMenuGroups = role === "ADMIN"
     ? subMenuGroups

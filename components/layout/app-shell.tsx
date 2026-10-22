@@ -6,7 +6,21 @@ import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
 import { usePathname } from "next/navigation";
 
-export function AppShell({ children, role, displayName, allowedTabs, inventoryCountEnabled }: { children: React.ReactNode; role?: "ADMIN" | "MEMBER"; displayName?: string; allowedTabs?: string[]; inventoryCountEnabled?: boolean }) {
+export function AppShell({
+  children,
+  role,
+  displayName,
+  allowedTabs,
+  inventoryCountEnabled,
+  purchaseOrderEnabled
+}: {
+  children: React.ReactNode;
+  role?: "ADMIN" | "MEMBER";
+  displayName?: string;
+  allowedTabs?: string[];
+  inventoryCountEnabled?: boolean;
+  purchaseOrderEnabled?: boolean;
+}) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
   const pathname = usePathname();
 
@@ -20,7 +34,13 @@ export function AppShell({ children, role, displayName, allowedTabs, inventoryCo
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col">
-      <AppSidebar displayName={displayName} role={role} allowedTabs={allowedTabs} inventoryCountEnabled={inventoryCountEnabled} />
+      <AppSidebar
+        displayName={displayName}
+        role={role}
+        allowedTabs={allowedTabs}
+        inventoryCountEnabled={inventoryCountEnabled}
+        purchaseOrderEnabled={purchaseOrderEnabled}
+      />
       <Backdrop />
       <div className={`flex-1 flex flex-col transition-all duration-300 ${mainContentMargin}`}>
         <AppHeader />

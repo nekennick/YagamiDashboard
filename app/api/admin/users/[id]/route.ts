@@ -7,8 +7,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const userId = Number(id);
     if (!Number.isInteger(userId)) return NextResponse.json({ message: "User không hợp lệ." }, { status: 400 });
-    const body = await request.json() as { displayName?: string; password?: string; isActive?: boolean; countPermissions?: Array<"COUNT_EXECUTE" | "COUNT_MANAGE" | "COUNT_BALANCE"> };
-    const data: { displayName?: string; passwordHash?: string; isActive?: boolean } = {};
+    const body = (await request.json()) as {
+      displayName?: string;
+      password?: string;
+      isActive?: boolean;
+      canPurchaseOrder?: boolean;
+      countPermissions?: Array<"COUNT_EXECUTE" | "COUNT_MANAGE" | "COUNT_BALANCE">;
+    };
+    const data: { displayName?: string; passwordHash?: string; isActive?: boolean; canPurchaseOrder?: boolean } = {};
     if (body.displayName !== undefined) {
       const displayName = body.displayName.trim();
       if (!displayName) return NextResponse.json({ message: "Tên hiển thị không được để trống." }, { status: 400 });
@@ -19,9 +25,38 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data.passwordHash = await hashPassword(body.password);
     }
     if (body.isActive !== undefined) data.isActive = body.isActive;
-    const permissions = body.countPermissions === undefined ? undefined : [...new Set(body.countPermissions.filter((value) => ["COUNT_EXECUTE", "COUNT_MANAGE", "COUNT_BALANCE"].includes(value)))];
-    const user = await prisma.user.update({ where: { id: userId }, data: { ...data, ...(permissions ? { countPermissions: { deleteMany: {}, create: permissions.map((permission) => ({ permission })) } } : {}) }, select: { id: true, username: true, displayName: true, role: true, isActive: true, createdAt: true, updatedAt: true, countPermissions: { select: { permission: true } } } });
-    return NextResponse.json({ user: { ...user, countPermissions: user.countPermissions.map((item) => item.permission) } });
+    if (body.canPurchaseOrder !== undefined) data.canPurchaseOrder = Boolean(body.canPurchaseOrder);
+
+    const permissions =
+      body.countPermissions === undefined
+        ? undefined
+        : [...new Set(body.countPermissions.filter((value) => ["COUNT_EXECUTE", "COUNT_MANAGE", "COUNT_BALANCE"].includes(value)))];
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...data,
+        ...(permissions ? { countPermissions: { deleteMany: {}, create: permissions.map((permission) => ({ permission })) } } : {})
+      },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        role: true,
+        isActive: true,
+        canPurchaseOrder: true,
+        createdAt: true,
+        updatedAt: true,
+        countPermissions: { select: { permission: true } }
+      }
+    });
+
+    return NextResponse.json({
+      user: {
+        ...user,
+        countPermissions: user.countPermissions.map((item) => item.permission)
+      }
+    });
   } catch {
     return NextResponse.json({ message: "Không thể cập nhật user." }, { status: 400 });
   }
