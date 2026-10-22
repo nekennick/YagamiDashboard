@@ -105,7 +105,7 @@ type Props = {
   branches: BranchItem[];
   products: ProductItem[];
   initialOrder?: PurchaseOrderRow | null;
-  onSuccess: (order: CreatedPurchaseOrder, shouldPrint: boolean) => void;
+  onSuccess: (order: CreatedPurchaseOrder, shouldPrint: boolean, message?: string) => void;
   onCancel?: () => void;
 };
 
@@ -374,7 +374,7 @@ export const PurchaseOrderForm: React.FC<Props> = ({
       }
 
       setShowReviewModal(false);
-      onSuccess(data.order, false);
+      onSuccess(data.order, false, data.message);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Đã xảy ra lỗi");
     } finally {
@@ -758,6 +758,16 @@ export const PurchaseOrderForm: React.FC<Props> = ({
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {errorMessage && (
+                <div className="flex items-start gap-2.5 rounded-xl bg-red-50 p-3.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400 border border-red-200 dark:border-red-900">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-600" />
+                  <div>
+                    <span className="font-bold block mb-0.5">Không thể đẩy phiếu lên KiotViet:</span>
+                    <span>{errorMessage}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Meta Info summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800">
                 <div>

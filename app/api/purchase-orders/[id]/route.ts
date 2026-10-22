@@ -48,6 +48,7 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let orderId = 0;
   try {
     const session = await getCurrentSession();
     if (!session || session.role !== "ADMIN") {
@@ -55,7 +56,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const orderId = Number(id);
+    orderId = Number(id);
     const order = await prisma.purchaseOrder.findUnique({
       where: { id: orderId },
       include: {
@@ -105,10 +106,21 @@ export async function POST(
       }
     });
 
-    return NextResponse.json({ order: updated, message: "Đồng bộ KiotViet thành công" });
+    return NextResponse.json({
+      order: updated,
+      message: `Đồng bộ KiotViet thành công (Mã phiếu: ${updated.code})`
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Đồng bộ thất bại";
-    return NextResponse.json({ message }, { status: 500 });
+    if (orderId) {
+      await prisma.purchaseOrder
+        .update({
+          where: { id: orderId },
+          data: { syncStatus: "FAILED", syncError: message }
+        })
+        .catch(() => {});
+    }
+    return NextResponse.json({ message: `KiotViet từ chối: ${message}` }, { status: 400 });
   }
 }
 
@@ -303,12 +315,22 @@ export async function PUT(
       });
     });
 
+    if (!isDraft && syncStatus !== "SYNCED") {
+      return NextResponse.json(
+        {
+          order: updated,
+          message: `KiotViet từ chối: ${syncError}`
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({
       order: updated,
       message:
         syncStatus === "SYNCED"
-          ? "Đã cập nhật và đẩy lên KiotViet thành công"
-          : "Đã lưu cập nhật phiếu tạm"
+          ? `Đã cập nhật và đẩy lên KiotViet thành công (Mã phiếu: ${updated.code})`
+          : `Đã lưu cập nhật phiếu tạm (Mã phiếu: ${updated.code})`
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Lỗi cập nhật phiếu";

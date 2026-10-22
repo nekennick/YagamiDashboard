@@ -12,7 +12,9 @@ import {
   Clock,
   ArrowLeft,
   Pencil,
-  Trash2
+  Trash2,
+  AlertCircle,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PurchaseOrderForm, ProductItem, BranchItem } from "./purchase-order-form";
@@ -77,6 +79,14 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
   const [retryingId, setRetryingId] = useState<number | null>(null);
   const [editingOrder, setEditingOrder] = useState<PurchaseOrderRow | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const showToast = useCallback((type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => {
+      setToast((prev) => (prev?.message === message ? null : prev));
+    }, 6000);
+  }, []);
 
   // Fetch Orders
   const fetchOrders = useCallback(async () => {
@@ -149,11 +159,12 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
       const data = await res.json();
       if (res.ok) {
         fetchOrders();
+        showToast("success", data.message || "Đồng bộ KiotViet thành công!");
       } else {
-        alert(data.message || "Đồng bộ thất bại");
+        showToast("error", data.message || "Đồng bộ thất bại");
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Lỗi kết nối");
+      showToast("error", err instanceof Error ? err.message : "Lỗi kết nối");
     } finally {
       setRetryingId(null);
     }
@@ -176,11 +187,12 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
       const data = await res.json();
       if (res.ok) {
         fetchOrders();
+        showToast("success", data.message || `Đã xóa phiếu tạm ${code}`);
       } else {
-        alert(data.message || "Xóa phiếu tạm thất bại");
+        showToast("error", data.message || "Xóa phiếu tạm thất bại");
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Lỗi kết nối");
+      showToast("error", err instanceof Error ? err.message : "Lỗi kết nối");
     } finally {
       setDeletingId(null);
     }
@@ -200,7 +212,37 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
   }, [orders]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-2xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800 animate-in fade-in slide-in-from-top-4 duration-200 max-w-md">
+          {toast.type === "success" ? (
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+          )}
+          <div className="flex-1 text-xs">
+            <span className="font-bold block text-slate-900 dark:text-white">
+              {toast.type === "success" ? "Thành công" : "Thông báo"}
+            </span>
+            <span className="text-slate-600 dark:text-slate-300">
+              {toast.message}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -261,10 +303,11 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
           branches={initialBranches}
           products={initialProducts}
           initialOrder={editingOrder}
-          onSuccess={(newOrder, shouldPrint) => {
+          onSuccess={(newOrder, shouldPrint, message) => {
             setActiveView("list");
             setEditingOrder(null);
             fetchOrders();
+            showToast("success", message || `Đã lưu phiếu ${newOrder.code} thành công`);
             if (shouldPrint) {
               handleOpenPrint(newOrder, true);
             }

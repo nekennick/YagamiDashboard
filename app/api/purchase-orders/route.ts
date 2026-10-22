@@ -183,7 +183,14 @@ export async function POST(request: NextRequest) {
     let syncError: string | null = null;
 
     // Chỉ đồng bộ lên KiotViet nếu KHÔNG PHẢI là phiếu tạm
-    if (!isDraft && branch.kvBranchId) {
+    if (!isDraft) {
+      if (!branch.kvBranchId) {
+        return NextResponse.json(
+          { message: "Chi nhánh chưa liên kết KiotViet Branch ID" },
+          { status: 400 }
+        );
+      }
+
       try {
         const kvPayload = {
           branchId: branch.kvBranchId,
@@ -212,7 +219,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Lưu phiếu vào Database Local
+    // Lưu phiếu vào Database Local (vẫn lưu lại dưới dạng draft để không mất dữ liệu người dùng nhập)
     const purchaseOrder = await prisma.purchaseOrder.create({
       data: {
         code: orderCode,
@@ -250,9 +257,22 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    if (!isDraft && syncStatus !== "SYNCED") {
+      return NextResponse.json(
+        {
+          order: purchaseOrder,
+          message: `KiotViet từ chối: ${syncError}`
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({
       order: purchaseOrder,
-      message: syncStatus === "SYNCED" ? "Tạo và đồng bộ KiotViet thành công" : "Tạo phiếu nhập thành công (Lưu trữ nội bộ)"
+      message:
+        syncStatus === "SYNCED"
+          ? `Đã tạo và đồng bộ KiotViet thành công (Mã phiếu: ${purchaseOrder.code})`
+          : `Đã lưu phiếu tạm (Mã phiếu: ${purchaseOrder.code})`
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Lỗi tạo phiếu nhập hàng";

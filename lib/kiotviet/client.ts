@@ -244,8 +244,26 @@ function extractTotal(json: unknown, fallback: number) {
 }
 
 function getErrorMessage(json: unknown, fallback: string) {
-  const message = getValue(json, "error_description") ?? getValue(json, "message") ?? getValue(json, "Message");
-  return message ? String(message) : fallback;
+  if (json && typeof json === "object") {
+    const record = json as Record<string, unknown>;
+    if (record.responseStatus && typeof record.responseStatus === "object") {
+      const rs = record.responseStatus as Record<string, unknown>;
+      if (rs.message) return String(rs.message);
+      if (Array.isArray(rs.errors) && rs.errors.length > 0) {
+        return rs.errors
+          .map((e) =>
+            typeof e === "object" && e !== null && "message" in e
+              ? String((e as Record<string, unknown>).message)
+              : String(e)
+          )
+          .join("; ");
+      }
+      if (rs.errorCode) return String(rs.errorCode);
+    }
+    const message = record.error_description ?? record.message ?? record.Message;
+    if (message) return String(message);
+  }
+  return fallback;
 }
 
 function getValue(json: unknown, key: string) {
