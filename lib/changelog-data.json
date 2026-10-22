@@ -1,5 +1,12 @@
 [
   {
+    "hash": "a541aaccbf20db82870f080be1228b007a3de520",
+    "shortHash": "a541aac",
+    "message": "fix(build): resolve next.js app router route export and strict type checks",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
     "hash": "c9a8eb8801346ec7375659c20e779287c20d59a6",
     "shortHash": "c9a8eb8",
     "message": "fix(permissions): add purchase-orders to MANAGEABLE_TABS",

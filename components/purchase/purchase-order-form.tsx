@@ -4,7 +4,6 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Search,
   Trash2,
-  Printer,
   Save,
   RotateCw,
   Building2,
@@ -12,7 +11,10 @@ import {
   User,
   Truck,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  Send,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { numberToVietnameseWords } from "@/lib/utils/number-to-words";
@@ -109,6 +111,7 @@ export const PurchaseOrderForm: React.FC<Props> = ({
   // Submission State
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   // Fetch Suppliers
   const loadSuppliers = async (sync = false) => {
@@ -202,8 +205,32 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     };
   }, [lineItems]);
 
+  // Open Review Modal before pushing to KiotViet
+  const handleOpenReview = () => {
+    setErrorMessage(null);
+
+    if (!selectedBranchId) {
+      setErrorMessage("Vui lòng chọn chi nhánh/kho nhập.");
+      return;
+    }
+
+    if (lineItems.length === 0) {
+      setErrorMessage("Vui lòng chọn ít nhất một mặt hàng để nhập kho.");
+      return;
+    }
+
+    for (const item of lineItems) {
+      if (item.quantity <= 0) {
+        setErrorMessage(`Mặt hàng "${item.productName}" có số lượng phải lớn hơn 0.`);
+        return;
+      }
+    }
+
+    setShowReviewModal(true);
+  };
+
   // Submit Handler
-  const handleSubmit = async (shouldPrint: boolean) => {
+  const handleSubmit = async (shouldPrint = false) => {
     setErrorMessage(null);
 
     if (!selectedBranchId) {
@@ -253,6 +280,7 @@ export const PurchaseOrderForm: React.FC<Props> = ({
         throw new Error(data.message || "Tạo phiếu nhập thất bại");
       }
 
+      setShowReviewModal(false);
       onSuccess(data.order, shouldPrint);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Đã xảy ra lỗi");
@@ -574,22 +602,174 @@ export const PurchaseOrderForm: React.FC<Props> = ({
           variant="outline"
           onClick={() => handleSubmit(false)}
           disabled={submitting || lineItems.length === 0}
-          className="h-10 px-5 text-xs font-semibold flex items-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300"
+          className="h-10 px-5 text-xs font-semibold flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
         >
           <Save className="h-4 w-4" />
-          {submitting ? "Đang lưu..." : "Chỉ lưu phiếu"}
+          {submitting ? "Đang lưu..." : "Chỉ lưu nội bộ"}
         </Button>
 
         <Button
           type="button"
-          onClick={() => handleSubmit(true)}
+          onClick={handleOpenReview}
           disabled={submitting || lineItems.length === 0}
           className="h-10 px-6 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md flex items-center gap-2"
         >
-          <Printer className="h-4 w-4" />
-          {submitting ? "Đang xử lý & in..." : "Lưu & In ngay (KiotViet)"}
+          <Eye className="h-4 w-4" />
+          Xem lại &amp; Đẩy lên KiotViet
         </Button>
       </div>
+
+      {/* Review Modal before pushing to KiotViet */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                  <Eye className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    Xem lại danh sách hàng nhập
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                      Chuẩn bị đẩy lên KiotViet
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Kiểm tra lại số lượng và đơn giá. Bấm &quot;Xác nhận &amp; Đẩy lên KiotViet&quot; để tạo phiếu chính thức.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReviewModal(false)}
+                disabled={submitting}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {/* Meta Info summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Kho nhập</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {branches.find((b) => b.id === selectedBranchId)?.name || "N/A"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Ngày nhập</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {purchaseDate}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Nhà cung cấp</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {suppliers.find((s) => s.id === Number(selectedSupplierId))?.name || "Chưa chọn"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Người giao hàng</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {delivererName || "—"}
+                  </span>
+                </div>
+                {note && (
+                  <div className="col-span-2 sm:col-span-4 mt-1 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-slate-400 text-[11px]">Ghi chú: </span>
+                    <span className="italic text-slate-700 dark:text-slate-300">{note}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Items Table */}
+              <div className="rounded-xl border border-slate-200 overflow-hidden dark:border-slate-800">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-800/80 text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-2.5 px-3 w-10 text-center">STT</th>
+                      <th className="py-2.5 px-3 w-28">Mã hàng</th>
+                      <th className="py-2.5 px-4">Tên hàng hóa</th>
+                      <th className="py-2.5 px-3 w-16 text-center">ĐVT</th>
+                      <th className="py-2.5 px-3 w-28 text-right">Số lượng nhập</th>
+                      <th className="py-2.5 px-3 w-32 text-right">Đơn giá bán</th>
+                      <th className="py-2.5 px-4 w-36 text-right">Thành tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {lineItems.map((item, idx) => (
+                      <tr key={item.productId} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                        <td className="py-2.5 px-3 text-center text-slate-400 font-medium">{idx + 1}</td>
+                        <td className="py-2.5 px-3 font-mono font-medium text-slate-700 dark:text-slate-300">{item.productCode || "-"}</td>
+                        <td className="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">{item.productName}</td>
+                        <td className="py-2.5 px-3 text-center text-slate-500">{item.unit || "-"}</td>
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                          {Number(item.quantity).toLocaleString("vi-VN")}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                          {Number(item.price).toLocaleString("vi-VN")} đ
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                          {Number(item.amount).toLocaleString("vi-VN")} đ
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totals Summary */}
+              <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                      Tổng cộng: <span className="font-bold text-slate-900 dark:text-white">{totals.totalItems} mặt hàng</span> · Tổng số lượng: <span className="font-bold text-slate-900 dark:text-white">{totals.totalQty.toLocaleString("vi-VN")}</span>
+                    </div>
+                    <div className="text-xs italic text-slate-600 dark:text-slate-400">
+                      <span className="font-semibold not-italic">Bằng chữ: </span>
+                      {totals.words}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-[11px] text-slate-500 block">Tổng tiền hàng (theo giá bán):</span>
+                    <div className="text-xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                      {totals.totalAmount.toLocaleString("vi-VN")} đ
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 rounded-b-2xl">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowReviewModal(false)}
+                disabled={submitting}
+                className="h-10 px-5 text-xs font-semibold"
+              >
+                Quay lại chỉnh sửa
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleSubmit(false)}
+                disabled={submitting}
+                className="h-10 px-6 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md flex items-center gap-2"
+              >
+                <Send className="h-4 w-4" />
+                {submitting ? "Đang đẩy lên KiotViet..." : "Xác nhận & Đẩy lên KiotViet"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
