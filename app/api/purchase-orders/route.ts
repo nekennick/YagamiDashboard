@@ -170,17 +170,19 @@ export async function POST(request: NextRequest) {
     }
 
     const purchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : new Date();
+    const isDraft = (body as any).isDraft === true;
 
-    // Sinh mã phiếu dự phòng
+    // Sinh mã phiếu dự phòng (PT: Phiếu tạm, PN: Phiếu nhập)
     const datePrefix = purchaseDate.toISOString().slice(2, 10).replace(/-/g, "");
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    let orderCode = `PN${datePrefix}-${randomSuffix}`;
+    let orderCode = `${isDraft ? "PT" : "PN"}${datePrefix}-${randomSuffix}`;
     let kvPurchaseOrderId: number | null = null;
+    let status = isDraft ? "DRAFT" : "COMPLETED";
     let syncStatus = "LOCAL_ONLY";
     let syncError: string | null = null;
 
-    // Cố gắng đồng bộ lên KiotViet nếu chi nhánh có kvBranchId
-    if (branch.kvBranchId) {
+    // Chỉ đồng bộ lên KiotViet nếu KHÔNG PHẢI là phiếu tạm
+    if (!isDraft && branch.kvBranchId) {
       try {
         const kvPayload = {
           branchId: branch.kvBranchId,
@@ -198,9 +200,11 @@ export async function POST(request: NextRequest) {
         if (kvRes && kvRes.code) {
           orderCode = kvRes.code;
           kvPurchaseOrderId = kvRes.id;
+          status = "COMPLETED";
           syncStatus = "SYNCED";
         }
       } catch (err: unknown) {
+        status = "DRAFT";
         syncStatus = "FAILED";
         syncError = err instanceof Error ? err.message : "Lỗi đồng bộ KiotViet";
         console.warn("Không thể đồng bộ KiotViet ngay lúc tạo:", syncError);
@@ -220,7 +224,7 @@ export async function POST(request: NextRequest) {
         totalAmount,
         totalQuantity,
         note: body.note?.trim() || null,
-        status: "COMPLETED",
+        status,
         syncStatus,
         syncError,
         createdById: session.sub,

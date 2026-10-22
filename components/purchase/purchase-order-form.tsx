@@ -53,6 +53,33 @@ export type FormLineItem = {
   amount: number;
 };
 
+export type PurchaseOrderRowItem = {
+  id?: number;
+  productId?: number;
+  productCode?: string | null;
+  productName: string;
+  unit?: string | null;
+  quantity: number | string;
+  price: number | string;
+  amount: number | string;
+};
+
+export type PurchaseOrderRow = {
+  id: number;
+  code: string;
+  purchaseDate: string | Date;
+  delivererName?: string | null;
+  supplierName?: string | null;
+  note?: string | null;
+  totalAmount: number | string;
+  totalQuantity: number | string;
+  syncStatus?: string;
+  status?: string;
+  branch?: { id?: number; name?: string; address?: string | null; kvBranchId?: number };
+  supplier?: { id?: number; name?: string; phone?: string | null };
+  items?: PurchaseOrderRowItem[];
+};
+
 export type CreatedPurchaseOrder = {
   id: number;
   code: string;
@@ -77,6 +104,7 @@ export type CreatedPurchaseOrder = {
 type Props = {
   branches: BranchItem[];
   products: ProductItem[];
+  initialOrder?: PurchaseOrderRow | null;
   onSuccess: (order: CreatedPurchaseOrder, shouldPrint: boolean) => void;
   onCancel?: () => void;
 };
@@ -84,20 +112,78 @@ type Props = {
 export const PurchaseOrderForm: React.FC<Props> = ({
   branches,
   products,
+  initialOrder,
   onSuccess,
   onCancel
 }) => {
+  const isEditing = Boolean(initialOrder);
+
   // Form State
   const [selectedBranchId, setSelectedBranchId] = useState<number>(
-    branches[0]?.id || 0
+    initialOrder?.branch?.id || branches[0]?.id || 0
   );
-  const [purchaseDate, setPurchaseDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
+  const [purchaseDate, setPurchaseDate] = useState<string>(() => {
+    if (initialOrder?.purchaseDate) {
+      try {
+        return new Date(initialOrder.purchaseDate).toISOString().split("T")[0];
+      } catch {
+        return new Date().toISOString().split("T")[0];
+      }
+    }
+    return new Date().toISOString().split("T")[0];
+  });
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>(
+    initialOrder?.supplier?.id ? String(initialOrder.supplier.id) : ""
   );
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
-  const [delivererName, setDelivererName] = useState<string>("");
-  const [note, setNote] = useState<string>("");
-  const [lineItems, setLineItems] = useState<FormLineItem[]>([]);
+  const [delivererName, setDelivererName] = useState<string>(initialOrder?.delivererName || "");
+  const [note, setNote] = useState<string>(initialOrder?.note || "");
+  const [lineItems, setLineItems] = useState<FormLineItem[]>(() => {
+    if (initialOrder?.items && initialOrder.items.length > 0) {
+      return initialOrder.items.map((i) => ({
+        productId: i.productId || 0,
+        productCode: i.productCode || "",
+        productName: i.productName,
+        unit: i.unit || "Cái",
+        quantity: Number(i.quantity) || 0,
+        price: Number(i.price) || 0,
+        amount: Number(i.amount) || 0
+      }));
+    }
+    return [];
+  });
+
+  // When initialOrder changes (e.g. user selects a different draft to edit)
+  useEffect(() => {
+    if (initialOrder) {
+      if (initialOrder.branch?.id) {
+        setSelectedBranchId(initialOrder.branch.id);
+      }
+      if (initialOrder.purchaseDate) {
+        try {
+          const d = new Date(initialOrder.purchaseDate);
+          setPurchaseDate(d.toISOString().split("T")[0]);
+        } catch {
+          // ignore
+        }
+      }
+      setSelectedSupplierId(initialOrder.supplier?.id ? String(initialOrder.supplier.id) : "");
+      setDelivererName(initialOrder.delivererName || "");
+      setNote(initialOrder.note || "");
+      if (Array.isArray(initialOrder.items)) {
+        setLineItems(
+          initialOrder.items.map((i) => ({
+            productId: i.productId || 0,
+            productCode: i.productCode || "",
+            productName: i.productName,
+            unit: i.unit || "Cái",
+            quantity: Number(i.quantity) || 0,
+            price: Number(i.price) || 0,
+            amount: Number(i.amount) || 0
+          }))
+        );
+      }
+    }
+  }, [initialOrder]);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -229,8 +315,8 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     setShowReviewModal(true);
   };
 
-  // Submit Handler
-  const handleSubmit = async (shouldPrint = false) => {
+  // Submit Handler: isDraft = true -> Lưu phiếu tạm (POST/PUT), isDraft = false -> Đẩy lên KiotViet
+  const handleSubmit = async (isDraft: boolean) => {
     setErrorMessage(null);
 
     if (!selectedBranchId) {
@@ -262,6 +348,7 @@ export const PurchaseOrderForm: React.FC<Props> = ({
         delivererName: delivererName.trim() || undefined,
         purchaseDate: new Date(purchaseDate).toISOString(),
         note: note.trim() || undefined,
+        isDraft,
         items: lineItems.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -269,19 +356,22 @@ export const PurchaseOrderForm: React.FC<Props> = ({
         }))
       };
 
-      const res = await fetch("/api/purchase-orders", {
-        method: "POST",
+      const url = initialOrder ? `/api/purchase-orders/${initialOrder.id}` : "/api/purchase-orders";
+      const method = initialOrder ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.message || "Tạo phiếu nhập thất bại");
+        throw new Error(data.message || (isDraft ? "Lưu phiếu tạm thất bại" : "Tạo phiếu nhập thất bại"));
       }
 
       setShowReviewModal(false);
-      onSuccess(data.order, shouldPrint);
+      onSuccess(data.order, false);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Đã xảy ra lỗi");
     } finally {
@@ -293,13 +383,24 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     <div className="flex flex-col gap-6">
       {/* Top Banner / Form Header */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-          Lập phiếu nhập hàng mới
-        </h2>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Nhập số lượng hàng thực nhận. Đơn giá bán sẽ tự động được điền theo giá niêm yết KiotViet.
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              {isEditing ? `Chỉnh sửa phiếu tạm: ${initialOrder?.code}` : "Lập phiếu nhập hàng mới"}
+              {isEditing && (
+                <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                  Phiếu tạm
+                </span>
+              )}
+            </h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {isEditing
+                ? "Chỉnh sửa số lượng, giá bán hoặc danh sách hàng hóa. Bạn có thể lưu lại tiếp hoặc đẩy lên KiotViet."
+                : "Nhập số lượng hàng thực nhận. Đơn giá bán sẽ tự động được điền theo giá niêm yết KiotViet."}
+            </p>
+          </div>
+        </div>
 
         {errorMessage && (
           <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400 border border-red-200 dark:border-red-900">
@@ -600,12 +701,13 @@ export const PurchaseOrderForm: React.FC<Props> = ({
         <Button
           type="button"
           variant="outline"
-          onClick={() => handleSubmit(false)}
+          onClick={() => handleSubmit(true)}
           disabled={submitting || lineItems.length === 0}
-          className="h-10 px-5 text-xs font-semibold flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
+          className="h-10 px-5 text-xs font-semibold flex items-center gap-2 border-amber-300 bg-amber-50/50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+          title="Lưu lại dưới dạng phiếu tạm nội bộ (chưa trừ kho hay đồng bộ lên KiotViet)"
         >
           <Save className="h-4 w-4" />
-          {submitting ? "Đang lưu..." : "Chỉ lưu nội bộ"}
+          {submitting ? "Đang lưu..." : isEditing ? "Lưu cập nhật phiếu tạm" : "Lưu phiếu tạm"}
         </Button>
 
         <Button

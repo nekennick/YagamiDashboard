@@ -10,7 +10,9 @@ import {
   Settings2,
   CheckCircle2,
   Clock,
-  ArrowLeft
+  ArrowLeft,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PurchaseOrderForm, ProductItem, BranchItem } from "./purchase-order-form";
@@ -73,6 +75,8 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
   const [autoTriggerPrint, setAutoTriggerPrint] = useState(false);
   const [printConfig, setPrintConfig] = useState<PrintTemplateConfig | undefined>(initialPrintConfig);
   const [retryingId, setRetryingId] = useState<number | null>(null);
+  const [editingOrder, setEditingOrder] = useState<PurchaseOrderRow | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Fetch Orders
   const fetchOrders = useCallback(async () => {
@@ -155,6 +159,33 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
     }
   };
 
+  // Edit a draft order
+  const handleEditDraft = (order: PurchaseOrderRow) => {
+    setEditingOrder(order);
+    setActiveView("create");
+  };
+
+  // Delete a draft order
+  const handleDeleteDraft = async (orderId: number, code: string) => {
+    if (!confirm(`Bạn có chắc chắn muốn xóa phiếu tạm ${code} không?`)) {
+      return;
+    }
+    setDeletingId(orderId);
+    try {
+      const res = await fetch(`/api/purchase-orders/${orderId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        fetchOrders();
+      } else {
+        alert(data.message || "Xóa phiếu tạm thất bại");
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Lỗi kết nối");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // Stats calculation
   const stats = React.useMemo(() => {
     let synced = 0;
@@ -190,7 +221,10 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
           {activeView !== "list" ? (
             <Button
               variant="outline"
-              onClick={() => setActiveView("list")}
+              onClick={() => {
+                setActiveView("list");
+                setEditingOrder(null);
+              }}
               className="flex items-center gap-2 text-xs h-9 px-4 font-semibold"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -207,7 +241,10 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
                 Mẫu in
               </Button>
               <Button
-                onClick={() => setActiveView("create")}
+                onClick={() => {
+                  setEditingOrder(null);
+                  setActiveView("create");
+                }}
                 className="flex items-center gap-2 text-xs h-9 px-4 font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
               >
                 <Plus className="h-4 w-4" />
@@ -223,14 +260,19 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
         <PurchaseOrderForm
           branches={initialBranches}
           products={initialProducts}
+          initialOrder={editingOrder}
           onSuccess={(newOrder, shouldPrint) => {
             setActiveView("list");
+            setEditingOrder(null);
             fetchOrders();
             if (shouldPrint) {
               handleOpenPrint(newOrder, true);
             }
           }}
-          onCancel={() => setActiveView("list")}
+          onCancel={() => {
+            setActiveView("list");
+            setEditingOrder(null);
+          }}
         />
       )}
 
@@ -271,7 +313,7 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
                 </span>
                 {stats.localOnly > 0 && (
                   <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
-                    <Clock className="h-3.5 w-3.5" /> {stats.localOnly} Lưu nội bộ
+                    <Clock className="h-3.5 w-3.5" /> {stats.localOnly} Phiếu tạm
                   </span>
                 )}
               </div>
@@ -377,7 +419,7 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
                       <th className="py-3 px-4 text-right">Mặt hàng</th>
                       <th className="py-3 px-4 text-right">Tổng số lượng</th>
                       <th className="py-3 px-4 text-right">Tổng tiền hàng</th>
-                      <th className="py-3 px-4 text-center">Đồng bộ Kiot</th>
+                      <th className="py-3 px-4 text-center">Trạng thái / Kiot</th>
                       <th className="py-3 px-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
@@ -419,32 +461,58 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
                               <CheckCircle2 className="h-3 w-3" /> Đã sync
                             </span>
                           ) : (
-                            <div className="inline-flex items-center gap-1">
+                            <div className="inline-flex items-center gap-1.5">
                               <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                                Nội bộ
+                                <Clock className="h-3 w-3" /> Phiếu tạm
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleRetrySync(o.id)}
                                 disabled={retryingId === o.id}
-                                className="text-[10px] text-indigo-600 hover:text-indigo-800 underline ml-1"
-                                title="Thử đồng bộ lại lên KiotViet"
+                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium underline"
+                                title="Đẩy phiếu tạm này lên KiotViet ngay"
                               >
-                                {retryingId === o.id ? "Syncing..." : "Sync lại"}
+                                {retryingId === o.id ? "Đang đẩy..." : "Đẩy Kiot"}
                               </button>
                             </div>
                           )}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenPrint(o, false)}
-                            className="h-7 px-2.5 text-xs font-medium flex items-center gap-1.5 border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300"
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                            In phiếu
-                          </Button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {o.syncStatus !== "SYNCED" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditDraft(o)}
+                                className="h-7 px-2 text-xs font-semibold flex items-center gap-1 border-amber-300 bg-amber-50/60 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                                title="Sửa phiếu tạm này"
+                              >
+                                <Pencil className="h-3 w-3" />
+                                Sửa
+                              </Button>
+                            )}
+                            {o.syncStatus !== "SYNCED" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteDraft(o.id, o.code)}
+                                disabled={deletingId === o.id}
+                                className="h-7 w-7 p-0 text-xs font-medium flex items-center justify-center border-slate-200 text-slate-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-slate-800 dark:hover:bg-red-950/40"
+                                title="Xóa phiếu tạm"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenPrint(o, false)}
+                              className="h-7 px-2.5 text-xs font-medium flex items-center gap-1.5 border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                              In phiếu
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
