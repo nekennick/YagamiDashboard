@@ -119,9 +119,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
   const isEditing = Boolean(initialOrder);
 
   // Form State
-  const [selectedBranchId, setSelectedBranchId] = useState<number>(
-    initialOrder?.branch?.id || branches[0]?.id || 0
-  );
+  const [selectedBranchId, setSelectedBranchId] = useState<number>(() => {
+    if (initialOrder?.branch?.id) return initialOrder.branch.id;
+    return getDefaultBranchId(branches);
+  });
   const [purchaseDate, setPurchaseDate] = useState<string>(() => {
     if (initialOrder?.purchaseDate) {
       try {
@@ -182,8 +183,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
           }))
         );
       }
+    } else {
+      setSelectedBranchId(getDefaultBranchId(branches));
     }
-  }, [initialOrder]);
+  }, [initialOrder, branches]);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -424,7 +427,7 @@ export const PurchaseOrderForm: React.FC<Props> = ({
             >
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.name}
+                  {b.name}{b.address ? ` - ${b.address}` : ""}
                 </option>
               ))}
             </select>
@@ -882,4 +885,14 @@ function normalize(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function getDefaultBranchId(branches: BranchItem[]): number {
+  if (!branches || branches.length === 0) return 0;
+  // Ưu tiên chọn chi nhánh Tổng kho Cao Lãnh
+  const caoLanh = branches.find((b) => {
+    const text = normalize(`${b.name} ${b.address || ""}`);
+    return text.includes("cao lanh") || (text.includes("tong kho") && !text.includes("binh duong"));
+  });
+  return caoLanh ? caoLanh.id : branches[0].id;
 }

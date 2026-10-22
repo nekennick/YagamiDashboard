@@ -348,7 +348,7 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
                   <option value="">Tất cả kho nhập</option>
                   {initialBranches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.name}
+                      {b.name}{b.address ? ` - ${b.address}` : ""}
                     </option>
                   ))}
                 </select>
