@@ -682,6 +682,7 @@ model PurchaseOrder {
   createdById       Int?
   createdBy         User?               @relation("PurchaseOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
   items             PurchaseOrderItem[]
+  sheetSyncs        GoogleSheetPurchaseSync[]
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -708,4 +709,23 @@ model PurchaseOrderItem {
 
   @@index([purchaseOrderId])
   @@index([productId])
+}
+
+model GoogleSheetPurchaseSync {
+  id              Int            @id @default(autoincrement())
+  sheetRowId      String         @unique
+  rawMaPhieu      String?
+  productCode     String?
+  productName     String?
+  quantity        Decimal?
+  receivedDate    String?
+  receivedTime    String?
+  staffName       String?
+  purchaseOrderId Int?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  syncedAt        DateTime       @default(now())
+
+  @@index([sheetRowId])
+  @@index([rawMaPhieu])
+  @@index([purchaseOrderId])
 }

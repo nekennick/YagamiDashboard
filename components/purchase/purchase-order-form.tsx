@@ -18,8 +18,11 @@ import {
   FileSpreadsheet,
   Download,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink,
+  Pencil
 } from "lucide-react";
+import type { GoogleSheetPreviewResult } from "@/lib/google-sheets/purchase-sync";
 import { Button } from "@/components/ui/button";
 import { numberToVietnameseWords } from "@/lib/utils/number-to-words";
 
@@ -246,6 +249,28 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     }>;
   } | null>(null);
 
+  // Google Sheet Sync State
+  const [isSyncingSheet, setIsSyncingSheet] = useState(false);
+  const [showSheetModal, setShowSheetModal] = useState(false);
+  const [sheetResult, setSheetResult] = useState<GoogleSheetPreviewResult | null>(null);
+  const [activeSheetTab, setActiveSheetTab] = useState<"new" | "synced" | "skipped">("new");
+  const [sheetUrlInput, setSheetUrlInput] = useState("");
+  const [isEditingSheetUrl, setIsEditingSheetUrl] = useState(false);
+  const [isSavingSheetUrl, setIsSavingSheetUrl] = useState(false);
+  const [applySheetSuggestedInfo, setApplySheetSuggestedInfo] = useState(true);
+  const [pendingSheetSyncItems, setPendingSheetSyncItems] = useState<
+    Array<{
+      sheetRowId: string;
+      rawMaPhieu?: string;
+      productCode?: string;
+      productName?: string;
+      quantity?: number;
+      receivedDate?: string;
+      receivedTime?: string;
+      staffName?: string;
+    }>
+  >([]);
+
   // Submission State
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -332,6 +357,123 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     } từ file Excel!`;
     setImportNotice({ type: "success", message: summaryMsg });
     setTimeout(() => setImportNotice(null), 6000);
+  };
+
+  // Handle Google Sheet Sync
+  const handleFetchGoogleSheet = async (customUrl?: string) => {
+    setIsSyncingSheet(true);
+    setErrorMessage(null);
+    try {
+      const url = customUrl ? `/api/purchase-orders/google-sheet?url=${encodeURIComponent(customUrl)}` : "/api/purchase-orders/google-sheet";
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Không thể tải dữ liệu từ Google Sheet.");
+      }
+      setSheetResult(data);
+      setSheetUrlInput(data.sheetUrl || "");
+      setActiveSheetTab(data.newValidCount > 0 ? "new" : data.alreadySyncedCount > 0 ? "synced" : "skipped");
+      setShowSheetModal(true);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Đã xảy ra lỗi khi đồng bộ Google Sheet.");
+    } finally {
+      setIsSyncingSheet(false);
+    }
+  };
+
+  const handleSaveSheetUrl = async () => {
+    if (!sheetUrlInput.trim()) return;
+    setIsSavingSheetUrl(true);
+    try {
+      const res = await fetch("/api/purchase-orders/google-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: sheetUrlInput.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Không thể lưu đường dẫn Google Sheet.");
+      }
+      setSheetResult(data);
+      setIsEditingSheetUrl(false);
+      setActiveSheetTab(data.newValidCount > 0 ? "new" : data.alreadySyncedCount > 0 ? "synced" : "skipped");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Đã xảy ra lỗi khi lưu URL Google Sheet.");
+    } finally {
+      setIsSavingSheetUrl(false);
+    }
+  };
+
+  const handleApplyGoogleSheet = () => {
+    if (!sheetResult || !sheetResult.validItems.length) return;
+
+    let mergedCount = 0;
+    let addedCount = 0;
+    const newSyncItems: typeof pendingSheetSyncItems = [];
+
+    setLineItems((prev) => {
+      const next = [...prev];
+      const indexMap = new Map<number, number>();
+      next.forEach((item, idx) => indexMap.set(item.productId, idx));
+
+      for (const item of sheetResult.validItems) {
+        for (let i = 0; i < item.sheetRowIds.length; i++) {
+          newSyncItems.push({
+            sheetRowId: item.sheetRowIds[i],
+            rawMaPhieu: item.rawMaPhieuList[i] || item.rawMaPhieuList[0],
+            productCode: item.productCode,
+            productName: item.productName,
+            quantity: item.quantity,
+            receivedDate: item.suggestedDate,
+            staffName: item.suggestedDeliverer
+          });
+        }
+
+        if (indexMap.has(item.productId)) {
+          const idx = indexMap.get(item.productId)!;
+          const current = next[idx];
+          const newQty = current.quantity + item.quantity;
+          next[idx] = {
+            ...current,
+            quantity: newQty,
+            amount: newQty * current.price
+          };
+          mergedCount++;
+        } else {
+          next.push({
+            productId: item.productId,
+            productCode: item.productCode,
+            productName: item.productName,
+            unit: item.unit,
+            quantity: item.quantity,
+            price: item.price,
+            amount: item.amount
+          });
+          indexMap.set(item.productId, next.length - 1);
+          addedCount++;
+        }
+      }
+      return next;
+    });
+
+    setPendingSheetSyncItems((prev) => [...prev, ...newSyncItems]);
+
+    if (applySheetSuggestedInfo) {
+      if (!delivererName.trim() && sheetResult.suggestedDeliverer) {
+        setDelivererName(sheetResult.suggestedDeliverer);
+      }
+    }
+
+    setShowSheetModal(false);
+    const summaryMsg = `Đã đồng bộ ${addedCount} mặt hàng mới${
+      mergedCount > 0 ? ` (cộng dồn ${mergedCount} mặt hàng trùng)` : ""
+    } từ Google Sheet!${
+      sheetResult.alreadySyncedCount > 0
+        ? ` (Tự động bỏ qua ${sheetResult.alreadySyncedCount} dòng đã nhập trước đây)`
+        : ""
+    }`;
+    setImportNotice({ type: "success", message: summaryMsg });
+    setTimeout(() => setImportNotice(null), 7000);
   };
 
   // Fetch Suppliers
@@ -488,7 +630,8 @@ export const PurchaseOrderForm: React.FC<Props> = ({
           productId: item.productId,
           quantity: item.quantity,
           price: item.price
-        }))
+        })),
+        sheetSyncItems: pendingSheetSyncItems.length > 0 ? pendingSheetSyncItems : undefined
       };
 
       const url = initialOrder ? `/api/purchase-orders/${initialOrder.id}` : "/api/purchase-orders";
@@ -722,6 +865,25 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                   <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
                 )}
                 <span>{isImporting ? "Đang đọc..." : "Nhập Excel"}</span>
+              </Button>
+
+              {/* Nút Đồng bộ Google Sheet */}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSyncingSheet}
+                onClick={() => handleFetchGoogleSheet()}
+                className="h-10 px-3.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 text-xs font-semibold gap-2 shadow-sm shrink-0 transition"
+                title="Đồng bộ các dòng mới chưa nhập từ Google Sheet"
+              >
+                {isSyncingSheet ? (
+                  <RotateCw className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <svg className="h-4 w-4 text-emerald-600 dark:text-emerald-400 fill-current" viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm0-4H6v-2h6v2zm0-4H6V7h6v2zm6 8h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z" />
+                  </svg>
+                )}
+                <span>{isSyncingSheet ? "Đang kết nối..." : "Đồng bộ Google Sheet"}</span>
               </Button>
 
               <a
@@ -1266,6 +1428,404 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span>Xác nhận thêm vào phiếu nhập</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xem Trước Đồng Bộ Google Sheet */}
+      {showSheetModal && sheetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-3xl bg-white shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-t-3xl">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400">
+                  <svg className="h-6 w-6 fill-current" viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm0-4H6v-2h6v2zm0-4H6V7h6v2zm6 8h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Đồng bộ hàng nhập từ Google Sheet
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-slate-500 truncate max-w-xs sm:max-w-md">
+                      {sheetResult.sheetUrl}
+                    </span>
+                    <a
+                      href={sheetResult.sheetUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Mở file Google Sheet trong tab mới"
+                      className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 p-0.5 rounded transition"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingSheetUrl(!isEditingSheetUrl)}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-[11px] underline flex items-center gap-1"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      <span>{isEditingSheetUrl ? "Đóng" : "Đổi link"}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isSyncingSheet}
+                  onClick={() => handleFetchGoogleSheet()}
+                  className="h-8 px-2.5 text-xs font-medium rounded-xl gap-1.5"
+                  title="Quét lại dữ liệu từ Google Sheet"
+                >
+                  <RotateCw className={`h-3.5 w-3.5 ${isSyncingSheet ? "animate-spin text-emerald-600" : "text-slate-500"}`} />
+                  <span>Quét lại</span>
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setShowSheetModal(false)}
+                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Edit URL Drawer / Input */}
+            {isEditingSheetUrl && (
+              <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 animate-in slide-in-from-top-2 duration-150">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Đường dẫn Google Sheet (Chế độ xem công khai: Bất kỳ ai có đường liên kết):
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={sheetUrlInput}
+                    onChange={(e) => setSheetUrlInput(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=..."
+                    className="flex-1 h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs outline-none focus:border-emerald-500"
+                  />
+                  <Button
+                    type="button"
+                    disabled={isSavingSheetUrl || !sheetUrlInput.trim()}
+                    onClick={handleSaveSheetUrl}
+                    className="h-9 px-4 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    {isSavingSheetUrl ? "Đang lưu..." : "Lưu & Quét lại"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div
+                  onClick={() => setActiveSheetTab("new")}
+                  className={`rounded-2xl border p-4 cursor-pointer transition ${
+                    activeSheetTab === "new"
+                      ? "border-emerald-500 bg-emerald-50/80 dark:border-emerald-600 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20"
+                      : "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20 hover:border-emerald-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
+                      Mới cần nhập
+                    </span>
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+                  <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1 block">
+                    {sheetResult.newValidCount}{" "}
+                    <span className="text-xs font-normal text-emerald-600/70">mặt hàng</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 block mt-0.5">
+                    Tổng SL: {sheetResult.validItems.reduce((acc, i) => acc + i.quantity, 0).toLocaleString("vi-VN")}
+                  </span>
+                </div>
+
+                <div
+                  onClick={() => setActiveSheetTab("synced")}
+                  className={`rounded-2xl border p-4 cursor-pointer transition ${
+                    activeSheetTab === "synced"
+                      ? "border-slate-400 bg-slate-100 dark:border-slate-600 dark:bg-slate-800 ring-2 ring-slate-400/20"
+                      : "border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-950/50 hover:border-slate-300"
+                  }`}
+                >
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+                    Đã nhập trước đây (Bỏ qua)
+                  </span>
+                  <span className="text-2xl font-black text-slate-700 dark:text-slate-300 mt-1 block">
+                    {sheetResult.alreadySyncedCount}{" "}
+                    <span className="text-xs font-normal text-slate-400">dòng</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    Tự động nhận diện để tránh trùng
+                  </span>
+                </div>
+
+                <div
+                  onClick={() => setActiveSheetTab("skipped")}
+                  className={`rounded-2xl border p-4 cursor-pointer transition ${
+                    activeSheetTab === "skipped"
+                      ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40 ring-2 ring-amber-400/20"
+                      : "border-amber-200 bg-amber-50/40 dark:border-amber-900/40 dark:bg-amber-950/20 hover:border-amber-300"
+                  }`}
+                >
+                  <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400 block">
+                    Bỏ qua / Không hợp lệ
+                  </span>
+                  <span className="text-2xl font-black text-amber-700 dark:text-amber-400 mt-1 block">
+                    {sheetResult.skippedCount}{" "}
+                    <span className="text-xs font-normal text-amber-600/70">dòng</span>
+                  </span>
+                  <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 block mt-0.5">
+                    {sheetResult.skippedCount > 0 ? "Mã sai hoặc thiếu số lượng" : "Không có dòng lỗi"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tab Navigation */}
+              <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setActiveSheetTab("new")}
+                  className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
+                    activeSheetTab === "new"
+                      ? "border-emerald-600 text-emerald-700 dark:text-emerald-400 dark:border-emerald-400"
+                      : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Hàng mới sẽ nhập ({sheetResult.newValidCount})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSheetTab("synced")}
+                  className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
+                    activeSheetTab === "synced"
+                      ? "border-slate-600 text-slate-900 dark:text-white dark:border-slate-300"
+                      : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <span>Đã nhập trước đó ({sheetResult.alreadySyncedCount})</span>
+                </button>
+
+                {sheetResult.skippedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheetTab("skipped")}
+                    className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
+                      activeSheetTab === "skipped"
+                        ? "border-amber-600 text-amber-700 dark:text-amber-400 dark:border-amber-400"
+                        : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>Dòng lỗi ({sheetResult.skippedCount})</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Tab 1: New Valid Items */}
+              {activeSheetTab === "new" && (
+                <div>
+                  {sheetResult.validItems.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-slate-500 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
+                      <p className="font-semibold text-slate-700 dark:text-slate-200">
+                        Tuyệt vời! Tất cả các dòng trên Google Sheet đều đã được nhập trước đây.
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Không còn mặt hàng mới nào đang chờ nhập.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                      <div className="max-h-72 overflow-y-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/80 text-[11px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-700 z-10 backdrop-blur-sm">
+                            <tr>
+                              <th className="py-2.5 px-3 w-10 text-center">STT</th>
+                              <th className="py-2.5 px-3">Mã phiếu (Sheet)</th>
+                              <th className="py-2.5 px-3">Mã hàng</th>
+                              <th className="py-2.5 px-3">Tên sản phẩm</th>
+                              <th className="py-2.5 px-3 text-center">ĐVT</th>
+                              <th className="py-2.5 px-3 text-center">SL nhập</th>
+                              <th className="py-2.5 px-3 text-right">Đơn giá</th>
+                              <th className="py-2.5 px-3 text-right">Thành tiền</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {sheetResult.validItems.map((item, idx) => (
+                              <tr key={item.productId} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                                <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">
+                                  {item.rawMaPhieuList.join(", ") || "—"}
+                                </td>
+                                <td className="py-2.5 px-3 font-mono font-medium text-slate-900 dark:text-white">
+                                  {item.productCode}
+                                  {item.occurrences > 1 && (
+                                    <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-sans">
+                                      Gộp {item.occurrences} dòng
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200">{item.productName}</td>
+                                <td className="py-2.5 px-3 text-center text-slate-500">{item.unit}</td>
+                                <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
+                                  {item.quantity.toLocaleString("vi-VN")}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                                  {item.price.toLocaleString("vi-VN")} đ
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                  {item.amount.toLocaleString("vi-VN")} đ
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 2: Already Synced Items */}
+              {activeSheetTab === "synced" && (
+                <div>
+                  {sheetResult.alreadySyncedItems.length === 0 ? (
+                    <div className="py-10 text-center text-xs text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      Chưa có dòng nào được đánh dấu là đã nhập trước đây.
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                      <div className="max-h-72 overflow-y-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/80 text-[11px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-700 z-10 backdrop-blur-sm">
+                            <tr>
+                              <th className="py-2.5 px-3 w-10 text-center">STT</th>
+                              <th className="py-2.5 px-3">Mã phiếu (Sheet)</th>
+                              <th className="py-2.5 px-3">Mã hàng</th>
+                              <th className="py-2.5 px-3">Tên sản phẩm</th>
+                              <th className="py-2.5 px-3 text-center">SL</th>
+                              <th className="py-2.5 px-3">Thời gian ghi nhận</th>
+                              <th className="py-2.5 px-3 text-center">Trạng thái</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {sheetResult.alreadySyncedItems.map((item, idx) => (
+                              <tr key={idx} className="opacity-70 hover:opacity-100 transition">
+                                <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                                <td className="py-2 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                                  {item.maPhieu || "—"}
+                                </td>
+                                <td className="py-2 px-3 font-mono text-slate-700 dark:text-slate-300">{item.productCode}</td>
+                                <td className="py-2 px-3 text-slate-700 dark:text-slate-300">{item.productName || "—"}</td>
+                                <td className="py-2 px-3 text-center font-medium text-slate-600 dark:text-slate-400">
+                                  {item.quantity.toLocaleString("vi-VN")}
+                                </td>
+                                <td className="py-2 px-3 text-slate-500 text-[11px]">{item.receivedDate || "—"}</td>
+                                <td className="py-2 px-3 text-center">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                    Đã nhập
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 3: Skipped Items */}
+              {activeSheetTab === "skipped" && (
+                <div>
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/20 text-xs">
+                    <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 text-slate-700 dark:text-slate-300">
+                      {sheetResult.skippedItems.map((item, idx) => (
+                        <div key={idx} className="flex items-start justify-between py-1.5 border-b border-amber-100/60 dark:border-amber-900/30 last:border-none text-[11px]">
+                          <div>
+                            <span className="font-semibold text-slate-900 dark:text-white">Dòng {item.rowNumber}:</span>{" "}
+                            {item.maPhieu && <span className="text-slate-500 font-mono mr-1.5">[{item.maPhieu}]</span>}
+                            <code className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800 font-mono">
+                              {item.code}
+                            </code>
+                            {item.productName && <span className="text-slate-500 ml-1.5">({item.productName})</span>}
+                          </div>
+                          <span className="text-amber-700 dark:text-amber-400 font-semibold ml-2 text-right">
+                            {item.reason}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Suggestion & Options */}
+              {sheetResult.newValidCount > 0 && sheetResult.suggestedDeliverer && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-950 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="applySuggested"
+                      checked={applySheetSuggestedInfo}
+                      onChange={(e) => setApplySheetSuggestedInfo(e.target.checked)}
+                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="applySuggested" className="text-slate-700 dark:text-slate-300 cursor-pointer">
+                      Tự động điền người giao hàng từ Google Sheet:{" "}
+                      <span className="font-bold text-slate-900 dark:text-white">{sheetResult.suggestedDeliverer}</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 rounded-b-3xl">
+              <div className="text-xs text-slate-600 dark:text-slate-300 text-center sm:text-left">
+                Tổng cộng:{" "}
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {sheetResult.validItems.reduce((acc, i) => acc + i.quantity, 0).toLocaleString("vi-VN")}
+                </span>{" "}
+                mặt hàng (Ước tính:{" "}
+                <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                  {sheetResult.validItems.reduce((acc, i) => acc + i.amount, 0).toLocaleString("vi-VN")} đ
+                </span>
+                )
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowSheetModal(false)}
+                  className="h-10 px-4 text-xs font-semibold"
+                >
+                  Đóng
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleApplyGoogleSheet}
+                  disabled={sheetResult.validItems.length === 0}
+                  className="h-10 px-5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md flex items-center gap-2"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Xác nhận thêm vào phiếu nhập ({sheetResult.validItems.length})</span>
                 </Button>
               </div>
             </div>

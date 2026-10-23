@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { createPurchaseOrderOnKiotViet } from "@/lib/kiotviet/purchase";
 import { canUserPurchase } from "@/lib/auth/purchase-permissions";
+import { recordSyncedGoogleSheetRows } from "@/lib/google-sheets/purchase-sync";
 
 export async function GET(request: NextRequest) {
   try {
@@ -99,6 +100,16 @@ export async function POST(request: NextRequest) {
         quantity: number;
         price?: number;
         note?: string;
+      }>;
+      sheetSyncItems?: Array<{
+        sheetRowId: string;
+        rawMaPhieu?: string;
+        productCode?: string;
+        productName?: string;
+        quantity?: number;
+        receivedDate?: string;
+        receivedTime?: string;
+        staffName?: string;
       }>;
     };
 
@@ -283,6 +294,10 @@ export async function POST(request: NextRequest) {
         items: true
       }
     });
+
+    if (Array.isArray(body.sheetSyncItems) && body.sheetSyncItems.length > 0) {
+      await recordSyncedGoogleSheetRows(purchaseOrder.id, body.sheetSyncItems);
+    }
 
     if (!isDraft && syncStatus !== "SYNCED") {
       return NextResponse.json(

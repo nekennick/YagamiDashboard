@@ -14,3 +14,4 @@ a.txt
 backups/
 *.dump
 secrets/
+*.xlsx
