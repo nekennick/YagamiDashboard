@@ -192,8 +192,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Số lượng các mặt hàng nhập phải lớn hơn 0" }, { status: 400 });
     }
 
-    const purchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : new Date();
     const isDraft = body.isDraft === true;
+    const now = new Date();
+    // Khi gửi lên KiotViet (!isDraft), lấy đúng thời điểm hiện tại khi gửi
+    const purchaseDate = !isDraft ? now : (body.purchaseDate ? new Date(body.purchaseDate) : now);
 
     // Sinh mã phiếu dự phòng (PT: Phiếu tạm, PN: Phiếu nhập)
     const datePrefix = purchaseDate.toISOString().slice(2, 10).replace(/-/g, "");

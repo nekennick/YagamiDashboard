@@ -623,7 +623,7 @@ export const PurchaseOrderForm: React.FC<Props> = ({
         supplierId: supplierIdNum,
         supplierName: supplierObj?.name,
         delivererName: delivererName.trim() || undefined,
-        purchaseDate: new Date(purchaseDate).toISOString(),
+        purchaseDate: !isDraft ? new Date().toISOString() : new Date(purchaseDate).toISOString(),
         note: note.trim() || undefined,
         isDraft,
         items: lineItems.map((item) => ({
@@ -720,6 +720,7 @@ export const PurchaseOrderForm: React.FC<Props> = ({
               onChange={(e) => setPurchaseDate(e.target.value)}
               className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Khi bấm gửi KiotViet, hệ thống sẽ tự động lấy đúng thời gian thực tế lúc gửi.</p>
           </div>
 
           {/* Supplier */}
@@ -1138,9 +1139,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Ngày nhập</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">
-                    {purchaseDate}
+                  <span className="text-slate-400 block text-[11px]">Thời gian gửi KiotViet</span>
+                  <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>{new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} {new Date().toLocaleDateString("vi-VN")}</span>
+                    <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-400 px-1.5 py-0.5 rounded font-normal">Thời điểm gửi</span>
                   </span>
                 </div>
                 <div>

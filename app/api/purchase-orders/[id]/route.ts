@@ -89,10 +89,11 @@ export async function POST(
       return NextResponse.json({ message: "Chi nhánh chưa liên kết KiotViet Branch ID" }, { status: 400 });
     }
 
+    const now = new Date();
     const kvPayload = {
       branchId: order.branch.kvBranchId,
       supplierId: order.supplier?.kvSupplierId ?? undefined,
-      purchaseDate: order.purchaseDate.toISOString(),
+      purchaseDate: now.toISOString(),
       description: order.note || `Phiếu nhập hàng Yagami - Người giao: ${order.delivererName || "N/A"}`,
       purchaseOrderDetails: order.items.map((i) => ({
         productId: i.product.kvProductId,
@@ -107,6 +108,8 @@ export async function POST(
       data: {
         code: kvRes.code || order.code,
         kvPurchaseOrderId: kvRes.id,
+        purchaseDate: now,
+        status: "COMPLETED",
         syncStatus: "SYNCED",
         syncError: null
       },
@@ -245,8 +248,10 @@ export async function PUT(
       return NextResponse.json({ message: "Số lượng các mặt hàng phải lớn hơn 0" }, { status: 400 });
     }
 
-    const purchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : existing.purchaseDate;
     const isDraft = body.isDraft === true;
+    const now = new Date();
+    // Khi gửi lên KiotViet (!isDraft), lấy đúng thời điểm hiện tại khi gửi
+    const purchaseDate = !isDraft ? now : (body.purchaseDate ? new Date(body.purchaseDate) : existing.purchaseDate);
     let orderCode = existing.code;
     let kvPurchaseOrderId = existing.kvPurchaseOrderId;
     let status = isDraft ? "DRAFT" : "COMPLETED";
