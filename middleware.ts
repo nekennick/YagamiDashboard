@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSessionToken, sessionCookieName } from "@/lib/auth/session";
+import { readSessionToken, sessionCookieName, sessionCookieOptions } from "@/lib/auth/session";
 import { DEFAULT_MEMBER_TABS, memberTabsCookieName } from "@/lib/auth/permissions-constants";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname === "/login" || pathname.startsWith("/api/auth/")) return NextResponse.next();
 
-  const session = await readSessionToken(request.cookies.get(sessionCookieName)?.value);
+  const rawToken = request.cookies.get(sessionCookieName)?.value;
+  const session = await readSessionToken(rawToken);
   if (!session) return denyUnauthenticated(request);
-  if (session.role === "ADMIN") return NextResponse.next();
+  if (session.role === "ADMIN") return allowRequest(request, rawToken);
 
   // Chặn tuyệt đối các khu vực Quản trị đối với Member
   if (pathname.startsWith("/settings/users") || pathname.startsWith("/api/admin/")) {
@@ -16,7 +17,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname === "/inventory-count" || pathname.startsWith("/inventory-count/") || pathname.startsWith("/api/inventory-count/")) {
-    return NextResponse.next();
+    return allowRequest(request, rawToken);
   }
 
   const allowedSet = getMemberAllowedPages(request);
@@ -24,12 +25,12 @@ export async function middleware(request: NextRequest) {
 
   // 1. Kiểm tra trang trực tiếp hoặc trang con
   if (isPathAllowedForMember(pathname, allowedSet)) {
-    return NextResponse.next();
+    return allowRequest(request, rawToken);
   }
 
   // 2. Kiểm tra API liên quan đến các tab được cấp quyền
   if (isMemberApiAllowed(pathname, allowedSet)) {
-    return NextResponse.next();
+    return allowRequest(request, rawToken);
   }
 
   // 3. Nếu Member vào root "/" mà không có quyền vào Dashboard
@@ -38,6 +39,15 @@ export async function middleware(request: NextRequest) {
   }
 
   return denyForbidden(request, fallbackPath);
+}
+
+function allowRequest(request: NextRequest, rawToken?: string) {
+  const response = NextResponse.next();
+  // Nếu là truy cập trang giao diện (không phải API), gia hạn cookie để trình duyệt luôn duy trì đăng nhập
+  if (rawToken && !request.nextUrl.pathname.startsWith("/api/")) {
+    response.cookies.set(sessionCookieName, rawToken, sessionCookieOptions);
+  }
+  return response;
 }
 
 function getMemberAllowedPages(request: NextRequest): Set<string> {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSession } from "@/lib/auth/server";
+import { sessionDurationSeconds } from "@/lib/auth/session";
 import {
   MANAGEABLE_TABS,
   getMemberAllowedTabs,
@@ -44,7 +45,7 @@ export async function PUT(request: NextRequest) {
       path: "/",
       httpOnly: false,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 365
+      maxAge: sessionDurationSeconds
     });
 
     return response;

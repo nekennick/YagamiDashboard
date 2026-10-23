@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureInitialAdmin } from "@/lib/auth/server";
 import { verifyPassword } from "@/lib/auth/password";
-import { createSessionToken, sessionCookieName, sessionCookieOptions } from "@/lib/auth/session";
+import { createSessionToken, sessionCookieName, sessionCookieOptions, sessionDurationSeconds } from "@/lib/auth/session";
 import { getMemberAllowedTabs, memberTabsCookieName } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       path: "/",
       httpOnly: false,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 365
+      maxAge: sessionDurationSeconds
     });
 
     return response;

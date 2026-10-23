@@ -3,7 +3,8 @@ export const sessionCookieName = "yagami_session";
 export type SessionRole = "ADMIN" | "MEMBER";
 export type SessionPayload = { sub: number; username: string; displayName: string; role: SessionRole; exp: number };
 
-const sessionDurationSeconds = 60 * 60 * 12;
+// Thời hạn phiên đăng nhập vĩnh viễn (100 năm) để người dùng không phải đăng nhập lại
+export const sessionDurationSeconds = 100 * 365 * 24 * 60 * 60;
 
 export async function createSessionToken(user: Omit<SessionPayload, "exp">) {
   const payload: SessionPayload = { ...user, exp: Math.floor(Date.now() / 1000) + sessionDurationSeconds };
