@@ -36,6 +36,7 @@ const syncTypeLabels: Record<ScheduledSyncType, string> = {
   returns: "Trả hàng",
   transfers: "Chuyển kho",
   internalUses: "Xuất dùng nội bộ",
+  damagedGoods: "Xuất hủy",
   stocktakes: "Phiếu kiểm kho",
   stocktakeHistory: "Lịch sử kiểm kho",
   inventoryMovementHistory: "Lịch sử sổ kho",

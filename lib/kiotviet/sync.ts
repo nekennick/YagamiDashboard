@@ -9,6 +9,7 @@ import {
 } from "@/lib/kiotviet/inventory-movements";
 import { syncInternalStocktakes } from "@/lib/kiotviet/internal-stocktakes";
 import { syncInternalUses } from "@/lib/kiotviet/internal-uses";
+import { syncDamagedGoods } from "@/lib/kiotviet/internal-damages";
 import { buildInvoiceItemChanges } from "@/lib/invoice-item-change-audit";
 
 export type SyncType =
@@ -22,6 +23,7 @@ export type SyncType =
   | "returns"
   | "transfers"
   | "internalUses"
+  | "damagedGoods"
   | "stocktakes"
   | "stocktakeHistory"
   | "inventoryMovementHistory"
@@ -100,7 +102,7 @@ async function syncKiotVietUnlocked(type: SyncType): Promise<SyncResult[]> {
   if (type === "all") {
     const results: SyncResult[] = [];
 
-    for (const syncType of ["branches", "products", "customers", "orders", "invoices", "purchases", "returns", "transfers", "internalUses", "stocktakes", "inventory"] as const) {
+    for (const syncType of ["branches", "products", "customers", "orders", "invoices", "purchases", "returns", "transfers", "internalUses", "damagedGoods", "stocktakes", "inventory"] as const) {
       results.push(await syncOne(syncType));
     }
 
@@ -194,6 +196,8 @@ async function syncByType(type: Exclude<SyncType, "all">): Promise<SyncStats> {
       return syncInventoryMovements("transfers");
     case "internalUses":
       return syncInternalUseDocuments(7);
+    case "damagedGoods":
+      return syncDamagedGoodsDocuments(7);
     case "stocktakes":
       return syncStocktakes(7);
     case "stocktakeHistory":
@@ -225,6 +229,18 @@ async function syncInternalUseDocuments(lookbackDays: number): Promise<SyncStats
     warnings: [
       ...(result.warnings ?? []),
       `Phiếu xuất dùng nội bộ lấy từ API quản trị KiotViet trong ${lookbackDays} ngày gần nhất.`
+    ]
+  };
+}
+
+async function syncDamagedGoodsDocuments(lookbackDays: number): Promise<SyncStats> {
+  const fromDate = addDays(new Date(), -lookbackDays);
+  const result = await syncDamagedGoods(fromDate);
+  return {
+    ...result,
+    warnings: [
+      ...(result.warnings ?? []),
+      `Phiếu xuất hủy lấy từ API quản trị KiotViet trong ${lookbackDays} ngày gần nhất.`
     ]
   };
 }

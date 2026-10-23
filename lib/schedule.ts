@@ -35,13 +35,14 @@ const scheduledSyncRunOrder: ScheduledSyncType[] = [
   "returns",
   "transfers",
   "internalUses",
+  "damagedGoods",
   "stocktakes",
   "stocktakeHistory",
   "inventoryMovementHistory",
   "inventory"
 ];
 
-const defaultSyncTypes: ScheduledSyncType[] = ["branches", "products", "customers", "orders", "invoices", "purchases", "returns", "transfers", "internalUses", "stocktakes", "inventory"];
+const defaultSyncTypes: ScheduledSyncType[] = ["branches", "products", "customers", "orders", "invoices", "purchases", "returns", "transfers", "internalUses", "damagedGoods", "stocktakes", "inventory"];
 
 const defaultScheduleGroups: ScheduleGroupSetting[] = [
   {
@@ -51,7 +52,7 @@ const defaultScheduleGroups: ScheduleGroupSetting[] = [
     enabled: true,
     intervalMinutes: 60,
     startTime: "08:00",
-    syncTypes: ["orders", "invoices", "purchases", "returns", "transfers", "internalUses", "stocktakes"],
+    syncTypes: ["orders", "invoices", "purchases", "returns", "transfers", "internalUses", "damagedGoods", "stocktakes"],
     lastRunAt: null
   },
   {

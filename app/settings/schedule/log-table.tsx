@@ -230,6 +230,7 @@ function syncTypeLabel(syncType: string) {
     invoices: "Hóa đơn gần đây",
     invoiceHistory: "Lịch sử hóa đơn",
     internalUses: "Xuất dùng nội bộ",
+    damagedGoods: "Xuất hủy",
     stocktakes: "Phiếu kiểm kho",
     stocktakeHistory: "Lịch sử kiểm kho",
     inventory: "Tồn kho",
