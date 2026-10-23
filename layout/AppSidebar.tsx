@@ -22,7 +22,8 @@ import {
   ClipboardPenLine,
   Users,
   LogOut,
-  Truck
+  Truck,
+  FileSpreadsheet
 } from "lucide-react";
 
 type SubItem = {
@@ -58,6 +59,11 @@ const navItems: NavItem[] = [
     name: "Nhập hàng",
     icon: <Truck className="h-5 w-5" />,
     path: "/purchase-orders",
+  },
+  {
+    name: "Xuất kho",
+    icon: <FileSpreadsheet className="h-5 w-5" />,
+    path: "/stock-out",
   },
   {
     name: "Tồn kho",
@@ -163,6 +169,7 @@ const AppSidebar: React.FC<{
           if (!item.path) return false;
           if (item.path === "/inventory-count") return inventoryCountEnabled;
           if (item.path === "/purchase-orders") return purchaseOrderEnabled;
+          if (item.path === "/stock-out") return purchaseOrderEnabled || allowedSet.has("/stock-out");
           return allowedSet.has(item.path);
         });
 

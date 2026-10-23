@@ -70,6 +70,7 @@ model User {
   countBatchesCreated     InventoryBalanceBatch[]    @relation("InventoryBalanceBatchCreator")
   countAudits             InventoryCountAudit[]
   purchaseOrders          PurchaseOrder[]            @relation("PurchaseOrderCreator")
+  stockOutOrders          StockOutOrder[]            @relation("StockOutOrderCreator")
 
   @@index([role, isActive])
 }
@@ -99,6 +100,7 @@ model Product {
   countLines                InventoryCountLine[]
   inventoryPositionVersions InventoryPositionVersion[]
   purchaseOrderItems        PurchaseOrderItem[]
+  stockOutOrderItems        StockOutOrderItem[]
 
   @@index([code])
   @@index([name])
@@ -168,6 +170,7 @@ model Branch {
   countBatches              InventoryBalanceBatch[]
   inventoryPositionVersions InventoryPositionVersion[]
   purchaseOrders            PurchaseOrder[]
+  stockOutOrders            StockOutOrder[]
 
   @@index([name])
 }
@@ -728,4 +731,46 @@ model GoogleSheetPurchaseSync {
   @@index([sheetRowId])
   @@index([rawMaPhieu])
   @@index([purchaseOrderId])
+}
+
+model StockOutOrder {
+  id            Int                 @id @default(autoincrement())
+  code          String              @unique
+  branchId      Int
+  branch        Branch              @relation(fields: [branchId], references: [id])
+  receiverName  String?
+  documentBasis String?
+  issueDate     DateTime            @default(now())
+  reportDate    String?
+  totalAmount   Decimal             @default(0)
+  totalQuantity Decimal             @default(0)
+  note          String?
+  status        String              @default("COMPLETED")
+  createdById   Int?
+  createdBy     User?               @relation("StockOutOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items         StockOutOrderItem[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([code])
+  @@index([branchId])
+  @@index([issueDate])
+}
+
+model StockOutOrderItem {
+  id              Int           @id @default(autoincrement())
+  stockOutOrderId Int
+  stockOutOrder   StockOutOrder @relation(fields: [stockOutOrderId], references: [id], onDelete: Cascade)
+  productId       Int
+  product         Product       @relation(fields: [productId], references: [id])
+  productCode     String?
+  productName     String
+  unit            String?
+  quantity        Decimal
+  price           Decimal       @default(0)
+  amount          Decimal       @default(0)
+  note            String?
+
+  @@index([stockOutOrderId])
+  @@index([productId])
 }

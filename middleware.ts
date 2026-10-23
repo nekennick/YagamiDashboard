@@ -25,6 +25,9 @@ export async function middleware(request: NextRequest) {
     pathname === "/purchase-orders" ||
     pathname.startsWith("/purchase-orders/") ||
     pathname.startsWith("/api/purchase-orders") ||
+    pathname === "/stock-out" ||
+    pathname.startsWith("/stock-out/") ||
+    pathname.startsWith("/api/stock-out-orders") ||
     pathname.startsWith("/api/suppliers") ||
     pathname === "/api/settings/print-template"
   ) {
@@ -98,9 +101,10 @@ function isMemberApiAllowed(pathname: string, allowedSet: Set<string>): boolean 
   // Cho phép lấy thông tin cập nhật hệ thống
   if (pathname === "/api/changelog") return true;
 
-  // API phân hệ Nhập hàng
+  // API phân hệ Nhập hàng & Xuất kho
   if (
     pathname.startsWith("/api/purchase-orders") ||
+    pathname.startsWith("/api/stock-out-orders") ||
     pathname.startsWith("/api/suppliers") ||
     pathname === "/api/settings/print-template"
   ) {
@@ -119,7 +123,7 @@ function isMemberApiAllowed(pathname: string, allowedSet: Set<string>): boolean 
 
   // API danh mục chi nhánh
   if (pathname.startsWith("/api/branch-directory")) {
-    return allowedSet.has("/settings/branches") || allowedSet.has("/purchase-orders");
+    return allowedSet.has("/settings/branches") || allowedSet.has("/purchase-orders") || allowedSet.has("/stock-out");
   }
 
   // API xuất Excel tương ứng từng trang
