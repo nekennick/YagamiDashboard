@@ -16,7 +16,18 @@ export async function middleware(request: NextRequest) {
     return denyForbidden(request, "/order-schedule");
   }
 
+  // Các phân hệ có cơ chế kiểm tra quyền riêng theo từng tài khoản (user-level authorization)
   if (pathname === "/inventory-count" || pathname.startsWith("/inventory-count/") || pathname.startsWith("/api/inventory-count/")) {
+    return allowRequest(request, rawToken);
+  }
+
+  if (
+    pathname === "/purchase-orders" ||
+    pathname.startsWith("/purchase-orders/") ||
+    pathname.startsWith("/api/purchase-orders") ||
+    pathname.startsWith("/api/suppliers") ||
+    pathname === "/api/settings/print-template"
+  ) {
     return allowRequest(request, rawToken);
   }
 
@@ -87,6 +98,15 @@ function isMemberApiAllowed(pathname: string, allowedSet: Set<string>): boolean 
   // Cho phép lấy thông tin cập nhật hệ thống
   if (pathname === "/api/changelog") return true;
 
+  // API phân hệ Nhập hàng
+  if (
+    pathname.startsWith("/api/purchase-orders") ||
+    pathname.startsWith("/api/suppliers") ||
+    pathname === "/api/settings/print-template"
+  ) {
+    return true;
+  }
+
   // API cập nhật số kiểm tồn hàng ngày luôn mở cho thành viên có quyền kiểm tồn
   if (/^\/api\/products\/[^/]+\/daily-inventory(?:\/[^/]+)?$/.test(pathname)) {
     return allowedSet.has("/stocktake") || allowedSet.has("/inventory");
@@ -99,7 +119,7 @@ function isMemberApiAllowed(pathname: string, allowedSet: Set<string>): boolean 
 
   // API danh mục chi nhánh
   if (pathname.startsWith("/api/branch-directory")) {
-    return allowedSet.has("/settings/branches");
+    return allowedSet.has("/settings/branches") || allowedSet.has("/purchase-orders");
   }
 
   // API xuất Excel tương ứng từng trang
