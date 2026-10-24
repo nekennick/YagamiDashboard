@@ -477,3 +477,85 @@ table.inventory-table td[rowspan] {
 .dark .hover\:bg-slate-100:hover {
   background-color: #1d2939 !important;
 }
+
+
+/* ========================================================
+   GLOBAL PRINT RULES (Cách ly in tài liệu chứng từ A4)
+   ======================================================== */
+#print-portal {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 10mm 10mm;
+  }
+
+  /* Khi có #print-portal, ẩn TOÀN BỘ mọi thành phần web khác trong body */
+  body:has(#print-portal) > *:not(#print-portal) {
+    display: none !important;
+  }
+
+  /* Khi không dùng portal mà modal in đang mở, ẩn hết các thành phần ngoài modal */
+  body:not(:has(#print-portal)):has(.print-sheet) > *:not(:has(.print-sheet)) {
+    display: none !important;
+  }
+
+  /* Ẩn thanh header, sidebar, navbar, buttons */
+  header,
+  nav,
+  aside,
+  button,
+  .print\:hidden,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #print-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  #print-portal .print-sheet,
+  .print-sheet {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  #print-portal *,
+  .print-sheet,
+  .print-sheet * {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    border-color: #000000 !important;
+    visibility: visible !important;
+  }
+
+  #print-portal th,
+  .print-sheet th {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+  }
+}

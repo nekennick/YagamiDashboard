@@ -9,11 +9,18 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
-  Clock
+  Clock,
+  Palette
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StockOutOrderForm, BranchItem, ProductItem } from "./stock-out-order-form";
-import { StockOutOrderPrint, StockOutOrderPrintData } from "./stock-out-order-print";
+import {
+  StockOutOrderPrint,
+  StockOutOrderPrintData,
+  StockOutPrintTemplateConfig,
+  DEFAULT_STOCK_OUT_PRINT_SETTINGS
+} from "./stock-out-order-print";
+import { StockOutPrintCustomizer } from "./stock-out-print-customizer";
 
 export type StockOutOrderRow = {
   id: number;
@@ -52,17 +59,25 @@ export type StockOutOrderRow = {
 type Props = {
   initialBranches: BranchItem[];
   initialProducts: ProductItem[];
+  initialPrintConfig?: StockOutPrintTemplateConfig;
 };
 
 export const StockOutOrdersClient: React.FC<Props> = ({
   initialBranches,
-  initialProducts
+  initialProducts,
+  initialPrintConfig
 }) => {
   const [activeView, setActiveView] = useState<"list" | "create">("list");
   const [orders, setOrders] = useState<StockOutOrderRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
+
+  // Print Template Customizer & Config
+  const [printConfig, setPrintConfig] = useState<StockOutPrintTemplateConfig>(
+    initialPrintConfig || DEFAULT_STOCK_OUT_PRINT_SETTINGS
+  );
+  const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
 
   // Filters
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
@@ -196,6 +211,16 @@ export const StockOutOrdersClient: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-2.5">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowCustomizer(true)}
+            className="flex items-center gap-1.5 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold h-10 px-3.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+          >
+            <Palette className="h-4 w-4 text-indigo-500" />
+            Tùy biến mẫu in (Live Review)
+          </Button>
+
           {activeView === "list" ? (
             <Button
               onClick={() => setActiveView("create")}
@@ -429,8 +454,23 @@ export const StockOutOrdersClient: React.FC<Props> = ({
       {printOrder && (
         <StockOutOrderPrint
           order={printOrder}
+          config={printConfig}
           autoPrint={autoTriggerPrint}
           onClose={() => setPrintOrder(null)}
+          onOpenCustomizer={() => setShowCustomizer(true)}
+        />
+      )}
+
+      {/* Live Print Template Customizer */}
+      {showCustomizer && (
+        <StockOutPrintCustomizer
+          initialConfig={printConfig}
+          onSaved={(newConfig) => {
+            setPrintConfig(newConfig);
+            showToast("success", "Đã cập nhật mẫu in Phiếu xuất kho thành công!");
+          }}
+          onClose={() => setShowCustomizer(false)}
+          sampleOrder={printOrder || undefined}
         />
       )}
     </div>

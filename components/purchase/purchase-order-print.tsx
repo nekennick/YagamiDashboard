@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import { Printer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { numberToVietnameseWords } from "@/lib/utils/number-to-words";
+import { printHtmlElement } from "@/lib/utils/print";
 
 export type PrintTemplateConfig = {
   companyName?: string;
@@ -84,18 +85,33 @@ export const PurchaseOrderPrint: React.FC<Props> = ({
     }
   }, [order.purchaseDate]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = React.useCallback(() => {
+    if (printRef.current) {
+      printHtmlElement(printRef.current, `Phiếu nhập hàng - ${order.code}`);
+    } else {
+      window.print();
+    }
+  }, [order.code]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        handlePrint();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handlePrint]);
 
   React.useEffect(() => {
     if (autoPrint) {
       const timer = setTimeout(() => {
-        window.print();
+        handlePrint();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [autoPrint]);
+  }, [autoPrint, handlePrint]);
 
   const words = numberToVietnameseWords(order.totalAmount);
 
@@ -131,20 +147,61 @@ export const PurchaseOrderPrint: React.FC<Props> = ({
       {/* Printable Sheet (Standard A4 page format) */}
       <div
         ref={printRef}
-        className="print-sheet mx-auto w-full max-w-4xl bg-white text-slate-900 p-8 sm:p-12 shadow-2xl rounded-b-xl print:p-0 print:shadow-none print:rounded-none print:w-full print:max-w-none"
-        style={{ fontFamily: "'Times New Roman', Times, serif, 'Noto Sans', sans-serif" }}
+        className="print-sheet mx-auto w-full max-w-4xl bg-white text-black p-8 sm:p-12 shadow-2xl rounded-b-xl print:p-0 print:shadow-none print:rounded-none print:w-full print:max-w-none"
+        style={{
+          fontFamily: "'Times New Roman', Times, serif, 'Noto Sans', sans-serif",
+          color: "#000000",
+          backgroundColor: "#ffffff"
+        }}
       >
-        {/* Header Section */}
-        <div className="grid grid-cols-2 gap-4 pb-4">
-          <div className="text-left text-sm leading-relaxed">
-            <div className="font-bold uppercase tracking-wider">{companyName}</div>
-            <div className="font-bold uppercase">{warehouseName}</div>
-          </div>
-          <div className="text-right text-xs leading-normal">
-            <div className="font-bold">{formNumber}</div>
-            <div className="italic text-[11px] text-slate-700">{circular}</div>
-          </div>
-        </div>
+        <style>{`
+          .print-sheet, .print-sheet * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+          }
+          .print-sheet th {
+            background-color: #f1f5f9 !important;
+            color: #000000 !important;
+          }
+        `}</style>
+        {/* Header Section (Bảng không viền căn giữa theo mẫu) */}
+        <table
+          className="w-full border-collapse mb-4"
+          style={{ border: "none", borderSpacing: 0 }}
+        >
+          <tbody>
+            <tr style={{ verticalAlign: "top", border: "none" }}>
+              <td
+                style={{
+                  width: "50%",
+                  textAlign: "center",
+                  border: "none",
+                  padding: "0 10px 0 0"
+                }}
+              >
+                <div className="font-bold uppercase tracking-wider text-sm whitespace-pre-line leading-relaxed">
+                  {companyName}
+                </div>
+                <div className="font-bold uppercase text-xs mt-1 whitespace-pre-line">
+                  {warehouseName}
+                </div>
+              </td>
+              <td
+                style={{
+                  width: "50%",
+                  textAlign: "center",
+                  border: "none",
+                  padding: "0 0 0 10px"
+                }}
+              >
+                <div className="font-bold text-xs">{formNumber}</div>
+                <div className="italic text-[11px] text-slate-700 whitespace-pre-line mt-1 leading-normal">
+                  {circular}
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
         {/* Title */}
         <div className="text-center my-4">

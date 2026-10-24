@@ -1,5 +1,103 @@
 [
   {
+    "hash": "1302f2ff3f1c9e0bc16dc7feb5b81e0af1714b6b",
+    "shortHash": "1302f2f",
+    "message": "feat(stock-out): thêm tab Xuất kho, tự động lấy dữ liệu báo cáo hàng hóa cuối ngày và dựng mẫu in phiếu xuất",
+    "author": "nekennick",
+    "date": "2026-10-23"
+  },
+  {
+    "hash": "cb92b7f01e70da0d48eb6921071be56183bd2c46",
+    "shortHash": "cb92b7f",
+    "message": "feat(purchase): cập nhật thời gian nhập hàng theo thời điểm thực tế gửi lên KiotViet",
+    "author": "nekennick",
+    "date": "2026-10-23"
+  },
+  {
+    "hash": "6cf5f8b51c41b5f1c5e572f6d1be731011232023",
+    "shortHash": "6cf5f8b",
+    "message": "feat(purchase): thêm tính năng đồng bộ hàng nhập từ Google Sheet tự động nhận diện dòng mới",
+    "author": "nekennick",
+    "date": "2026-10-23"
+  },
+  {
+    "hash": "ca0d1b9793e8015bff645fb90d407ff9c377af5a",
+    "shortHash": "ca0d1b9",
+    "message": "feat(inventory): đồng bộ phiếu xuất hủy KiotViet vào cột xuất kho và cập nhật quy ước commit",
+    "author": "nekennick",
+    "date": "2026-10-23"
+  },
+  {
+    "hash": "5777f6fb881c5ca33e2f91c0af66ec7a110c3084",
+    "shortHash": "5777f6f",
+    "message": "fix(auth): permit purchase order apis in middleware for authorized staff",
+    "author": "nekennick",
+    "date": "2026-10-23"
+  },
+  {
+    "hash": "9a6438119b8a89e73bf74dcf9d05f62221b94c73",
+    "shortHash": "9a64381",
+    "message": "feat(auth): keep dashboard login session cookie indefinitely",
+    "author": "nekennick",
+    "date": "2026-10-23"
+  },
+  {
+    "hash": "3dd96d5e2947aebe054cf3b1fbf7cf1deb134c61",
+    "shortHash": "3dd96d5",
+    "message": "feat(purchase): add per-user purchase order permissions in settings and sidebar filtering",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "4b3f5d3ca77d996f24a0d8cff183eda009ed7015",
+    "shortHash": "4b3f5d3",
+    "message": "feat(purchase): add excel import for purchase order items with preview modal and quantity merging",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "4778f23c6a82c40a7650d9c4d38e8b45ae480569",
+    "shortHash": "4778f23",
+    "message": "feat(purchase): filter out combo/service products and move search input to the left",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "e80e1aa5943b29956fa163a0741b96ee462e1c27",
+    "shortHash": "e80e1aa",
+    "message": "fix(purchase): properly extract KiotViet error details, show error in review modal, and add toast notifications",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "c0a2b8aba9ffc77607e3b56fc6ca1a6bf270fbcc",
+    "shortHash": "c0a2b8a",
+    "message": "feat(purchase): default warehouse selection to Tong kho Cao Lanh",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "5ec4e893f6ce2f1a87dfd32f739f98a2be9144c6",
+    "shortHash": "5ec4e89",
+    "message": "fix(purchase): remove explicit any in purchase orders route",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "fca405eb7efb6fd294a266e72bfadff6a4c707d5",
+    "shortHash": "fca405e",
+    "message": "feat(purchase): support draft purchase orders (Phieu tam) with edit, delete, and late push to KiotViet",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
+    "hash": "64cfca5fa848e7f2f07466fa91f422f32e578c97",
+    "shortHash": "64cfca5",
+    "message": "feat(purchase-orders): add review modal before pushing to KiotViet and disable auto-print",
+    "author": "nekennick",
+    "date": "2026-10-22"
+  },
+  {
     "hash": "a541aaccbf20db82870f080be1228b007a3de520",
     "shortHash": "a541aac",
     "message": "fix(build): resolve next.js app router route export and strict type checks",
