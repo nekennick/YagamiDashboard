@@ -753,7 +753,7 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
               {/* Paper Sheet Preview */}
               <div
                 ref={previewSheetRef}
-                className="print-sheet w-[210mm] min-h-[297mm] bg-white text-black p-10 shadow-2xl rounded-sm"
+                className="print-sheet w-[210mm] min-h-[297mm] bg-white text-black p-10 shadow-2xl rounded-sm print:w-full print:min-h-0 print:h-auto print:p-0 print:m-0 print:shadow-none print:rounded-none"
                 style={{
                   fontFamily: "'Times New Roman', Times, serif, 'Noto Sans', sans-serif",
                   fontSize: baseFontSize,
@@ -766,6 +766,14 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
                   .print-sheet, .print-sheet * {
                     color: #000000 !important;
                     -webkit-text-fill-color: #000000 !important;
+                  }
+                  @media print {
+                    .print-sheet {
+                      min-height: 0 !important;
+                      height: auto !important;
+                      padding: 0 !important;
+                      margin: 0 !important;
+                    }
                   }
                   .print-sheet table.sheet-items-table th {
                     padding: ${densityStyles.thPadding} !important;

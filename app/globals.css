@@ -512,11 +512,15 @@ table.inventory-table td[rowspan] {
     display: none !important;
   }
 
+  html,
   body {
     background: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -526,6 +530,8 @@ table.inventory-table td[rowspan] {
     position: static !important;
     width: 100% !important;
     max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     background-color: #ffffff !important;
@@ -540,8 +546,11 @@ table.inventory-table td[rowspan] {
     max-width: 100% !important;
     margin: 0 auto !important;
     padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
     background-color: #ffffff !important;
     color: #000000 !important;
+    page-break-inside: auto;
   }
 
   #print-portal *,

@@ -1,6 +1,6 @@
 /**
  * Isolated HTML Element Printing via Direct DOM Portal
- * Solves the blank page issue caused by browser iframe culling/opacity bugs.
+ * Solves browser iframe culling/opacity bugs and eliminates blank trailing pages.
  * Hides all surrounding dashboard UI via @media print while printing only the target sheet.
  */
 export function printHtmlElement(element: HTMLElement, title = "In phiếu chứng từ"): void {
@@ -22,6 +22,15 @@ export function printHtmlElement(element: HTMLElement, title = "In phiếu chứ
 
   // Deep clone the printable element
   const clone = element.cloneNode(true) as HTMLElement;
+
+  // Strip fixed preview heights and large screen paddings that cause extra blank pages in print
+  clone.classList.remove("min-h-[297mm]", "w-[210mm]", "p-10", "p-8", "sm:p-12", "shadow-2xl", "shadow-sm");
+  clone.style.minHeight = "0";
+  clone.style.height = "auto";
+  clone.style.padding = "0";
+  clone.style.margin = "0";
+  clone.style.boxShadow = "none";
+
   portal.appendChild(clone);
   document.body.appendChild(portal);
 

@@ -147,7 +147,7 @@ export const PurchaseOrderPrint: React.FC<Props> = ({
       {/* Printable Sheet (Standard A4 page format) */}
       <div
         ref={printRef}
-        className="print-sheet mx-auto w-full max-w-4xl bg-white text-black p-8 sm:p-12 shadow-2xl rounded-b-xl print:p-0 print:shadow-none print:rounded-none print:w-full print:max-w-none"
+        className="print-sheet mx-auto w-full max-w-4xl bg-white text-black p-8 sm:p-12 shadow-2xl rounded-b-xl print:p-0 print:m-0 print:min-h-0 print:h-auto print:shadow-none print:rounded-none print:w-full print:max-w-none"
         style={{
           fontFamily: "'Times New Roman', Times, serif, 'Noto Sans', sans-serif",
           color: "#000000",
@@ -158,6 +158,14 @@ export const PurchaseOrderPrint: React.FC<Props> = ({
           .print-sheet, .print-sheet * {
             color: #000000 !important;
             -webkit-text-fill-color: #000000 !important;
+          }
+          @media print {
+            .print-sheet {
+              min-height: 0 !important;
+              height: auto !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
           }
           .print-sheet th {
             background-color: #f1f5f9 !important;
