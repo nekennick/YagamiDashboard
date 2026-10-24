@@ -374,11 +374,11 @@ export const StockOutOrderForm: React.FC<Props> = ({
         <div className="col-span-1 sm:col-span-2">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
             <FileText className="h-3.5 w-3.5 text-slate-400" />
-            Theo chứng từ / Căn cứ
+            Lý do xuất kho / Căn cứ chứng từ
           </label>
           <input
             type="text"
-            placeholder="VD: Theo lệnh điều động số 123 ngày 23/10/2026 của Ban Giám Đốc..."
+            placeholder="VD: Xuất bán cuối ngày theo báo cáo doanh thu, hoặc Lệnh điều chuyển số..."
             value={documentBasis}
             onChange={(e) => setDocumentBasis(e.target.value)}
             className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 outline-none transition focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"

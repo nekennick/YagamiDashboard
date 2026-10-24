@@ -130,8 +130,8 @@ export const StockOutOrderPrint: React.FC<Props> = ({
     config?.fontSize === "xs"
       ? "11px"
       : config?.fontSize === "base"
-      ? "14px"
-      : "12px";
+        ? "14px"
+        : "12px";
 
   const formattedDate = React.useMemo(() => {
     try {
@@ -318,7 +318,7 @@ export const StockOutOrderPrint: React.FC<Props> = ({
             <span className="font-semibold">{order.receiverName || "...................................................................."}</span>
           </div>
           <div className="flex">
-            <span className="w-40 font-medium">Theo:</span>
+            <span className="w-40 font-medium">Lý do xuất kho:</span>
             <span>{order.documentBasis || "...................Số............Ngày.....Tháng......Năm.........của................................................................"}</span>
           </div>
           <div className="flex items-baseline justify-between">
@@ -393,9 +393,7 @@ export const StockOutOrderPrint: React.FC<Props> = ({
               <td colSpan={showCode ? 3 : 2} className="border border-slate-900 text-right uppercase">
                 Tổng cộng:
               </td>
-              <td className="border border-slate-900 text-right font-mono font-bold">
-                {Number(order.totalQuantity).toLocaleString("vi-VN")}
-              </td>
+              <td className="border border-slate-900"></td>
               <td className="border border-slate-900"></td>
               {showPrice && (
                 <>
