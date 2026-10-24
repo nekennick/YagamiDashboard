@@ -1,5 +1,33 @@
 [
   {
+    "hash": "33f1ee00144ea3b6f322be4adf0bb7be22f79baa",
+    "shortHash": "33f1ee0",
+    "message": "chore(changelog): cập nhật thông báo phiên bản và lịch sử cập nhật mới nhất",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
+    "hash": "4fa6aa1fe3e1413f8fb20ad21c601511f2a83463",
+    "shortHash": "4fa6aa1",
+    "message": "feat(stock-out): đổi chữ 'Theo' thành 'Lý do xuất kho' và bỏ tổng số lượng ở bảng in phiếu xuất",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
+    "hash": "e8601c3cb5835489ff6843a5bff23defcdf04292",
+    "shortHash": "e8601c3",
+    "message": "fix(stock-out): loai bo trang in thu 2 trang tinh do tran chieu cao min-height",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
+    "hash": "82573d054bc6dff51d1c78984333ef6cce3374de",
+    "shortHash": "82573d0",
+    "message": "feat(stock-out): khac phuc in ca trang, them bo tuy bien mau in voi live review va bang dau phieu keo tha cot",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
     "hash": "1302f2ff3f1c9e0bc16dc7feb5b81e0af1714b6b",
     "shortHash": "1302f2f",
     "message": "feat(stock-out): thêm tab Xuất kho, tự động lấy dữ liệu báo cáo hàng hóa cuối ngày và dựng mẫu in phiếu xuất",
