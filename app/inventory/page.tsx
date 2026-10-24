@@ -113,8 +113,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
     const operationalEnd = operationalDayEnd(operationalDate);
     const selectedProductIds = [...new Set(items.map((item) => item.productId))];
     const selectedBranchIds = [...new Set(items.map((item) => item.branchId))];
-    const [dailySnapshots, dailyMovements, cancelledStocktakeLines, invoiceItemChanges, pendingCountLines] = selectedProductIds.length === 0
-      ? [[], [], [], [], []]
+    const [dailySnapshots, dailyMovements, cancelledStocktakeLines, invoiceItemChanges, pendingCountLines, ackSettings] = selectedProductIds.length === 0
+      ? [[], [], [], [], [], []]
       : await Promise.all([
         prisma.inventorySnapshot.findMany({
           where: {
@@ -180,6 +180,14 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             session: { branchId: { in: selectedBranchIds }, status: "APPROVED" }
           },
           select: { productId: true, difference: true, actualCount: true, session: { select: { branchId: true } } }
+        }),
+        prisma.appSetting.findMany({
+          where: {
+            key: {
+              startsWith: "ack:discrepancy:",
+              endsWith: `:${operationalDate}`
+            }
+          }
         })
       ]);
     const saleDocumentIds = [...new Set(dailyMovements.filter((movement) => movement.sourceType === "SALE" && !movement.partnerName).map((movement) => Number(movement.sourceDocumentId)).filter(Number.isInteger))];
@@ -226,10 +234,14 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       const adjustment = openingOnHand !== null && closingOnHand !== null
         ? closingOnHand - (openingOnHand + incoming - outgoing + transfer + stocktake)
         : null;
-      const cancelledStocktakes = (cancelledStocktakesByProductBranch.get(key) ?? [])
-        .filter((line) => adjustment !== null && Math.abs(line.quantityDelta - adjustment) < 0.000001);
-      const invoiceChanges = (invoiceChangesByProductBranch.get(key) ?? [])
-        .filter((line) => adjustment !== null && Math.abs(line.inventoryDelta - adjustment) < 0.000001);
+      const rawCancelledStocktakes = cancelledStocktakesByProductBranch.get(key) ?? [];
+      const cancelledStocktakes = adjustment !== null && Math.abs(adjustment) > 0.000001
+        ? rawCancelledStocktakes
+        : [];
+      const rawInvoiceChanges = invoiceChangesByProductBranch.get(key) ?? [];
+      const invoiceChanges = adjustment !== null && Math.abs(adjustment) > 0.000001
+        ? rawInvoiceChanges
+        : [];
 
       return [item.id, {
         openingOnHand,
@@ -257,9 +269,24 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       }];
     }));
 
+    const initialAcknowledgedMap: Record<number, { acknowledged: boolean; acknowledgedAt: string; note?: string }> = {};
+    for (const item of ackSettings) {
+      const parts = item.key.split(":");
+      const prodId = Number(parts[3]);
+      if (prodId) {
+        try {
+          const parsed = JSON.parse(item.value);
+          if (parsed.acknowledged) {
+            initialAcknowledgedMap[prodId] = parsed;
+          }
+        } catch {}
+      }
+    }
+
     data = {
       snapshotDate,
       operationalDate,
+      initialAcknowledgedMap,
       items,
       dailyByInventoryId,
       stats,
@@ -438,7 +465,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             />
           </CardHeader>
           <CardContent>
-            <InventoryDailyMovementTable rows={tableRows} />
+            <InventoryDailyMovementTable rows={tableRows} operationalDate={data.operationalDate} initialAcknowledgedMap={data.initialAcknowledgedMap} />
             <div className="hidden overflow-x-auto">
               <div className="inventory-table-capture w-max min-w-full bg-white dark:bg-slate-950">
                 <table className="inventory-table w-full min-w-[1220px] border-collapse text-sm">

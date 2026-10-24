@@ -352,9 +352,8 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     });
 
     setShowImportModal(false);
-    const summaryMsg = `Đã nhập thành công ${addedCount} mặt hàng mới${
-      mergedCount > 0 ? ` và cộng dồn ${mergedCount} mặt hàng đã có sẵn` : ""
-    } từ file Excel!`;
+    const summaryMsg = `Đã nhập thành công ${addedCount} mặt hàng mới${mergedCount > 0 ? ` và cộng dồn ${mergedCount} mặt hàng đã có sẵn` : ""
+      } từ file Excel!`;
     setImportNotice({ type: "success", message: summaryMsg });
     setTimeout(() => setImportNotice(null), 6000);
   };
@@ -465,13 +464,11 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     }
 
     setShowSheetModal(false);
-    const summaryMsg = `Đã đồng bộ ${addedCount} mặt hàng mới${
-      mergedCount > 0 ? ` (cộng dồn ${mergedCount} mặt hàng trùng)` : ""
-    } từ Google Sheet!${
-      sheetResult.alreadySyncedCount > 0
+    const summaryMsg = `Đã đồng bộ ${addedCount} mặt hàng mới${mergedCount > 0 ? ` (cộng dồn ${mergedCount} mặt hàng trùng)` : ""
+      } từ Google Sheet!${sheetResult.alreadySyncedCount > 0
         ? ` (Tự động bỏ qua ${sheetResult.alreadySyncedCount} dòng đã nhập trước đây)`
         : ""
-    }`;
+      }`;
     setImportNotice({ type: "success", message: summaryMsg });
     setTimeout(() => setImportNotice(null), 7000);
   };
@@ -912,11 +909,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
         {/* Thông báo kết quả Import Excel */}
         {importNotice && (
           <div
-            className={`mt-4 flex items-center justify-between p-3.5 rounded-xl border text-xs animate-in fade-in ${
-              importNotice.type === "success"
-                ? "bg-emerald-50/80 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
-                : "bg-red-50/80 border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300"
-            }`}
+            className={`mt-4 flex items-center justify-between p-3.5 rounded-xl border text-xs animate-in fade-in ${importNotice.type === "success"
+              ? "bg-emerald-50/80 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
+              : "bg-red-50/80 border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300"
+              }`}
           >
             <div className="flex items-center gap-2">
               {importNotice.type === "success" ? (
@@ -1532,11 +1528,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div
                   onClick={() => setActiveSheetTab("new")}
-                  className={`rounded-2xl border p-4 cursor-pointer transition ${
-                    activeSheetTab === "new"
-                      ? "border-emerald-500 bg-emerald-50/80 dark:border-emerald-600 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20"
-                      : "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20 hover:border-emerald-300"
-                  }`}
+                  className={`rounded-2xl border p-4 cursor-pointer transition ${activeSheetTab === "new"
+                    ? "border-emerald-500 bg-emerald-50/80 dark:border-emerald-600 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20"
+                    : "border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20 hover:border-emerald-300"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
@@ -1555,11 +1550,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
 
                 <div
                   onClick={() => setActiveSheetTab("synced")}
-                  className={`rounded-2xl border p-4 cursor-pointer transition ${
-                    activeSheetTab === "synced"
-                      ? "border-slate-400 bg-slate-100 dark:border-slate-600 dark:bg-slate-800 ring-2 ring-slate-400/20"
-                      : "border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-950/50 hover:border-slate-300"
-                  }`}
+                  className={`rounded-2xl border p-4 cursor-pointer transition ${activeSheetTab === "synced"
+                    ? "border-slate-400 bg-slate-100 dark:border-slate-600 dark:bg-slate-800 ring-2 ring-slate-400/20"
+                    : "border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-950/50 hover:border-slate-300"
+                    }`}
                 >
                   <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
                     Đã nhập trước đây (Bỏ qua)
@@ -1575,11 +1569,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
 
                 <div
                   onClick={() => setActiveSheetTab("skipped")}
-                  className={`rounded-2xl border p-4 cursor-pointer transition ${
-                    activeSheetTab === "skipped"
-                      ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40 ring-2 ring-amber-400/20"
-                      : "border-amber-200 bg-amber-50/40 dark:border-amber-900/40 dark:bg-amber-950/20 hover:border-amber-300"
-                  }`}
+                  className={`rounded-2xl border p-4 cursor-pointer transition ${activeSheetTab === "skipped"
+                    ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/40 ring-2 ring-amber-400/20"
+                    : "border-amber-200 bg-amber-50/40 dark:border-amber-900/40 dark:bg-amber-950/20 hover:border-amber-300"
+                    }`}
                 >
                   <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400 block">
                     Bỏ qua / Không hợp lệ
@@ -1599,11 +1592,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setActiveSheetTab("new")}
-                  className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
-                    activeSheetTab === "new"
-                      ? "border-emerald-600 text-emerald-700 dark:text-emerald-400 dark:border-emerald-400"
-                      : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
+                  className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${activeSheetTab === "new"
+                    ? "border-emerald-600 text-emerald-700 dark:text-emerald-400 dark:border-emerald-400"
+                    : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                    }`}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   <span>Hàng mới sẽ nhập ({sheetResult.newValidCount})</span>
@@ -1612,11 +1604,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setActiveSheetTab("synced")}
-                  className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
-                    activeSheetTab === "synced"
-                      ? "border-slate-600 text-slate-900 dark:text-white dark:border-slate-300"
-                      : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                  }`}
+                  className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${activeSheetTab === "synced"
+                    ? "border-slate-600 text-slate-900 dark:text-white dark:border-slate-300"
+                    : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                    }`}
                 >
                   <span>Đã nhập trước đó ({sheetResult.alreadySyncedCount})</span>
                 </button>
@@ -1625,11 +1616,10 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setActiveSheetTab("skipped")}
-                    className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${
-                      activeSheetTab === "skipped"
-                        ? "border-amber-600 text-amber-700 dark:text-amber-400 dark:border-amber-400"
-                        : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                    }`}
+                    className={`pb-2.5 text-xs font-bold transition border-b-2 flex items-center gap-1.5 ${activeSheetTab === "skipped"
+                      ? "border-amber-600 text-amber-700 dark:text-amber-400 dark:border-amber-400"
+                      : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                      }`}
                   >
                     <AlertTriangle className="h-3.5 w-3.5" />
                     <span>Dòng lỗi ({sheetResult.skippedCount})</span>

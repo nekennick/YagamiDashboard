@@ -367,6 +367,9 @@ async function syncInvoices(): Promise<SyncStats> {
   const toDate = new Date();
   const fromDate = await getRecentInvoiceFromDate(toDate);
   const result = await syncInvoicesByDateRange(fromDate, toDate);
+  const modifiedResult = await syncModifiedInvoices(fromDate);
+  result.totalRecords += modifiedResult.totalRecords;
+  result.savedRecords += modifiedResult.savedRecords;
   const saleResult = await syncInvoiceSaleMovements(fromDate, toDate);
   result.totalRecords += saleResult.totalRecords;
   result.savedRecords += saleResult.savedRecords;
@@ -582,6 +585,42 @@ async function saveOrder(record: unknown, maps: InvoiceMaps) {
   );
 
   return true;
+}
+
+async function syncModifiedInvoices(fromDate: Date): Promise<SyncStats> {
+  const maps: InvoiceMaps = {
+    productIds: await loadProductIds(),
+    customerIds: await loadCustomerIds(),
+    branchIds: await loadBranchIds()
+  };
+  let currentItem = 0;
+  let totalRecords = 0;
+  let savedRecords = 0;
+  const endpoint = `/invoices?lastModifiedFrom=${encodeURIComponent(
+    formatKiotVietDate(fromDate)
+  )}&orderBy=modifiedDate&orderDirection=Desc`;
+
+  while (true) {
+    const page = await fetchKiotVietPage(endpoint, currentItem, invoicePageSize);
+    totalRecords = page.totalRecords;
+
+    for (const record of page.records) {
+      const saved = await saveInvoice(record, maps);
+
+      if (saved) {
+        savedRecords += 1;
+      }
+    }
+
+    if (page.records.length < invoicePageSize || currentItem + page.records.length >= totalRecords) {
+      break;
+    }
+
+    currentItem += invoicePageSize;
+    await delay(80);
+  }
+
+  return { totalRecords, savedRecords };
 }
 
 async function syncInvoicesByDateRange(fromDate: Date, toDate: Date): Promise<SyncStats> {

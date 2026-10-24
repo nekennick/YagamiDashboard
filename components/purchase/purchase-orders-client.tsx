@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   Truck,
   Plus,
-  Printer,
   Search,
   RotateCw,
   Settings2,
@@ -522,39 +521,32 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {o.syncStatus !== "SYNCED" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditDraft(o)}
-                                className="h-7 px-2 text-xs font-semibold flex items-center gap-1 border-amber-300 bg-amber-50/60 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-                                title="Sửa phiếu tạm này"
-                              >
-                                <Pencil className="h-3 w-3" />
-                                Sửa
-                              </Button>
+                            {o.syncStatus !== "SYNCED" ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditDraft(o)}
+                                  className="h-7 px-2 text-xs font-semibold flex items-center gap-1 border-amber-300 bg-amber-50/60 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                                  title="Sửa phiếu tạm này"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  Sửa
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteDraft(o.id, o.code)}
+                                  disabled={deletingId === o.id}
+                                  className="h-7 w-7 p-0 text-xs font-medium flex items-center justify-center border-slate-200 text-slate-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-slate-800 dark:hover:bg-red-950/40"
+                                  title="Xóa phiếu tạm"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
                             )}
-                            {o.syncStatus !== "SYNCED" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteDraft(o.id, o.code)}
-                                disabled={deletingId === o.id}
-                                className="h-7 w-7 p-0 text-xs font-medium flex items-center justify-center border-slate-200 text-slate-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-slate-800 dark:hover:bg-red-950/40"
-                                title="Xóa phiếu tạm"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenPrint(o, false)}
-                              className="h-7 px-2.5 text-xs font-medium flex items-center gap-1.5 border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300"
-                            >
-                              <Printer className="h-3.5 w-3.5" />
-                              In phiếu
-                            </Button>
                           </div>
                         </td>
                       </tr>

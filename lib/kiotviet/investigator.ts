@@ -1,0 +1,298 @@
+import { prisma } from "@/lib/prisma";
+import { fetchKiotVietPage } from "@/lib/kiotviet/client";
+import { kiotVietInvoiceUrl, kiotVietStocktakeUrl } from "@/lib/kiotviet/links";
+import { operationalDayEnd, operationalDayStart } from "@/lib/inventory-ledger";
+
+export interface SuspectDocument {
+  documentType: "INVOICE" | "STOCKTAKE" | "DAMAGED_GOODS" | "INTERNAL_USE" | "RETURN";
+  code: string;
+  action: "CANCELLED" | "MODIFIED" | "CREATED";
+  actionTime: string;
+  operatorName?: string;
+  partnerName?: string;
+  originalDate?: string;
+  branchName?: string;
+  quantityDelta: number;
+  quantityBefore?: number;
+  quantityAfter?: number;
+  replacementCode?: string;
+  note?: string;
+  kiotVietUrl?: string;
+}
+
+export interface InvestigationResult {
+  found: boolean;
+  summary: string;
+  suspectDocuments: SuspectDocument[];
+  snapshotJump?: {
+    beforeTime: string;
+    beforeOnHand: number;
+    afterTime: string;
+    afterOnHand: number;
+    delta: number;
+  } | null;
+  productName: string;
+  productCode: string;
+  adjustment: number;
+}
+
+interface RawInvoiceDetail {
+  productId?: number;
+  productCode?: string;
+  productName?: string;
+  quantity?: number;
+}
+
+interface RawInvoice {
+  id?: number;
+  code?: string;
+  branchId?: number;
+  branchName?: string;
+  soldByName?: string;
+  customerName?: string;
+  customerCode?: string;
+  status?: number;
+  statusValue?: string;
+  modifiedDate?: string;
+  createdDate?: string;
+  purchaseDate?: string;
+  total?: number;
+  invoiceDetails?: RawInvoiceDetail[];
+}
+
+export async function investigateDiscrepancy({
+  productId,
+  branchId,
+  operationalDate,
+  adjustment
+}: {
+  productId: number;
+  branchId: number;
+  operationalDate?: string;
+  adjustment: number;
+}): Promise<InvestigationResult> {
+  const [product, branch] = await Promise.all([
+    prisma.product.findUnique({ where: { id: productId } }),
+    prisma.branch.findUnique({ where: { id: branchId } })
+  ]);
+
+  if (!product) {
+    throw new Error(`Không tìm thấy sản phẩm có ID: ${productId}`);
+  }
+
+  const dateStr = operationalDate || new Date().toISOString().slice(0, 10);
+  const operationalStart = operationalDayStart(dateStr);
+  const operationalEnd = operationalDayEnd(dateStr);
+
+  // 1. Phân tích snapshot trong cơ sở dữ liệu để tìm khung giờ có bước nhảy tồn kho
+  const snapshots = await prisma.inventorySnapshot.findMany({
+    where: {
+      productId,
+      branchId,
+      createdAt: { gte: operationalStart, lte: operationalEnd }
+    },
+    orderBy: { createdAt: "asc" }
+  });
+
+  let snapshotJump: InvestigationResult["snapshotJump"] = null;
+  if (snapshots.length >= 2) {
+    let closestDiff = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < snapshots.length - 1; i++) {
+      const before = snapshots[i];
+      const after = snapshots[i + 1];
+      const delta = Number(after.onHand) - Number(before.onHand);
+      if (Math.abs(delta) > 0.000001) {
+        // Tìm bước nhảy có độ lệch khớp nhất với adjustment
+        const diff = Math.abs(delta - adjustment);
+        if (diff < closestDiff || (diff < 0.001 && snapshotJump === null)) {
+          closestDiff = diff;
+          snapshotJump = {
+            beforeTime: before.createdAt.toISOString(),
+            beforeOnHand: Number(before.onHand),
+            afterTime: after.createdAt.toISOString(),
+            afterOnHand: Number(after.onHand),
+            delta
+          };
+        }
+      }
+    }
+  }
+
+  const suspectDocuments: SuspectDocument[] = [];
+  const kvBranchId = branch?.kvBranchId ? Number(branch.kvBranchId) : null;
+
+  // 2. Tra cứu phiếu kiểm kho bị hủy trong cơ sở dữ liệu
+  const cancelledStocktakes = await prisma.stocktakeLine.findMany({
+    where: {
+      productId,
+      stocktakeDocument: {
+        status: 0,
+        branchId,
+        OR: [
+          { sourceModifiedAt: { gte: operationalStart, lt: operationalEnd } },
+          { sourceModifiedAt: null, sourceCreatedAt: { gte: operationalStart, lt: operationalEnd } }
+        ]
+      }
+    },
+    include: {
+      stocktakeDocument: true
+    }
+  });
+
+  for (const st of cancelledStocktakes) {
+    const delta = Number(st.adjustmentValue);
+    suspectDocuments.push({
+      documentType: "STOCKTAKE",
+      code: st.stocktakeDocument.code,
+      action: "CANCELLED",
+      actionTime: (st.stocktakeDocument.sourceModifiedAt ?? st.stocktakeDocument.sourceCreatedAt)?.toISOString() ?? "",
+      operatorName: st.stocktakeDocument.createdByName ?? undefined,
+      branchName: branch?.name,
+      quantityDelta: delta,
+      note: `Phiếu kiểm kho đã hủy làm hoàn lại lượng kiểm kê ${delta > 0 ? "+" : ""}${delta}`,
+      kiotVietUrl: kiotVietStocktakeUrl(st.stocktakeDocument.code)
+    });
+  }
+
+  // 3. Quét KiotViet Public API cho hóa đơn bị sửa/hủy bằng lastModifiedFrom
+  try {
+    const modifiedInvoicesRes = await fetchKiotVietPage(
+      `/invoices?lastModifiedFrom=${encodeURIComponent(operationalStart.toISOString())}&pageSize=100`
+    );
+    const invoices = (modifiedInvoicesRes.records as RawInvoice[]) || [];
+
+    // Nhóm các hóa đơn theo mã gốc (ví dụ HD049131 và HD049131.01)
+    const invoicesByBaseCode = new Map<string, RawInvoice[]>();
+    for (const inv of invoices) {
+      if (!inv.code) continue;
+      const baseCode = inv.code.replace(/\.\d+$/, "");
+      const list = invoicesByBaseCode.get(baseCode) || [];
+      list.push(inv);
+      invoicesByBaseCode.set(baseCode, list);
+    }
+
+    // Duyệt qua các nhóm hóa đơn để so khớp biến động của sản phẩm
+    for (const [baseCode, group] of invoicesByBaseCode.entries()) {
+      // Tìm xem sản phẩm có xuất hiện trong nhóm này không
+      const hasProduct = group.some((inv) =>
+        (inv.invoiceDetails || []).some(
+          (d) => d.productCode === product.code || d.productId === Number(product.kvProductId)
+        )
+      );
+      if (!hasProduct) continue;
+
+      const cancelledInvs = group.filter((inv) => inv.status === 2 || inv.statusValue === "Đã hủy");
+      const activeInvs = group.filter((inv) => inv.status !== 2 && inv.statusValue !== "Đã hủy");
+
+      // Trường hợp 1: Có đơn hủy và có đơn thay thế (.01)
+      if (cancelledInvs.length > 0 && activeInvs.length > 0) {
+        const cancelled = cancelledInvs[0];
+        const active = activeInvs[0];
+
+        const oldDetail = (cancelled.invoiceDetails || []).find(
+          (d) => d.productCode === product.code || d.productId === Number(product.kvProductId)
+        );
+        const newDetail = (active.invoiceDetails || []).find(
+          (d) => d.productCode === product.code || d.productId === Number(product.kvProductId)
+        );
+
+        const oldQty = oldDetail?.quantity ?? 0;
+        const newQty = newDetail?.quantity ?? 0;
+        const diff = newQty - oldQty;
+
+        // Nếu số lượng thay đổi hoặc món bị xóa khỏi đơn
+        if (Math.abs(diff) > 0.000001) {
+          const delta = -diff; // Xuất ít đi -> kho tăng (+), xuất nhiều lên -> kho giảm (-)
+          suspectDocuments.push({
+            documentType: "INVOICE",
+            code: cancelled.code || baseCode,
+            action: "MODIFIED",
+            actionTime: cancelled.modifiedDate || active.createdDate || "",
+            operatorName: cancelled.soldByName || active.soldByName,
+            partnerName: active.customerName || cancelled.customerName,
+            originalDate: cancelled.purchaseDate,
+            branchName: active.branchName || cancelled.branchName,
+            quantityBefore: oldQty,
+            quantityAfter: newQty,
+            quantityDelta: delta,
+            replacementCode: active.code,
+            note: `Hóa đơn được chỉnh sửa từ ${oldQty} thành ${newQty} (thay thế bởi ${active.code}), ảnh hưởng tồn ${delta > 0 ? "+" : ""}${delta}`,
+            kiotVietUrl: kiotVietInvoiceUrl(active.code || baseCode)
+          });
+        }
+      } else if (cancelledInvs.length > 0 && activeInvs.length === 0) {
+        // Trường hợp 2: Đơn bị hủy hoàn toàn tại chi nhánh này (ví dụ HD048854)
+        for (const cancelled of cancelledInvs) {
+          const detail = (cancelled.invoiceDetails || []).find(
+            (d) => d.productCode === product.code || d.productId === Number(product.kvProductId)
+          );
+          if (!detail || !detail.quantity) continue;
+
+          // Kiểm tra xem đơn này có thuộc chi nhánh đang kiểm tra không
+          const isTargetBranch = kvBranchId === null || cancelled.branchId === kvBranchId;
+          if (!isTargetBranch) continue;
+
+          // Tìm xem có đơn nào khác thay thế (ví dụ chuyển sang chi nhánh khác hoặc lùi ngày)
+          const potentialReplacement = invoices.find(
+            (inv) =>
+              inv.code !== cancelled.code &&
+              inv.status !== 2 &&
+              inv.customerCode === cancelled.customerCode &&
+              (inv.invoiceDetails || []).some(
+                (d) =>
+                  (d.productCode === product.code || d.productId === Number(product.kvProductId)) &&
+                  d.quantity === detail.quantity
+              )
+          );
+
+          const delta = detail.quantity; // Hủy đơn bán hàng -> cộng hoàn kho (+)
+          suspectDocuments.push({
+            documentType: "INVOICE",
+            code: cancelled.code || baseCode,
+            action: "CANCELLED",
+            actionTime: cancelled.modifiedDate || "",
+            operatorName: cancelled.soldByName,
+            partnerName: cancelled.customerName,
+            originalDate: cancelled.purchaseDate,
+            branchName: cancelled.branchName,
+            quantityBefore: detail.quantity,
+            quantityAfter: 0,
+            quantityDelta: delta,
+            replacementCode: potentialReplacement?.code,
+            note: potentialReplacement
+              ? `Hóa đơn cũ tại ${cancelled.branchName} bị hủy làm hoàn kho +${delta}. Đơn thay thế ${potentialReplacement.code} được xuất tại ${potentialReplacement.branchName}.`
+              : `Hóa đơn cũ (ngày ${cancelled.purchaseDate?.slice(0, 10)}) bị hủy làm hoàn lại tồn kho +${delta}.`,
+            kiotVietUrl: kiotVietInvoiceUrl(cancelled.code || baseCode)
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Lỗi khi quét KiotViet API để điều tra:", err);
+  }
+
+  // 4. Tổng kết nguyên nhân
+  const totalSuspectDelta = suspectDocuments.reduce((sum, doc) => sum + doc.quantityDelta, 0);
+  const found = suspectDocuments.length > 0;
+
+  let summary = "";
+  if (found) {
+    if (Math.abs(totalSuspectDelta - adjustment) < 0.0001) {
+      summary = `Đã tìm thấy nguyên nhân chính xác 100%: Phát sinh từ ${suspectDocuments.length} chứng từ bị hủy/sửa trên KiotViet làm ảnh hưởng tồn ${totalSuspectDelta > 0 ? "+" : ""}${totalSuspectDelta}.`;
+    } else {
+      summary = `Đã phát hiện ${suspectDocuments.length} chứng từ bị hủy/sửa tác động ${totalSuspectDelta > 0 ? "+" : ""}${totalSuspectDelta} vào số tồn kho.`;
+    }
+  } else {
+    summary = `Chưa tìm thấy chứng từ hủy/sửa trực tiếp giải thích mức lệch ${adjustment > 0 ? "+" : ""}${adjustment}.`;
+  }
+
+  return {
+    found,
+    summary,
+    suspectDocuments,
+    snapshotJump,
+    productName: product.name,
+    productCode: product.code || "",
+    adjustment
+  };
+}

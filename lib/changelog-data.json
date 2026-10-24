@@ -1,7 +1,14 @@
 [
   {
-    "hash": "84a4085bc926464fb917c20a4b4bb27d897b0fc3",
-    "shortHash": "84a4085",
+    "hash": "ba729764f264fd5c40dcba8ac63fffb8d7ccbcc0",
+    "shortHash": "ba72976",
+    "message": "feat(purchase): ưu tiên lấy số lượng từ cột Tổng số lượng nhận khi đồng bộ Google Sheet và hỗ trợ tính toán biểu thức",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
+    "hash": "0cae503d8cbea1fb61359a46b761d1db3e88a78d",
+    "shortHash": "0cae503",
     "message": "feat(stock-out): sinh mã phiếu xuất tự động chuẩn PX_Năm_Tháng_Ngày và tự thêm đuôi .01 khi có nhiều phiếu trong ngày",
     "author": "nekennick",
     "date": "2026-10-24"
