@@ -1,5 +1,12 @@
 [
   {
+    "hash": "f513036feb2797d3a1e44ab02586588e6af2d957",
+    "shortHash": "f513036",
+    "message": "feat(inventory): thêm công cụ điều tra chênh lệch kho KiotViet thời gian thực và nút xác nhận ẩn cảnh báo",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
     "hash": "ba729764f264fd5c40dcba8ac63fffb8d7ccbcc0",
     "shortHash": "ba72976",
     "message": "feat(purchase): ưu tiên lấy số lượng từ cột Tổng số lượng nhận khi đồng bộ Google Sheet và hỗ trợ tính toán biểu thức",
