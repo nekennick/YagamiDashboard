@@ -145,9 +145,23 @@ function normalizeHeader(val: string): string {
 function parseDecimal(val: unknown): number {
   if (typeof val === "number" && Number.isFinite(val)) return val;
   if (!val) return 0;
-  const str = String(val).trim().replace(/\s+/g, "").replace(",", ".");
+  let str = String(val).trim().replace(/\s+/g, "").replace(",", ".");
+  // Thay thế dấu 'x' hoặc 'X' trong phép nhân thành '*' (ví dụ 25x5 -> 25*5)
+  str = str.replace(/(\d)[xX](\d)/g, "$1*$2");
+
   const num = Number(str);
-  return Number.isFinite(num) ? num : 0;
+  if (Number.isFinite(num)) return num;
+
+  // Hỗ trợ tính biểu thức toán học dạng số (ví dụ: 25*5+6, 25*5+5, 10+20, 50*2)
+  if (/^[0-9+*./()-]+$/.test(str)) {
+    try {
+      const result = Function(`"use strict"; return (${str});`)();
+      if (typeof result === "number" && Number.isFinite(result)) {
+        return result;
+      }
+    } catch {}
+  }
+  return 0;
 }
 
 export async function getSavedGoogleSheetUrl(): Promise<string> {
@@ -208,6 +222,7 @@ export async function fetchAndPreviewGoogleSheet(customUrl?: string): Promise<Go
   let colTenHang = -1;
   let colDonViTinh = -1;
   let colSoLuong = -1;
+  let colTongSoLuong = -1;
   let headerRowIndex = 0;
 
   for (let r = 0; r < Math.min(5, rows.length); r++) {
@@ -228,19 +243,34 @@ export async function fetchAndPreviewGoogleSheet(customUrl?: string): Promise<Go
         colTenHang = c;
       } else if (["donvitinh", "don vi tinh", "dvt", "unit"].some((k) => h === k || h.includes(k))) {
         colDonViTinh = c;
-      } else if (["soluongnhan", "so luong nhan", "soluong", "so luong", "sl", "qty", "quantity"].some((k) => h === k || h.includes(k))) {
+      } else if (
+        [
+          "tong so luong nhan",
+          "tong so luong",
+          "tong soluong nhan",
+          "tong soluong",
+          "tong sl nhan",
+          "tong sl"
+        ].some((k) => h === k || h.includes(k))
+      ) {
+        colTongSoLuong = c;
+      } else if (
+        ["soluongnhan", "so luong nhan", "soluong", "so luong", "sl", "qty", "quantity"].some(
+          (k) => h === k || h.includes(k)
+        )
+      ) {
         colSoLuong = c;
       }
     }
 
-    if (colMaHang !== -1 && colSoLuong !== -1) {
+    if (colMaHang !== -1 && (colTongSoLuong !== -1 || colSoLuong !== -1)) {
       headerRowIndex = r;
       break;
     }
   }
 
   // Fallback nếu không khớp được tên cột
-  if (colMaHang === -1 || colSoLuong === -1) {
+  if (colMaHang === -1 || (colSoLuong === -1 && colTongSoLuong === -1)) {
     colMaPhieu = 0;
     colNgayNhan = 1;
     colThoiGian = 2;
@@ -249,6 +279,7 @@ export async function fetchAndPreviewGoogleSheet(customUrl?: string): Promise<Go
     colTenHang = 5;
     colDonViTinh = 6;
     colSoLuong = 7;
+    colTongSoLuong = 8;
     headerRowIndex = 0;
   }
 
@@ -307,7 +338,10 @@ export async function fetchAndPreviewGoogleSheet(customUrl?: string): Promise<Go
     const rawCode = (colMaHang >= 0 && row[colMaHang] ? row[colMaHang].trim() : "");
     const rawTenHang = (colTenHang >= 0 && row[colTenHang] ? row[colTenHang].trim() : "");
     const rawDvt = (colDonViTinh >= 0 && row[colDonViTinh] ? row[colDonViTinh].trim() : "");
-    const rawQty = (colSoLuong >= 0 && row[colSoLuong] ? row[colSoLuong].trim() : "");
+    const rawTongSoLuong = (colTongSoLuong >= 0 && row[colTongSoLuong] ? row[colTongSoLuong].trim() : "");
+    const rawSoLuongNhan = (colSoLuong >= 0 && row[colSoLuong] ? row[colSoLuong].trim() : "");
+    // Ưu tiên lấy từ cột "Tổng số lượng nhận", nếu trống thì lấy ở cột "SoLuongNhan"
+    const rawQty = rawTongSoLuong || rawSoLuongNhan;
 
     // Bỏ qua dòng trống hoàn toàn
     if (!rawMaPhieu && !rawCode && !rawQty) {
