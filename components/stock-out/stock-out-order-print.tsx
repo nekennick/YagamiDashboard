@@ -12,6 +12,7 @@ export type StockOutPrintTemplateConfig = {
   formNumber?: string;
   circular?: string;
   defaultAddress?: string;
+  defaultReason?: string;
   footerNote?: string;
   showPriceAndAmount?: boolean;
   showProductCode?: boolean;
@@ -34,6 +35,7 @@ export const DEFAULT_STOCK_OUT_PRINT_SETTINGS: StockOutPrintTemplateConfig = {
   formNumber: "Mẫu số: 01 - VT",
   circular: "(Kèm theo Thông tư số 99/2025/TT-BTC\nngày 27 tháng 10 năm 2025 của Bộ trưởng Bộ Tài chính)",
   defaultAddress: "Tổ 3, Ấp 5B",
+  defaultReason: "Xuất bán cuối ngày theo báo cáo doanh thu",
   footerNote: "“Đơn giá và thành tiền trên phiếu chỉ phục vụ quản lý nội bộ theo giá bán; không phải giá nhập, giá vốn hoặc căn cứ ghi sổ kế toán.”",
   showPriceAndAmount: true,
   showProductCode: true,
@@ -95,7 +97,11 @@ export const StockOutOrderPrint: React.FC<Props> = ({
   const circular =
     config?.circular ||
     "(Kèm theo Thông tư số 99/2025/TT-BTC\nngày 27 tháng 10 năm 2025 của Bộ trưởng Bộ Tài chính)";
-  const address = order.branchAddress || config?.defaultAddress || "Tổ 3, Ấp 5B";
+  const address = config?.defaultAddress?.trim() || order.branchAddress || "Tổ 3, Ấp 5B";
+  const reason =
+    order.documentBasis?.trim() ||
+    config?.defaultReason?.trim() ||
+    "Xuất bán cuối ngày theo báo cáo doanh thu";
   const footerNote =
     config?.footerNote ||
     "“Đơn giá và thành tiền trên phiếu chỉ phục vụ quản lý nội bộ theo giá bán; không phải giá nhập, giá vốn hoặc căn cứ ghi sổ kế toán.”";
@@ -319,7 +325,7 @@ export const StockOutOrderPrint: React.FC<Props> = ({
           </div>
           <div className="flex">
             <span className="w-40 font-medium">Lý do xuất kho:</span>
-            <span>{order.documentBasis || "...................Số............Ngày.....Tháng......Năm.........của................................................................"}</span>
+            <span>{reason}</span>
           </div>
           <div className="flex items-baseline justify-between">
             <div className="flex">

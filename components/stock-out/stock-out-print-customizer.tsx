@@ -42,9 +42,9 @@ const DEFAULT_SAMPLE_ORDER: StockOutOrderPrintData = {
   code: "PX261024-3080",
   issueDate: "2026-10-24T07:26:00",
   receiverName: "Nguyễn Văn Tèo",
-  documentBasis: "Số............Ngày.....Tháng......Năm.........của................................................................",
+  documentBasis: "Xuất bán cuối ngày theo báo cáo doanh thu",
   branchName: "Tổng kho YAGAMI",
-  branchAddress: "Tổ 3, Ấp 5B",
+  branchAddress: "Tổ 3, Ấp 5B xã Ba Sao, tỉnh Đồng Tháp",
   note: "Phiếu xuất kho chuyển nội bộ nhà hàng cuối ngày",
   totalQuantity: 534.8,
   totalAmount: 91972400,
@@ -105,11 +105,28 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
     window.addEventListener("mouseup", handleMouseUp);
   };
 
-  // Sync state to JSON code editor
+  // Sync state to JSON code editor (chỉ sync khi không đang gõ ở tab Code để tránh giật con trỏ)
   useEffect(() => {
-    setJsonCode(JSON.stringify(config, null, 2));
-    setJsonError(null);
-  }, [config]);
+    if (activeTab !== "code") {
+      setJsonCode(JSON.stringify(config, null, 2));
+      setJsonError(null);
+    }
+  }, [config, activeTab]);
+
+  const handleTabChange = (tab: "visual" | "code") => {
+    if (tab === "code") {
+      setJsonCode(JSON.stringify(config, null, 2));
+      setJsonError(null);
+    } else if (tab === "visual" && !jsonError) {
+      try {
+        const parsed = JSON.parse(jsonCode);
+        setConfig(parsed);
+      } catch {
+        // bỏ qua lỗi nếu đang sửa dở
+      }
+    }
+    setActiveTab(tab);
+  };
 
   // Handle live JSON code change
   const handleJsonChange = (val: string) => {
@@ -127,16 +144,26 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
     setSaving(true);
     setMessage(null);
     try {
+      let configToSave = config;
+      if (activeTab === "code") {
+        try {
+          configToSave = JSON.parse(jsonCode);
+          setConfig(configToSave);
+        } catch (err) {
+          throw new Error("Mã JSON trong tab Code chưa đúng cú pháp: " + (err instanceof Error ? err.message : ""));
+        }
+      }
+
       const res = await fetch("/api/settings/print-template?type=stock_out", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "stock_out", ...config })
+        body: JSON.stringify({ type: "stock_out", ...configToSave })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Lỗi lưu cài đặt mẫu in");
 
       setMessage({ text: "Đã lưu cài đặt mẫu in thành công!", type: "success" });
-      if (onSaved) onSaved(config);
+      if (onSaved) onSaved(configToSave);
     } catch (err: unknown) {
       setMessage({
         text: err instanceof Error ? err.message : "Đã xảy ra lỗi khi lưu",
@@ -167,7 +194,8 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
   const circular =
     config.circular ||
     "(Kèm theo Thông tư số 99/2025/TT-BTC\nngày 27 tháng 10 năm 2025 của Bộ trưởng Bộ Tài chính)";
-  const address = sampleOrder.branchAddress || config.defaultAddress || "Tổ 3, Ấp 5B";
+  const address = config.defaultAddress?.trim() || sampleOrder.branchAddress || "Tổ 3, Ấp 5B";
+  const reason = config.defaultReason?.trim() || sampleOrder.documentBasis || "Xuất bán cuối ngày theo báo cáo doanh thu";
   const footerNote =
     config.footerNote !== undefined
       ? config.footerNote
@@ -308,7 +336,7 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
           <div className="flex items-center border-b border-slate-800 bg-slate-900/80 px-4 pt-2">
             <button
               type="button"
-              onClick={() => setActiveTab("visual")}
+              onClick={() => handleTabChange("visual")}
               className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${
                 activeTab === "visual"
                   ? "border-indigo-500 text-indigo-400"
@@ -320,7 +348,7 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("code")}
+              onClick={() => handleTabChange("code")}
               className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${
                 activeTab === "code"
                   ? "border-indigo-500 text-indigo-400"
@@ -404,7 +432,20 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
                     value={config.defaultAddress || ""}
                     onChange={(e) => setConfig({ ...config, defaultAddress: e.target.value })}
                     className="w-full h-8 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs text-white focus:border-indigo-500 outline-none"
-                    placeholder="Tổ 3, Ấp 5B"
+                    placeholder="Tổ 3, Ấp 5B xã Ba Sao, tỉnh Đồng Tháp"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                    Lý do xuất kho mặc định (khi phiếu không nhập riêng)
+                  </label>
+                  <input
+                    type="text"
+                    value={config.defaultReason || ""}
+                    onChange={(e) => setConfig({ ...config, defaultReason: e.target.value })}
+                    className="w-full h-8 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs text-white focus:border-indigo-500 outline-none"
+                    placeholder="VD: Xuất bán cuối ngày theo báo cáo doanh thu"
                   />
                 </div>
               </div>
@@ -884,7 +925,7 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
                   </div>
                   <div className="flex">
                     <span className="w-40 font-medium">Lý do xuất kho:</span>
-                    <span>{sampleOrder.documentBasis}</span>
+                    <span>{reason}</span>
                   </div>
                   <div className="flex items-baseline justify-between">
                     <div className="flex">

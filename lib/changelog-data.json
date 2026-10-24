@@ -1,7 +1,14 @@
 [
   {
-    "hash": "33f1ee00144ea3b6f322be4adf0bb7be22f79baa",
-    "shortHash": "33f1ee0",
+    "hash": "eec46169a96e2f5a5f185c0271b69a784a460d4c",
+    "shortHash": "eec4616",
+    "message": "fix(stock-out): khắc phục địa chỉ mẫu in không cập nhật, loại bỏ chữ 'Số...' ở lý do xuất kho và đồng bộ live code",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
+    "hash": "1bce36d37ee47a40f905597f5e23a7337772ab15",
+    "shortHash": "1bce36d",
     "message": "chore(changelog): cập nhật thông báo phiên bản và lịch sử cập nhật mới nhất",
     "author": "nekennick",
     "date": "2026-10-24"
