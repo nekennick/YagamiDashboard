@@ -39,13 +39,13 @@ type Props = {
 
 // Dữ liệu mẫu chuẩn sát thực tế khớp đúng với Hình 1 của người dùng
 const DEFAULT_SAMPLE_ORDER: StockOutOrderPrintData = {
-  code: "PX261024-3080",
+  code: "PX20261024",
   issueDate: "2026-10-24T07:26:00",
   receiverName: "Nguyễn Văn Tèo",
   documentBasis: "Xuất bán cuối ngày theo báo cáo doanh thu",
   branchName: "Tổng kho YAGAMI",
   branchAddress: "Tổ 3, Ấp 5B xã Ba Sao, tỉnh Đồng Tháp",
-  note: "Phiếu xuất kho chuyển nội bộ nhà hàng cuối ngày",
+  note: "",
   totalQuantity: 534.8,
   totalAmount: 91972400,
   items: [
@@ -231,8 +231,8 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
     config.fontSize === "xs"
       ? "11px"
       : config.fontSize === "base"
-      ? "14px"
-      : "12px";
+        ? "14px"
+        : "12px";
 
   const formattedDate = "24/10/2026 07:26";
   const words = numberToVietnameseWords(sampleOrder.totalAmount);
@@ -308,11 +308,10 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
       {/* Status Alert Banner */}
       {message && (
         <div
-          className={`flex items-center justify-between px-6 py-2 text-xs font-medium border-b ${
-            message.type === "success"
+          className={`flex items-center justify-between px-6 py-2 text-xs font-medium border-b ${message.type === "success"
               ? "bg-emerald-950/60 text-emerald-300 border-emerald-800"
               : "bg-red-950/60 text-red-300 border-red-800"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             {message.type === "success" ? (
@@ -337,11 +336,10 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => handleTabChange("visual")}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${
-                activeTab === "visual"
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${activeTab === "visual"
                   ? "border-indigo-500 text-indigo-400"
                   : "border-transparent text-slate-400 hover:text-slate-200"
-              }`}
+                }`}
             >
               <Sliders className="h-4 w-4" />
               Thiết lập trực quan
@@ -349,11 +347,10 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => handleTabChange("code")}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${
-                activeTab === "code"
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${activeTab === "code"
                   ? "border-indigo-500 text-indigo-400"
                   : "border-transparent text-slate-400 hover:text-slate-200"
-              }`}
+                }`}
             >
               <Code2 className="h-4 w-4" />
               Chế độ mã (Live Code & CSS)
@@ -474,11 +471,10 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
                           key={align}
                           type="button"
                           onClick={() => setConfig({ ...config, headerLeftAlign: align })}
-                          className={`flex-1 py-1 text-center rounded text-xs flex items-center justify-center gap-1 transition ${
-                            (config.headerLeftAlign || "center") === align
+                          className={`flex-1 py-1 text-center rounded text-xs flex items-center justify-center gap-1 transition ${(config.headerLeftAlign || "center") === align
                               ? "bg-indigo-600 text-white font-medium shadow-sm"
                               : "text-slate-400 hover:text-white"
-                          }`}
+                            }`}
                         >
                           {align === "left" && <AlignLeft className="h-3 w-3" />}
                           {align === "center" && <AlignCenter className="h-3 w-3" />}
@@ -499,11 +495,10 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
                           key={align}
                           type="button"
                           onClick={() => setConfig({ ...config, headerRightAlign: align })}
-                          className={`flex-1 py-1 text-center rounded text-xs flex items-center justify-center gap-1 transition ${
-                            (config.headerRightAlign || "center") === align
+                          className={`flex-1 py-1 text-center rounded text-xs flex items-center justify-center gap-1 transition ${(config.headerRightAlign || "center") === align
                               ? "bg-indigo-600 text-white font-medium shadow-sm"
                               : "text-slate-400 hover:text-white"
-                          }`}
+                            }`}
                         >
                           {align === "left" && <AlignLeft className="h-3 w-3" />}
                           {align === "center" && <AlignCenter className="h-3 w-3" />}
@@ -543,11 +538,10 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
                           key={preset.val}
                           type="button"
                           onClick={() => setConfig({ ...config, headerLeftWidth: preset.val })}
-                          className={`px-2 py-0.5 rounded text-[10px] font-mono border transition ${
-                            (config.headerLeftWidth || 50) === preset.val
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono border transition ${(config.headerLeftWidth || 50) === preset.val
                               ? "border-indigo-500 bg-indigo-600/30 text-indigo-300 font-semibold"
                               : "border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200"
-                          }`}
+                            }`}
                         >
                           {preset.label}
                         </button>
@@ -874,9 +868,8 @@ export const StockOutPrintCustomizer: React.FC<Props> = ({
                       >
                         <div
                           onMouseDown={handleMouseDownHeaderResize}
-                          className={`group absolute -top-1 -bottom-1 -left-2 w-4 z-30 cursor-col-resize flex flex-col items-center justify-center hover:bg-indigo-500/10 rounded transition ${
-                            isDraggingHeader ? "bg-indigo-500/20" : ""
-                          }`}
+                          className={`group absolute -top-1 -bottom-1 -left-2 w-4 z-30 cursor-col-resize flex flex-col items-center justify-center hover:bg-indigo-500/10 rounded transition ${isDraggingHeader ? "bg-indigo-500/20" : ""
+                            }`}
                           title="Bấm giữ và kéo sang trái/phải để thay đổi độ rộng 2 cột"
                         >
                           <div className="w-0.5 h-full bg-slate-300 group-hover:bg-indigo-500 rounded-full transition-colors flex items-center justify-center">

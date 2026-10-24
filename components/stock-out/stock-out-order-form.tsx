@@ -283,9 +283,14 @@ export const StockOutOrderForm: React.FC<Props> = ({
             <FileSpreadsheet className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             Lập phiếu xuất kho mới
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Dựng lại phiếu xuất kho theo mẫu phiếu nhập tạm thời từ dữ liệu báo cáo hàng hóa cuối ngày.
-          </p>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Dựng lại phiếu xuất kho theo mẫu phiếu nhập tạm thời từ dữ liệu báo cáo hàng hóa cuối ngày.
+            </p>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-mono text-[11px] font-semibold border border-indigo-200 dark:border-indigo-900" title="Mã phiếu tự sinh chuẩn PX_Năm_Tháng_Ngày, phiếu thứ 2 trong ngày sẽ có đuôi .01">
+              Mã tự sinh: PX{reportDate.replace(/-/g, "")}
+            </span>
+          </div>
         </div>
 
         {onCancel && (

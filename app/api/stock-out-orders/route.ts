@@ -150,10 +150,61 @@ export async function POST(request: NextRequest) {
     // Thời gian của phiếu xuất kho là thời điểm lấy dữ liệu / bấm tạo
     const issueDate = body.issueDate ? new Date(body.issueDate) : new Date();
 
-    // Sinh mã phiếu xuất: PX<YYMMDD>-<4 số ngẫu nhiên>
-    const datePrefix = issueDate.toISOString().slice(2, 10).replace(/-/g, "");
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const orderCode = `PX${datePrefix}-${randomSuffix}`;
+    // Quy tắc sinh mã phiếu xuất kho:
+    // Định dạng: PX + Năm + Tháng + Ngày (VD: PX20261023)
+    // - Mỗi ngày chỉ có 1 phiếu xuất chính: PX<YYYYMMDD>
+    // - Nếu trong ngày xuất thêm phiếu sau đó: PX<YYYYMMDD>.01, PX<YYYYMMDD>.02...
+    let targetDateStr = "";
+    if (body.reportDate && /^\d{4}-\d{2}-\d{2}$/.test(body.reportDate)) {
+      targetDateStr = body.reportDate.replace(/-/g, "");
+    } else {
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      });
+      targetDateStr = formatter.format(issueDate).replace(/-/g, "");
+    }
+
+    const baseCode = `PX${targetDateStr}`;
+
+    // Tìm các phiếu xuất kho đã có trong ngày có mã bắt đầu bằng baseCode
+    const existingOrders = await prisma.stockOutOrder.findMany({
+      where: {
+        code: {
+          startsWith: baseCode
+        }
+      },
+      select: {
+        code: true
+      }
+    });
+
+    const existingCodes = new Set(existingOrders.map((o) => o.code));
+    let orderCode = baseCode;
+
+    if (existingCodes.has(baseCode)) {
+      let maxSuffix = 0;
+      for (const code of existingCodes) {
+        if (code === baseCode) continue;
+        const suffixStr = code.slice(baseCode.length);
+        if (suffixStr.startsWith(".")) {
+          const num = parseInt(suffixStr.slice(1), 10);
+          if (!isNaN(num) && num > maxSuffix) {
+            maxSuffix = num;
+          }
+        }
+      }
+
+      let nextNum = maxSuffix + 1;
+      let candidate = `${baseCode}.${String(nextNum).padStart(2, "0")}`;
+      while (existingCodes.has(candidate)) {
+        nextNum++;
+        candidate = `${baseCode}.${String(nextNum).padStart(2, "0")}`;
+      }
+      orderCode = candidate;
+    }
 
     const order = await prisma.stockOutOrder.create({
       data: {

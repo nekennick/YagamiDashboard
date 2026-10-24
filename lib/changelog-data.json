@@ -1,7 +1,14 @@
 [
   {
-    "hash": "eec46169a96e2f5a5f185c0271b69a784a460d4c",
-    "shortHash": "eec4616",
+    "hash": "84a4085bc926464fb917c20a4b4bb27d897b0fc3",
+    "shortHash": "84a4085",
+    "message": "feat(stock-out): sinh mã phiếu xuất tự động chuẩn PX_Năm_Tháng_Ngày và tự thêm đuôi .01 khi có nhiều phiếu trong ngày",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
+    "hash": "540214a82719bcbbfa268d5a2280c48ff8d5ce14",
+    "shortHash": "540214a",
     "message": "fix(stock-out): khắc phục địa chỉ mẫu in không cập nhật, loại bỏ chữ 'Số...' ở lý do xuất kho và đồng bộ live code",
     "author": "nekennick",
     "date": "2026-10-24"
