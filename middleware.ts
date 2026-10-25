@@ -4,7 +4,7 @@ import { DEFAULT_MEMBER_TABS, memberTabsCookieName } from "@/lib/auth/permission
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname === "/login" || pathname.startsWith("/api/auth/")) return NextResponse.next();
+  if (pathname === "/login" || pathname.startsWith("/api/auth/") || pathname.startsWith("/docs/")) return NextResponse.next();
 
   const rawToken = request.cookies.get(sessionCookieName)?.value;
   const session = await readSessionToken(rawToken);

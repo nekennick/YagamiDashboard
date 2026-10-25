@@ -1,0 +1,331 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Kiến Trúc Tổng Thể Hệ Thống Yagami Dashboard",
+    "subtitle": "Mô hình kết nối Next.js Dashboard, Docker, PostgreSQL, KiotViet API Cloud và Google Sheets Sync",
+    "output": "public/docs/system-architecture.html",
+    "visual_preset": "signal-flow",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "users",
+      "type": "external",
+      "icon": "person",
+      "label": "Quản lý & Thủ kho",
+      "sublabel": "Web Browser / Barcode",
+      "pos": [40, 200],
+      "size": [130, 64]
+    },
+    {
+      "id": "printers",
+      "type": "external",
+      "icon": "external",
+      "label": "Máy in Chứng từ",
+      "sublabel": "Mẫu in A4 / A5 KiotViet",
+      "pos": [40, 450],
+      "size": [130, 64]
+    },
+    {
+      "id": "reverse_proxy",
+      "type": "security",
+      "icon": "security",
+      "label": "Web Entry (:3000)",
+      "sublabel": "HTTP Server & Security",
+      "pos": [280, 200],
+      "size": [150, 64]
+    },
+    {
+      "id": "dashboard_ui",
+      "type": "frontend",
+      "icon": "frontend",
+      "label": "Dashboard Frontend",
+      "sublabel": "Next.js 14 / Tailwind UI",
+      "pos": [280, 320],
+      "size": [150, 68]
+    },
+    {
+      "id": "auth_module",
+      "type": "security",
+      "icon": "security",
+      "label": "Xác thực & Phân quyền",
+      "sublabel": "Cookie Session / RBAC",
+      "pos": [280, 450],
+      "size": [150, 64]
+    },
+    {
+      "id": "api_routes",
+      "type": "backend",
+      "icon": "backend",
+      "label": "API Handlers",
+      "sublabel": "/api/purchase, /api/stock-out",
+      "pos": [510, 200],
+      "size": [170, 64]
+    },
+    {
+      "id": "sheet_sync_engine",
+      "type": "backend",
+      "icon": "backend",
+      "label": "Sheet Sync Engine",
+      "sublabel": "Fallback col & Math Evaluator",
+      "pos": [510, 320],
+      "size": [170, 68]
+    },
+    {
+      "id": "investigator_engine",
+      "type": "backend",
+      "icon": "backend",
+      "label": "KiotViet Investigator",
+      "sublabel": "Realtime Stocktake & Diff",
+      "pos": [510, 450],
+      "size": [170, 68]
+    },
+    {
+      "id": "kiotviet_client",
+      "type": "backend",
+      "icon": "cloud",
+      "label": "KiotViet Client",
+      "sublabel": "OAuth2 Token & API Wrapper",
+      "pos": [760, 200],
+      "size": [160, 64]
+    },
+    {
+      "id": "goclaw_agent",
+      "type": "messagebus",
+      "icon": "messagebus",
+      "label": "GoClaw Agent Bridge",
+      "sublabel": "Morning Report & Zalo WS",
+      "pos": [760, 320],
+      "size": [160, 64]
+    },
+    {
+      "id": "secrets_vault",
+      "type": "security",
+      "icon": "security",
+      "label": "Docker Secrets",
+      "sublabel": "Client Secret & Token Files",
+      "pos": [760, 450],
+      "size": [160, 64]
+    },
+    {
+      "id": "postgres_db",
+      "type": "database",
+      "icon": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "Prisma ORM / Volume Data",
+      "pos": [1000, 200],
+      "size": [150, 64]
+    },
+    {
+      "id": "adminer_ui",
+      "type": "database",
+      "icon": "database",
+      "label": "Adminer DB UI",
+      "sublabel": "Port 8080 Management",
+      "pos": [1000, 320],
+      "size": [150, 64]
+    },
+    {
+      "id": "kiotviet_auth",
+      "type": "cloud",
+      "icon": "security",
+      "label": "KiotViet ID Server",
+      "sublabel": "id.kiotviet.vn (OAuth2)",
+      "pos": [1230, 160],
+      "size": [160, 64]
+    },
+    {
+      "id": "kiotviet_api",
+      "type": "cloud",
+      "icon": "cloud",
+      "label": "KiotViet Public API",
+      "sublabel": "public.kiotapi.com",
+      "pos": [1230, 290],
+      "size": [160, 64]
+    },
+    {
+      "id": "google_sheets",
+      "type": "cloud",
+      "icon": "cloud",
+      "label": "Google Sheets Cloud",
+      "sublabel": "Spreadsheet CSV Feed",
+      "pos": [1230, 440],
+      "size": [160, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker Host Environment (yagami-dashboard network)",
+      "wraps": [
+        "reverse_proxy",
+        "dashboard_ui",
+        "auth_module",
+        "api_routes",
+        "sheet_sync_engine",
+        "investigator_engine",
+        "kiotviet_client",
+        "goclaw_agent",
+        "secrets_vault",
+        "postgres_db",
+        "adminer_ui"
+      ],
+      "pad": 24
+    },
+    {
+      "kind": "security-group",
+      "label": "Next.js Web Container (yagami_dashboard_web)",
+      "wraps": [
+        "reverse_proxy",
+        "dashboard_ui",
+        "auth_module",
+        "api_routes",
+        "sheet_sync_engine",
+        "investigator_engine",
+        "kiotviet_client",
+        "goclaw_agent",
+        "secrets_vault"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "External Cloud Ecosystem (KiotViet & Google)",
+      "wraps": [
+        "kiotviet_auth",
+        "kiotviet_api",
+        "google_sheets"
+      ],
+      "pad": 20
+    }
+  ],
+  "connections": [
+    {
+      "from": "users",
+      "to": "reverse_proxy",
+      "label": "HTTPS :3000",
+      "variant": "emphasis"
+    },
+    {
+      "from": "dashboard_ui",
+      "to": "printers",
+      "label": "In phiếu A4/A5",
+      "variant": "default"
+    },
+    {
+      "from": "reverse_proxy",
+      "to": "dashboard_ui",
+      "label": "UI Request",
+      "variant": "emphasis"
+    },
+    {
+      "from": "dashboard_ui",
+      "to": "auth_module",
+      "label": "Kiểm tra Role",
+      "variant": "security"
+    },
+    {
+      "from": "dashboard_ui",
+      "to": "api_routes",
+      "label": "REST Actions",
+      "variant": "emphasis"
+    },
+    {
+      "from": "api_routes",
+      "to": "sheet_sync_engine",
+      "label": "Sync Job",
+      "variant": "default"
+    },
+    {
+      "from": "api_routes",
+      "to": "investigator_engine",
+      "label": "Audit Job",
+      "variant": "default"
+    },
+    {
+      "from": "api_routes",
+      "to": "postgres_db",
+      "label": "Prisma Client",
+      "variant": "emphasis"
+    },
+    {
+      "from": "adminer_ui",
+      "to": "postgres_db",
+      "label": "Direct SQL :5432",
+      "variant": "dashed"
+    },
+    {
+      "from": "sheet_sync_engine",
+      "to": "google_sheets",
+      "label": "Fetch CSV",
+      "variant": "emphasis"
+    },
+    {
+      "from": "api_routes",
+      "to": "kiotviet_client",
+      "label": "Tạo phiếu",
+      "variant": "emphasis"
+    },
+    {
+      "from": "investigator_engine",
+      "to": "kiotviet_client",
+      "label": "Stocktakes",
+      "variant": "emphasis"
+    },
+    {
+      "from": "secrets_vault",
+      "to": "kiotviet_client",
+      "label": "Secret Inject",
+      "variant": "security"
+    },
+    {
+      "from": "kiotviet_client",
+      "to": "kiotviet_auth",
+      "label": "OAuth2 Token",
+      "variant": "security"
+    },
+    {
+      "from": "kiotviet_client",
+      "to": "kiotviet_api",
+      "label": "Sync API Calls",
+      "variant": "emphasis"
+    },
+    {
+      "from": "goclaw_agent",
+      "to": "api_routes",
+      "label": "Report WS",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Tự động hóa & Tích hợp Nghiệp vụ",
+      "items": [
+        "Google Sheet Sync: Tự động nhận diện cột 'Tổng số lượng nhận', tính toán an toàn các biểu thức toán học (25*5+5 = 130)",
+        "Sinh mã phiếu xuất kho tự động: Quy chuẩn PX_Năm_Tháng_Ngày kèm đuôi phân biệt .01, .02",
+        "Điều tra chênh lệch kho thời gian thực: Đối soát Bán lẻ + Xuất hủy + Xuất nội bộ với tồn KiotViet"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Bảo mật & Cô lập Hạ tầng",
+      "items": [
+        "Toàn bộ ứng dụng đóng gói chuẩn Docker Compose, liên kết qua mạng container nội bộ an toàn",
+        "Bảo mật thông tin đăng nhập KiotViet & GoClaw Token thông qua cơ chế Docker Secrets",
+        "Xác thực phân quyền vai trò (Admin / Member) độc lập với tài khoản KiotViet"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Trực quan hóa & Xuất Bản",
+      "items": [
+        "Hỗ trợ in chứng từ KiotViet khổ A4 và A5 với tùy biến hiển thị kho giao / kho nhận linh hoạt",
+        "Sơ đồ kiến trúc tương tác trực tiếp với khả năng Zoom/Pan, Trace luồng dữ liệu và Dark/Light mode",
+        "Hỗ trợ tính năng Export xuất file ảnh dài PNG chất lượng cao và in trực tiếp ra file PDF"
+      ]
+    }
+  ]
+}

@@ -15,3 +15,4 @@ backups/
 *.dump
 secrets/
 *.xlsx
+.archify-repo/
