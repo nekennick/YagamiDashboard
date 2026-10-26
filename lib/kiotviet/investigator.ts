@@ -73,6 +73,28 @@ interface RawInvoice {
   invoiceDetails?: RawInvoiceDetail[];
 }
 
+interface RawPurchaseOrderDetail {
+  productId?: number;
+  productCode?: string;
+  productName?: string;
+  quantity?: number;
+}
+
+interface RawPurchaseOrder {
+  id?: number;
+  code?: string;
+  branchId?: number;
+  branchName?: string;
+  purchaseName?: string;
+  status?: number;
+  statusValue?: string;
+  modifiedDate?: string;
+  createdDate?: string;
+  purchaseDate?: string;
+  total?: number;
+  purchaseOrderDetails?: RawPurchaseOrderDetail[];
+}
+
 export async function investigateDiscrepancy({
   productId,
   branchId,
@@ -289,7 +311,47 @@ export async function investigateDiscrepancy({
       }
     }
   } catch (err) {
-    console.error("Lỗi khi quét KiotViet API để điều tra:", err);
+    console.error("Lỗi khi quét KiotViet API để điều tra hóa đơn:", err);
+  }
+
+  // 3b. Quét KiotViet Public API cho phiếu nhập hàng (Purchase Orders) bị hủy / sửa
+  try {
+    const modifiedPOsRes = await fetchKiotVietPage(
+      `/purchaseorders?lastModifiedFrom=${encodeURIComponent(operationalStart.toISOString())}&pageSize=100`
+    );
+    const purchaseOrders = (modifiedPOsRes.records as RawPurchaseOrder[]) || [];
+
+    for (const po of purchaseOrders) {
+      if (kvBranchId !== null && po.branchId && po.branchId !== kvBranchId) {
+        continue;
+      }
+
+      // KiotViet PurchaseOrder: status = 4 là ĐÃ HỦY (Cancelled)
+      if (po.status === 4 || po.statusValue === "Đã hủy") {
+        const detail = (po.purchaseOrderDetails || []).find(
+          (d: RawPurchaseOrderDetail) => d.productCode === product.code || d.productId === Number(product.kvProductId)
+        );
+        if (!detail || !detail.quantity) continue;
+
+        const delta = -detail.quantity; // Hủy phiếu nhập hàng -> TRỪ LẠI KHO (-)
+        suspectDocuments.push({
+          documentType: "PURCHASE_ORDER",
+          code: po.code || "PN_UNKNOWN",
+          action: "CANCELLED",
+          actionTime: po.modifiedDate || po.createdDate || "",
+          operatorName: po.purchaseName,
+          originalDate: po.purchaseDate,
+          branchName: po.branchName || branch?.name,
+          quantityBefore: detail.quantity,
+          quantityAfter: 0,
+          quantityDelta: delta,
+          note: `Phiếu nhập hàng cũ (ngày ${po.purchaseDate?.slice(0, 10) || "trước"}) bị hủy trên KiotViet làm giảm trừ tồn kho ${delta}.`,
+          kiotVietUrl: po.code ? kiotVietPurchaseOrderUrl(po.code) : undefined
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Lỗi khi quét KiotViet API để điều tra phiếu nhập:", err);
   }
 
   // 4. Tổng kết nguyên nhân (chỉ giữ lại chứng từ thực sự gây biến động số tồn)
