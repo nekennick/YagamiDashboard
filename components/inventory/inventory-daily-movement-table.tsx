@@ -555,6 +555,11 @@ function AdjustmentContent({
     }
   };
 
+  useEffect(() => {
+    handleInvestigate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.productId, row.branchId, operationalDate, total]);
+
   const handleToggleAck = async () => {
     if (!row.productId) return;
     setAckLoading(true);
@@ -604,8 +609,20 @@ function AdjustmentContent({
         </div>
       ) : null}
 
-      {/* Kết quả điều tra sâu thời gian thực */}
-      {investigation ? (
+      {/* Kết quả điều tra sâu thời gian thực hoặc đang tải */}
+      {investigating && !investigation ? (
+        <div className="flex flex-col items-center justify-center p-8 space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/50">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+          <div className="text-center">
+            <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">
+              Đang điều tra thời gian thực trên KiotViet API...
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Đối soát thẻ kho, lịch sử hủy/sửa hóa đơn và phân tích bước nhảy snapshot
+            </p>
+          </div>
+        </div>
+      ) : investigation ? (
         <div className="space-y-3">
           <div
             className={`rounded-xl border p-4 shadow-xs ${
@@ -631,12 +648,17 @@ function AdjustmentContent({
             {/* Bằng chứng bước nhảy thẻ kho */}
             {investigation.snapshotJump ? (
               <div className="mt-3 rounded-lg border border-slate-200/80 bg-white/80 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
-                <span className="font-semibold text-slate-900 dark:text-white">⏱️ Bằng chứng Thẻ kho:</span> Lúc{" "}
+                <span className="font-semibold text-slate-900 dark:text-white">⏱️ Bằng chứng Thẻ kho (Snapshot):</span> Lúc{" "}
                 <span className="font-mono font-medium">{formatMovementDateTime(investigation.snapshotJump.beforeTime)}</span> số tồn đang là{" "}
                 <span className="font-semibold">{formatNumber(investigation.snapshotJump.beforeOnHand)}</span>, đến{" "}
-                <span className="font-mono font-medium">{formatMovementDateTime(investigation.snapshotJump.afterTime)}</span> số tồn nhảy vọt lên{" "}
-                <span className="font-semibold">{formatNumber(investigation.snapshotJump.afterOnHand)}</span> (biến động đúng{" "}
+                <span className="font-mono font-medium">{formatMovementDateTime(investigation.snapshotJump.afterTime)}</span> số tồn thay đổi thành{" "}
+                <span className="font-semibold">{formatNumber(investigation.snapshotJump.afterOnHand)}</span> (biến động ròng giữa 2 lần chụp:{" "}
                 <span className="font-bold text-indigo-600 dark:text-indigo-400">{formatSignedNumber(investigation.snapshotJump.delta)}</span>).
+                {investigation.snapshotJump.explanation ? (
+                  <div className="mt-2.5 rounded bg-indigo-50/70 p-2.5 text-indigo-950 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/50">
+                    💡 <strong>Giải thích chi tiết:</strong> {investigation.snapshotJump.explanation}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -722,13 +744,13 @@ function AdjustmentContent({
           </div>
         </div>
       ) : (
-        /* Khi chưa bấm điều tra sâu: Hiển thị các thông tin đã lưu sẵn trong ca */
+        /* Khi chưa có kết quả điều tra KiotViet trực tiếp */
         <div className="space-y-3">
           {row.invoiceChanges.length ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3.5 py-3 text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200">
               <p className="font-semibold flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                Nguyên nhân nhận diện sẵn: Hóa đơn đã được chỉnh sửa / hủy trong ca
+                Hóa đơn hủy / sửa khớp với mức chênh lệch
               </p>
               <ul className="mt-2 space-y-1.5 text-xs">
                 {row.invoiceChanges.map((change, index) => (
@@ -747,11 +769,11 @@ function AdjustmentContent({
                         "Hóa đơn chưa có mã"
                       )}
                       <span className="ml-2 text-slate-600 dark:text-slate-400">
-                        xuất {formatNumber(change.previousQuantity)} → {formatNumber(change.currentQuantity)}
+                        (Hủy đơn / điều chỉnh đơn)
                       </span>
                     </div>
                     <div className="font-semibold text-indigo-700 dark:text-indigo-300">
-                      {formatSignedNumber(change.inventoryDelta)}
+                      Hoàn tồn: {formatSignedNumber(change.inventoryDelta)}
                       {change.occurredAt ? ` (${formatMovementDateTime(change.occurredAt)})` : ""}
                     </div>
                   </li>
@@ -762,7 +784,7 @@ function AdjustmentContent({
 
           {row.cancelledStocktakes.length ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-              <p className="font-semibold">Nguyên nhân: Phiếu kiểm kho đã hủy trong ca</p>
+              <p className="font-semibold">Phiếu kiểm kho đã hủy trong ca</p>
               <ul className="mt-2 space-y-1 text-xs">
                 {row.cancelledStocktakes.map((stocktake) => (
                   <li key={stocktake.code}>
@@ -781,6 +803,12 @@ function AdjustmentContent({
                   </li>
                 ))}
               </ul>
+            </div>
+          ) : null}
+
+          {!row.invoiceChanges.length && !row.cancelledStocktakes.length ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900/50">
+              Chưa có dữ liệu phân tích. Vui lòng bấm &quot;Điều tra chuyên sâu KiotViet&quot; bên dưới để kiểm tra trực tiếp.
             </div>
           ) : null}
         </div>
@@ -802,7 +830,7 @@ function AdjustmentContent({
           ) : (
             <>
               <Search className="h-4 w-4" />
-              <span>{investigation ? "Tra soát lại KiotViet" : "🔍 Điều tra chuyên sâu KiotViet"}</span>
+              <span>{investigation ? "Quét lại KiotViet" : "🔍 Điều tra chuyên sâu KiotViet"}</span>
             </>
           )}
         </button>

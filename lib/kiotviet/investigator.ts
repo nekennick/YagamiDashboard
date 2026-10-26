@@ -30,6 +30,7 @@ export interface InvestigationResult {
     afterTime: string;
     afterOnHand: number;
     delta: number;
+    explanation?: string;
   } | null;
   productName: string;
   productCode: string;
@@ -293,6 +294,59 @@ export async function investigateDiscrepancy({
     }
   } else {
     summary = `Chưa tìm thấy chứng từ hủy/sửa trực tiếp giải thích mức lệch ${adjustment > 0 ? "+" : ""}${adjustment}.`;
+  }
+
+  // 5. Nếu có bước nhảy snapshot, phân tích các giao dịch phát sinh trong cùng khung giờ để giải thích rõ nét
+  if (snapshotJump) {
+    const windowStart = new Date(snapshotJump.beforeTime);
+    const windowEnd = new Date(snapshotJump.afterTime);
+
+    const windowMovements = await prisma.inventoryMovement.findMany({
+      where: {
+        productId,
+        branchId,
+        isActive: true,
+        occurredAt: { gte: windowStart, lte: windowEnd }
+      }
+    });
+
+    // Gom nhóm giao dịch xuất/nhập hợp lệ trong khung giờ
+    const movementSummaryMap = new Map<string, number>();
+    for (const m of windowMovements) {
+      const code = m.documentCode || (m.sourceType === "SALE" ? "Bán hàng" : m.sourceType);
+      movementSummaryMap.set(code, (movementSummaryMap.get(code) || 0) + Number(m.quantityDelta));
+    }
+
+    const movementParts: string[] = [];
+    for (const [code, delta] of movementSummaryMap.entries()) {
+      if (Math.abs(delta) > 0.000001) {
+        movementParts.push(`${code} (${delta > 0 ? "+" : ""}${delta})`);
+      }
+    }
+
+    if (Math.abs(snapshotJump.delta - adjustment) > 0.0001) {
+      const parts: string[] = [];
+      const suspectsInWindow = validSuspects.filter((d) => {
+        if (!d.actionTime) return false;
+        const t = new Date(d.actionTime).getTime();
+        return t >= windowStart.getTime() - 5 * 60 * 1000 && t <= windowEnd.getTime() + 5 * 60 * 1000;
+      });
+
+      if (suspectsInWindow.length > 0) {
+        const suspectDesc = suspectsInWindow
+          .map((s) => `${s.action === "CANCELLED" ? "hủy" : "sửa"} ${s.code} (${s.quantityDelta > 0 ? "+" : ""}${s.quantityDelta})`)
+          .join(", ");
+        parts.push(`hoàn tồn từ ${suspectDesc}`);
+      } else {
+        parts.push(`hoàn tồn từ chứng từ can thiệp (${adjustment > 0 ? "+" : ""}${adjustment})`);
+      }
+
+      if (movementParts.length > 0) {
+        parts.push(`phát sinh giao dịch trong khung giờ: ${movementParts.join(", ")}`);
+      }
+
+      snapshotJump.explanation = `Trong khung giờ này có ${parts.join(" kết hợp cùng ")}, tạo nên mức biến động tồn ròng ${snapshotJump.delta > 0 ? "+" : ""}${snapshotJump.delta} trên thẻ kho giữa 2 lần snapshot. Còn mức lệch cả ca ${adjustment > 0 ? "+" : ""}${adjustment} là do chứng từ hủy hoàn tồn (các đơn xuất bán thông thường đã được đối trừ ở cột Xuất kho).`;
+    }
   }
 
   return {

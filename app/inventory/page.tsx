@@ -240,7 +240,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
         : [];
       const rawInvoiceChanges = invoiceChangesByProductBranch.get(key) ?? [];
       const invoiceChanges = adjustment !== null && Math.abs(adjustment) > 0.000001
-        ? rawInvoiceChanges
+        ? rawInvoiceChanges.filter((line) => Math.abs(line.inventoryDelta) > 0.000001 && Math.abs(line.inventoryDelta - adjustment) < 0.000001)
         : [];
 
       return [item.id, {
