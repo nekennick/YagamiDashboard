@@ -1,5 +1,26 @@
 [
   {
+    "hash": "db123f4c6ce10fe72c4f3ffc150440357901187d",
+    "shortHash": "db123f4",
+    "message": "fix(inventory): sửa lỗi nhận diện nhầm phiếu kiểm kho tạm (status 0) thành phiếu đã hủy và loại bỏ chứng từ có độ lệch 0",
+    "author": "nekennick",
+    "date": "2026-10-26"
+  },
+  {
+    "hash": "88ab443ee7673b7c785bbb7b3134a923cad9c509",
+    "shortHash": "88ab443",
+    "message": "feat(docs): xây dựng sơ đồ kiến trúc tổng thể hệ thống dạng html tương tác bằng archify",
+    "author": "nekennick",
+    "date": "2026-10-25"
+  },
+  {
+    "hash": "5b9a3100382ca60a540a4bd9cb66880de1a503db",
+    "shortHash": "5b9a310",
+    "message": "chore: cập nhật nhật ký phiên bản changelog",
+    "author": "nekennick",
+    "date": "2026-10-24"
+  },
+  {
     "hash": "f513036feb2797d3a1e44ab02586588e6af2d957",
     "shortHash": "f513036",
     "message": "feat(inventory): thêm công cụ điều tra chênh lệch kho KiotViet thời gian thực và nút xác nhận ẩn cảnh báo",
