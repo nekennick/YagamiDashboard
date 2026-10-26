@@ -21,6 +21,9 @@ export type ProductDailyInventoryRow = {
   date: string;
   openingOverride: number | null;
   openingOnHand: number | null;
+  openingSnapshotTime?: string | null;
+  closingSnapshotTime?: string | null;
+  isAcknowledged?: boolean;
   incoming: number;
   outgoing: number;
   transfer: number;
@@ -50,7 +53,7 @@ export async function getProductDailyInventory(params: {
   const firstDateOnly = dateOnly(fromDate);
   const lastDateOnly = dateOnly(toDate);
 
-  const [product, branch, movements, entries, snapshots] = await Promise.all([
+  const [product, branch, movements, entries, snapshots, ackSettings] = await Promise.all([
     prisma.product.findUnique({ where: { id: productId }, select: { id: true, code: true, name: true, unit: true } }),
     prisma.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true } }),
     prisma.inventoryMovement.findMany({
@@ -58,7 +61,10 @@ export async function getProductDailyInventory(params: {
         productId,
         branchId,
         isActive: true,
-        occurredAt: { gte: firstBoundary, lt: endBoundary }
+        occurredAt: {
+          gte: new Date(firstBoundary.getTime() - snapshotTargetToleranceMs),
+          lt: new Date(endBoundary.getTime() + snapshotTargetToleranceMs)
+        }
       },
       orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
       select: { id: true, sourceDocumentId: true, occurredAt: true, sourceType: true, documentCode: true, quantityDelta: true, partnerName: true }
@@ -78,11 +84,30 @@ export async function getProductDailyInventory(params: {
       },
       orderBy: { snapshotDate: "asc" },
       select: { snapshotDate: true, onHand: true }
+    }),
+    prisma.appSetting.findMany({
+      where: {
+        key: {
+          startsWith: `ack:discrepancy:${branchId}:${productId}:`
+        }
+      }
     })
   ]);
 
   if (!product || !branch) {
     return null;
+  }
+
+  const acknowledgedDates = new Set<string>();
+  for (const item of ackSettings) {
+    try {
+      const parsed = JSON.parse(item.value) as { acknowledged?: boolean };
+      if (parsed.acknowledged) {
+        const parts = item.key.split(":");
+        const datePart = parts[4];
+        if (datePart) acknowledgedDates.add(datePart);
+      }
+    } catch {}
   }
 
   const saleDocumentIds = [...new Set(movements.filter((movement) => movement.sourceType === "SALE").map((movement) => Number(movement.sourceDocumentId)).filter(Number.isInteger))];
@@ -99,7 +124,6 @@ export async function getProductDailyInventory(params: {
   });
 
   const entriesByDate = new Map(entries.map((entry) => [formatDateOnly(entry.businessDate), entry]));
-  const movementsByDate = groupMovementsByOperationalDate(enrichedMovements);
   const currentBusinessDate = formatBusinessDate(new Date());
   const rows: ProductDailyInventoryRow[] = [];
   let previousClosing: number | null = null;
@@ -109,10 +133,29 @@ export async function getProductDailyInventory(params: {
     const start = operationalDayStart(date);
     const end = operationalDayEnd(date);
     const entry = entriesByDate.get(date);
-    const dayMovements = movementsByDate.get(date) ?? [];
     const openingSnapshot = closestSnapshotTo(snapshots, start);
     const closingSnapshot = closestSnapshotTo(snapshots, end);
     const hasUsableSnapshots = Boolean(openingSnapshot && closingSnapshot);
+
+    // Dynamic Cut-off: Neo mốc chứng từ theo đúng mốc thời gian của snapshot nếu có
+    const effectiveStart = openingSnapshot ? openingSnapshot.snapshotDate : start;
+    const effectiveEnd = closingSnapshot ? closingSnapshot.snapshotDate : end;
+
+    const dayMovements: DailyInventoryMovement[] = enrichedMovements
+      .filter((m) => {
+        const time = m.occurredAt.getTime();
+        return time >= effectiveStart.getTime() && time < effectiveEnd.getTime();
+      })
+      .map((m) => ({
+        id: m.id,
+        sourceDocumentId: m.sourceDocumentId,
+        occurredAt: m.occurredAt.toISOString(),
+        sourceType: m.sourceType,
+        documentCode: m.documentCode,
+        quantityDelta: number(m.quantityDelta),
+        partnerName: m.partnerName
+      }));
+
     const transfer = sum(dayMovements.filter(isTransferMovement).map((movement) => movement.quantityDelta));
     const stocktake = sum(dayMovements.filter(isStocktakeMovement).map((movement) => movement.quantityDelta));
     const incoming = sum(dayMovements.filter((movement) => !isTransferMovement(movement) && !isStocktakeMovement(movement) && movement.quantityDelta > 0).map((movement) => movement.quantityDelta));
@@ -136,6 +179,9 @@ export async function getProductDailyInventory(params: {
       date,
       openingOverride: entry?.openingOverride === null || entry?.openingOverride === undefined ? null : number(entry.openingOverride),
       openingOnHand,
+      openingSnapshotTime: openingSnapshot ? openingSnapshot.snapshotDate.toISOString() : null,
+      closingSnapshotTime: closingSnapshot ? closingSnapshot.snapshotDate.toISOString() : null,
+      isAcknowledged: acknowledgedDates.has(date),
       incoming,
       outgoing,
       transfer,
@@ -242,25 +288,6 @@ export function eachBusinessDate(fromDate: string, toDate: string) {
   }
 
   return dates;
-}
-
-function groupMovementsByOperationalDate(movements: Array<{ id: number; sourceDocumentId: string; occurredAt: Date; sourceType: string; documentCode: string | null; quantityDelta: unknown; partnerName: string | null }>) {
-  const groups = new Map<string, DailyInventoryMovement[]>();
-  for (const movement of movements) {
-    const date = operationalDateForMovement(movement.occurredAt);
-    const rows = groups.get(date) ?? [];
-    rows.push({
-      id: movement.id,
-      sourceDocumentId: movement.sourceDocumentId,
-      occurredAt: movement.occurredAt.toISOString(),
-      sourceType: movement.sourceType,
-      documentCode: movement.documentCode,
-      quantityDelta: number(movement.quantityDelta),
-      partnerName: movement.partnerName
-    });
-    groups.set(date, rows);
-  }
-  return groups;
 }
 
 export function operationalDateForMovement(value: Date) {

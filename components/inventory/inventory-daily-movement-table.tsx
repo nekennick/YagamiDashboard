@@ -51,6 +51,11 @@ export type InventoryDailyMovementTableRow = {
   productName: string;
   unit: string;
   openingOnHand: number | null;
+  rawOpeningOnHand?: number | null;
+  isOpeningOverridden?: boolean;
+  inventoryNote?: string | null;
+  openingSnapshotTime?: string | null;
+  closingSnapshotTime?: string | null;
   incoming: number;
   outgoing: number;
   transfer: number;
@@ -222,7 +227,23 @@ export function InventoryDailyMovementTable({
                         )}
                       </td>
                       <td className="h-9 px-3 py-0.5 leading-5">{row.unit}</td>
-                      <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">{formatOptionalNumber(row.openingOnHand)}</td>
+                      <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">
+                        {row.isOpeningOverridden ? (
+                          <span
+                            className="inline-flex items-center justify-end gap-1 cursor-help"
+                            title={`Tồn đầu đã chốt thủ công từ tab Kiểm tồn (Snapshot gốc: ${formatOptionalNumber(row.rawOpeningOnHand ?? null)})`}
+                          >
+                            <span>{formatOptionalNumber(row.openingOnHand)}</span>
+                            <span className="rounded bg-sky-100 px-1 py-0.2 text-[9px] font-semibold text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                              Đã chốt
+                            </span>
+                          </span>
+                        ) : (
+                          <span title={row.openingSnapshotTime ? `Snapshot chốt: ${formatMovementDateTime(row.openingSnapshotTime)}` : undefined}>
+                            {formatOptionalNumber(row.openingOnHand)}
+                          </span>
+                        )}
+                      </td>
                       <AmountCell value={row.incoming} onClick={() => setSelection({ row, source: "incoming" })} positive />
                       <AmountCell value={row.outgoing} onClick={() => setSelection({ row, source: "outgoing" })} />
                       <SignedAmountCell value={row.transfer} onClick={() => setSelection({ row, source: "transfer" })} />
@@ -232,7 +253,10 @@ export function InventoryDailyMovementTable({
                         onClick={() => setSelection({ row, source: "adjustment" })}
                         isAcknowledged={isAck}
                       />
-                      <td className="h-9 px-3 py-0.5 text-right font-medium leading-5">
+                      <td
+                        className="h-9 px-3 py-0.5 text-right font-medium leading-5"
+                        title={row.closingSnapshotTime ? `Snapshot chốt: ${formatMovementDateTime(row.closingSnapshotTime)}` : "Số tạm tính, chưa chốt ca"}
+                      >
                         {formatOptionalNumber(row.closingOnHand ?? row.provisionalClosingOnHand)}
                         {row.closingOnHand === null && row.provisionalClosingOnHand !== null ? (
                           <span className="ml-1 text-[10px] font-medium text-amber-600">tt</span>

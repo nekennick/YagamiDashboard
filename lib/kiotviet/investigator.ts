@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { fetchKiotVietPage } from "@/lib/kiotviet/client";
-import { kiotVietInvoiceUrl, kiotVietPurchaseOrderUrl, kiotVietStocktakeUrl } from "@/lib/kiotviet/links";
+import { kiotVietInvoiceUrl, kiotVietPurchaseOrderUrl, kiotVietReturnUrl, kiotVietStocktakeUrl } from "@/lib/kiotviet/links";
 import { operationalDayEnd, operationalDayStart } from "@/lib/inventory-ledger";
 
 function formatDateTimeVN(iso: string | Date) {
@@ -93,6 +93,26 @@ interface RawPurchaseOrder {
   purchaseDate?: string;
   total?: number;
   purchaseOrderDetails?: RawPurchaseOrderDetail[];
+}
+
+interface RawReturnDetail {
+  productId?: number;
+  productCode?: string;
+  productName?: string;
+  quantity?: number;
+}
+
+interface RawReturn {
+  id?: number;
+  code?: string;
+  branchId?: number;
+  branchName?: string;
+  status?: number;
+  statusValue?: string;
+  modifiedDate?: string;
+  createdDate?: string;
+  returnDate?: string;
+  returnDetails?: RawReturnDetail[];
 }
 
 export async function investigateDiscrepancy({
@@ -352,6 +372,45 @@ export async function investigateDiscrepancy({
     }
   } catch (err) {
     console.error("Lỗi khi quét KiotViet API để điều tra phiếu nhập:", err);
+  }
+
+  // 3c. Quét KiotViet Public API cho hóa đơn trả hàng (Returns) bị hủy / sửa
+  try {
+    const modifiedReturnsRes = await fetchKiotVietPage(
+      `/returns?lastModifiedFrom=${encodeURIComponent(operationalStart.toISOString())}&pageSize=100`
+    );
+    const returnOrders = (modifiedReturnsRes.records as RawReturn[]) || [];
+
+    for (const ret of returnOrders) {
+      if (kvBranchId !== null && ret.branchId && ret.branchId !== kvBranchId) {
+        continue;
+      }
+
+      // KiotViet Return: status = 2 là ĐÃ HỦY (Cancelled)
+      if (ret.status === 2 || ret.statusValue === "Đã hủy") {
+        const detail = (ret.returnDetails || []).find(
+          (d: RawReturnDetail) => d.productCode === product.code || d.productId === Number(product.kvProductId)
+        );
+        if (!detail || !detail.quantity) continue;
+
+        const delta = -detail.quantity; // Hủy phiếu trả hàng (khách trả lại) -> trừ ngược lại khỏi kho (-)
+        suspectDocuments.push({
+          documentType: "RETURN",
+          code: ret.code || "TH_UNKNOWN",
+          action: "CANCELLED",
+          actionTime: ret.modifiedDate || ret.createdDate || "",
+          originalDate: ret.returnDate,
+          branchName: ret.branchName || branch?.name,
+          quantityBefore: detail.quantity,
+          quantityAfter: 0,
+          quantityDelta: delta,
+          note: `Phiếu khách trả hàng cũ (ngày ${ret.returnDate?.slice(0, 10) || "trước"}) bị hủy trên KiotViet làm giảm trừ tồn kho ${delta}.`,
+          kiotVietUrl: ret.code ? kiotVietReturnUrl(ret.code) : undefined
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Lỗi khi quét KiotViet API để điều tra phiếu trả hàng:", err);
   }
 
   // 4. Tổng kết nguyên nhân (chỉ giữ lại chứng từ thực sự gây biến động số tồn)

@@ -23,3 +23,7 @@ export function kiotVietInternalUseUrl(code: string) {
 export function kiotVietDamagedGoodsUrl(code: string) {
   return `${kiotVietBaseUrl}/DamagedGoods?Code=${encodeURIComponent(code)}`;
 }
+
+export function kiotVietReturnUrl(code: string) {
+  return `${kiotVietBaseUrl}/Returns?Code=${encodeURIComponent(code)}`;
+}

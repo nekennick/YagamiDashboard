@@ -10,7 +10,7 @@ import { InventoryDatePicker } from "@/components/inventory/inventory-date-picke
 import { InventoryScreenshotButton } from "@/components/inventory/inventory-screenshot-button";
 import { InventoryQuickCategoryButtons } from "@/components/inventory/inventory-quick-category-buttons";
 import { InventoryDailyMovementTable, type InventoryDailyMovementTableRow } from "@/components/inventory/inventory-daily-movement-table";
-import { calculateProvisionalClosing, closestSnapshotTo, operationalDayEnd, operationalDayStart } from "@/lib/inventory-ledger";
+import { calculateProvisionalClosing, closestSnapshotTo, dateOnly, operationalDayEnd, operationalDayStart } from "@/lib/inventory-ledger";
 import { inventoryCategoryFilter, inventoryCategoryQuickFilters, quickFilterProductOrder } from "@/lib/inventory-category-filter";
 import { prisma } from "@/lib/prisma";
 import { normalizeWarehouseFilter, warehouseBranchWhere, warehouseFilterOptions, warehouseSelectClassName } from "@/lib/warehouse-filter";
@@ -113,8 +113,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
     const operationalEnd = operationalDayEnd(operationalDate);
     const selectedProductIds = [...new Set(items.map((item) => item.productId))];
     const selectedBranchIds = [...new Set(items.map((item) => item.branchId))];
-    const [dailySnapshots, dailyMovements, cancelledStocktakeLines, invoiceItemChanges, pendingCountLines, ackSettings] = selectedProductIds.length === 0
-      ? [[], [], [], [], [], []]
+    const [dailySnapshots, dailyMovements, cancelledStocktakeLines, invoiceItemChanges, pendingCountLines, ackSettings, dailyEntries] = selectedProductIds.length === 0
+      ? [[], [], [], [], [], [], []]
       : await Promise.all([
         prisma.inventorySnapshot.findMany({
           where: {
@@ -133,7 +133,10 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             productId: { in: selectedProductIds },
             branchId: { in: selectedBranchIds },
             isActive: true,
-            occurredAt: { gte: operationalStart, lt: operationalEnd }
+            occurredAt: {
+              gte: new Date(operationalStart.getTime() - 2 * 60 * 60 * 1000),
+              lt: new Date(operationalEnd.getTime() + 2 * 60 * 60 * 1000)
+            }
           },
           select: { id: true, productId: true, branchId: true, sourceDocumentId: true, sourceType: true, documentCode: true, occurredAt: true, quantityDelta: true, partnerName: true }
         }),
@@ -188,6 +191,14 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
               endsWith: `:${operationalDate}`
             }
           }
+        }),
+        prisma.productDailyInventoryEntry.findMany({
+          where: {
+            productId: { in: selectedProductIds },
+            branchId: { in: selectedBranchIds },
+            businessDate: dateOnly(operationalDate)
+          },
+          select: { productId: true, branchId: true, openingOverride: true, actualOnHand: true, note: true }
         })
       ]);
     const saleDocumentIds = [...new Set(dailyMovements.filter((movement) => movement.sourceType === "SALE" && !movement.partnerName).map((movement) => Number(movement.sourceDocumentId)).filter(Number.isInteger))];
@@ -219,17 +230,36 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       productBranchKey(line.productId, line.session.branchId),
       { difference: toNumber(line.difference), actualCount: toNumber(line.actualCount) }
     ]));
+    const dailyEntriesByProductBranch = new Map(dailyEntries.map((e) => [
+      productBranchKey(e.productId, e.branchId),
+      e
+    ]));
     const dailyByInventoryId = new Map(items.map((item) => {
       const key = productBranchKey(item.productId, item.branchId);
       const snapshots = snapshotsByProductBranch.get(key) ?? [];
-      const movements = movementsByProductBranch.get(key) ?? [];
+      const rawMovements = movementsByProductBranch.get(key) ?? [];
       const openingSnapshot = closestSnapshotTo(snapshots, operationalStart);
       const closingSnapshot = closestSnapshotTo(snapshots, operationalEnd);
+
+      // Dynamic Cut-off: Neo mốc chứng từ theo đúng mốc thời gian của snapshot nếu có
+      const effectiveStart = openingSnapshot ? openingSnapshot.snapshotDate : operationalStart;
+      const effectiveEnd = closingSnapshot ? closingSnapshot.snapshotDate : operationalEnd;
+      const movements = rawMovements.filter((movement) => {
+        const time = new Date(movement.occurredAt).getTime();
+        return time >= effectiveStart.getTime() && time < effectiveEnd.getTime();
+      });
+
       const transfer = sum(movements.filter((movement) => isTransferMovement(movement.sourceType)).map((movement) => toNumber(movement.quantityDelta)));
       const stocktake = sum(movements.filter((movement) => isStocktakeMovement(movement.sourceType)).map((movement) => toNumber(movement.quantityDelta)));
       const incoming = sum(movements.filter((movement) => !isTransferMovement(movement.sourceType) && !isStocktakeMovement(movement.sourceType) && toNumber(movement.quantityDelta) > 0).map((movement) => toNumber(movement.quantityDelta)));
       const outgoing = Math.abs(sum(movements.filter((movement) => !isTransferMovement(movement.sourceType) && !isStocktakeMovement(movement.sourceType) && toNumber(movement.quantityDelta) < 0).map((movement) => toNumber(movement.quantityDelta))));
-      const openingOnHand = openingSnapshot ? toNumber(openingSnapshot.onHand) : null;
+
+      const dailyEntry = dailyEntriesByProductBranch.get(key);
+      const isOpeningOverridden = dailyEntry?.openingOverride !== null && dailyEntry?.openingOverride !== undefined;
+      const rawOpeningOnHand = openingSnapshot ? toNumber(openingSnapshot.onHand) : null;
+      const openingOnHand = isOpeningOverridden
+        ? toNumber(dailyEntry.openingOverride)
+        : rawOpeningOnHand;
       const closingOnHand = closingSnapshot ? toNumber(closingSnapshot.onHand) : null;
       const adjustment = openingOnHand !== null && closingOnHand !== null
         ? closingOnHand - (openingOnHand + incoming - outgoing + transfer + stocktake)
@@ -245,6 +275,11 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
 
       return [item.id, {
         openingOnHand,
+        rawOpeningOnHand,
+        isOpeningOverridden,
+        inventoryNote: dailyEntry?.note ?? null,
+        openingSnapshotTime: openingSnapshot ? openingSnapshot.snapshotDate.toISOString() : null,
+        closingSnapshotTime: closingSnapshot ? closingSnapshot.snapshotDate.toISOString() : null,
         incoming,
         outgoing,
         transfer,
@@ -346,6 +381,11 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       productName: item.product.name,
       unit: item.product.unit ?? "-",
       openingOnHand: daily?.openingOnHand ?? null,
+      rawOpeningOnHand: daily?.rawOpeningOnHand ?? null,
+      isOpeningOverridden: daily?.isOpeningOverridden ?? false,
+      inventoryNote: daily?.inventoryNote ?? null,
+      openingSnapshotTime: daily?.openingSnapshotTime ?? null,
+      closingSnapshotTime: daily?.closingSnapshotTime ?? null,
       incoming: daily?.incoming ?? 0,
       outgoing: daily?.outgoing ?? 0,
       transfer: daily?.transfer ?? 0,
