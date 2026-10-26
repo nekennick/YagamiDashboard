@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Không tìm thấy chi nhánh" }, { status: 404 });
     }
 
-    // Xác định khung giờ vận hành cho ngày được chọn (từ 17:00 ngày trước đến thời điểm hiện tại hoặc 17:00 hôm nay)
+    // Xác định khung giờ vận hành cho ngày được chọn (từ 18:00 ngày trước đến thời điểm hiện tại hoặc 18:00 hôm nay)
     const startBoundary = operationalDayStart(dateStr);
     const endBoundary = operationalDayEnd(dateStr);
     const now = new Date();

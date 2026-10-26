@@ -588,7 +588,7 @@ function AdjustmentContent({
       {/* Thông tin đối chiếu cơ bản */}
       <div className="rounded-lg bg-slate-50 p-3.5 border border-slate-200 dark:bg-slate-800/60 dark:border-slate-700/60 text-xs space-y-1.5">
         <p>
-          <span className="font-semibold text-slate-900 dark:text-white">Nguồn đối soát:</span> Đối chiếu snapshot chốt tồn lúc 17:00 trên KiotViet.
+          <span className="font-semibold text-slate-900 dark:text-white">Nguồn đối soát:</span> Đối chiếu snapshot chốt tồn lúc 18:00 trên KiotViet.
         </p>
         <p>
           <span className="font-semibold text-slate-900 dark:text-white">Công thức:</span> Tồn cuối snapshot trừ (Tồn đầu + Nhập − Xuất + Chuyển kho + Kiểm kê).

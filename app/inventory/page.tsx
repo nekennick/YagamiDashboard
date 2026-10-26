@@ -457,11 +457,11 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           <CardHeader className="flex flex-row items-center justify-between gap-3">
             <div>
               <CardTitle>Bảng tồn kho</CardTitle>
-              <p className="mt-1 text-xs font-normal text-slate-500">Biến động ngày {formatDate(data.operationalDate)} · Từ 17:00 hôm trước đến 17:00 hôm nay</p>
+              <p className="mt-1 text-xs font-normal text-slate-500">Biến động ngày {formatDate(data.operationalDate)} · Từ 18:00 hôm trước đến 18:00 hôm nay</p>
             </div>
             <InventoryScreenshotButton
               rows={screenshotRows}
-              snapshotLabel={`Biến động ngày ${formatDate(data.operationalDate)} · 17:00 hôm trước–17:00 hôm nay`}
+              snapshotLabel={`Biến động ngày ${formatDate(data.operationalDate)} · 18:00 hôm trước–18:00 hôm nay`}
             />
           </CardHeader>
           <CardContent>

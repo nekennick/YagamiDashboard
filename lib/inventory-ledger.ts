@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 const businessTimezoneSuffix = "+07:00";
-const closingSnapshotHour = 17;
+const closingSnapshotHour = 18;
 const businessTimezoneOffsetHours = 7;
 const snapshotTargetToleranceMs = 2 * 60 * 60 * 1000;
 

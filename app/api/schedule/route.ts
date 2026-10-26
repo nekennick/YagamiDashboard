@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const settings = await saveScheduleSettings({
       enabled: Boolean(body.enabled),
       intervalMinutes: Number(body.intervalMinutes ?? 60),
-      startTime: body.startTime ?? "17:00",
+      startTime: body.startTime ?? "18:00",
       syncTypes: Array.isArray(body.syncTypes) ? body.syncTypes : undefined,
       groups
     });

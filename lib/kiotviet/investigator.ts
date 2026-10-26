@@ -314,10 +314,10 @@ export async function investigateDiscrepancy({
       const [year, month, day] = dateStr.split("-").map(Number);
       const prevDateStr = new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10);
       const nextDateStr = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
-      const prevCutoff = operationalDayStart(dateStr); // 17:00 VN ngày hôm trước
-      const currCutoff = operationalDayEnd(dateStr);   // 17:00 VN ngày hôm nay
+      const prevCutoff = operationalDayStart(dateStr); // 18:00 VN ngày hôm trước
+      const currCutoff = operationalDayEnd(dateStr);   // 18:00 VN ngày hôm nay
 
-      // Tìm các chứng từ xuất/nhập phát sinh gần mốc 17:00 (trong khoảng +- 2 giờ)
+      // Tìm các chứng từ xuất/nhập phát sinh gần mốc 18:00 (trong khoảng +- 2 giờ)
       const boundaryMovements = await prisma.inventoryMovement.findMany({
         where: {
           productId,

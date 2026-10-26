@@ -71,7 +71,7 @@ const defaultScheduleGroups: ScheduleGroupSetting[] = [
     description: "Snapshot tồn kho hiện tại, nên chạy sau cùng.",
     enabled: true,
     intervalMinutes: 1440,
-    startTime: "17:00",
+    startTime: "18:00",
     syncTypes: ["inventory"],
     lastRunAt: null
   },
@@ -287,7 +287,7 @@ function normalizeStartTime(value: string | undefined) {
     }
   }
 
-  return "17:00";
+  return "18:00";
 }
 
 function getTodayScheduledAt(startTime: string) {

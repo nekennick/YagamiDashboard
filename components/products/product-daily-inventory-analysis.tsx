@@ -139,7 +139,7 @@ export function ProductDailyInventoryAnalysis({
           <div>
             <CardTitle>Phân tích tồn kho theo ngày</CardTitle>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Sổ kho tính từ snapshot gần 17:00 hôm trước đến snapshot gần 17:00 hôm nay; tồn cuối ngày trước là tồn đầu ngày sau.
+              Sổ kho tính từ snapshot gần 18:00 hôm trước đến snapshot gần 18:00 hôm nay; tồn cuối ngày trước là tồn đầu ngày sau.
             </p>
           </div>
           <Button disabled={loading || !branchId} onClick={() => void load()} variant="secondary">
