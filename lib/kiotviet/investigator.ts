@@ -1,10 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { fetchKiotVietPage } from "@/lib/kiotviet/client";
-import { kiotVietInvoiceUrl, kiotVietStocktakeUrl } from "@/lib/kiotviet/links";
+import { kiotVietInvoiceUrl, kiotVietPurchaseOrderUrl, kiotVietStocktakeUrl } from "@/lib/kiotviet/links";
 import { operationalDayEnd, operationalDayStart } from "@/lib/inventory-ledger";
 
+function formatDateTimeVN(iso: string | Date) {
+  const d = typeof iso === "string" ? new Date(iso) : iso;
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(d);
+}
+
 export interface SuspectDocument {
-  documentType: "INVOICE" | "STOCKTAKE" | "DAMAGED_GOODS" | "INTERNAL_USE" | "RETURN";
+  documentType: "INVOICE" | "STOCKTAKE" | "DAMAGED_GOODS" | "INTERNAL_USE" | "RETURN" | "PURCHASE_ORDER";
   code: string;
   action: "CANCELLED" | "MODIFIED" | "CREATED";
   actionTime: string;
@@ -98,22 +110,26 @@ export async function investigateDiscrepancy({
   let snapshotJump: InvestigationResult["snapshotJump"] = null;
   if (snapshots.length >= 2) {
     let closestDiff = Number.POSITIVE_INFINITY;
+    // Cho phép dung sai: bước nhảy phải cùng chiều với adjustment VÀ độ lệch không quá 25% hoặc 5 đơn vị
+    const maxAllowedDiff = Math.max(5, Math.abs(adjustment) * 0.25);
     for (let i = 0; i < snapshots.length - 1; i++) {
       const before = snapshots[i];
       const after = snapshots[i + 1];
       const delta = Number(after.onHand) - Number(before.onHand);
       if (Math.abs(delta) > 0.000001) {
-        // Tìm bước nhảy có độ lệch khớp nhất với adjustment
-        const diff = Math.abs(delta - adjustment);
-        if (diff < closestDiff || (diff < 0.001 && snapshotJump === null)) {
-          closestDiff = diff;
-          snapshotJump = {
-            beforeTime: before.createdAt.toISOString(),
-            beforeOnHand: Number(before.onHand),
-            afterTime: after.createdAt.toISOString(),
-            afterOnHand: Number(after.onHand),
-            delta
-          };
+        // Chỉ chấp nhận bước nhảy cùng chiều (cùng dấu) với adjustment và nằm trong ngưỡng sai số cho phép
+        if (Math.sign(delta) === Math.sign(adjustment)) {
+          const diff = Math.abs(delta - adjustment);
+          if (diff <= maxAllowedDiff && diff < closestDiff) {
+            closestDiff = diff;
+            snapshotJump = {
+              beforeTime: before.createdAt.toISOString(),
+              beforeOnHand: Number(before.onHand),
+              afterTime: after.createdAt.toISOString(),
+              afterOnHand: Number(after.onHand),
+              delta
+            };
+          }
         }
       }
     }
@@ -279,7 +295,7 @@ export async function investigateDiscrepancy({
   // 4. Tổng kết nguyên nhân (chỉ giữ lại chứng từ thực sự gây biến động số tồn)
   const validSuspects = suspectDocuments.filter((doc) => Math.abs(doc.quantityDelta) > 0.000001);
   const totalSuspectDelta = validSuspects.reduce((sum, doc) => sum + doc.quantityDelta, 0);
-  const found = validSuspects.length > 0;
+  let found = validSuspects.length > 0;
 
   let summary = "";
   if (found) {
@@ -293,7 +309,92 @@ export async function investigateDiscrepancy({
       summary = `Đã phát hiện ${validSuspects.length} chứng từ bị hủy/sửa tác động ${totalSuspectDelta > 0 ? "+" : ""}${totalSuspectDelta} vào số tồn kho.`;
     }
   } else {
-    summary = `Chưa tìm thấy chứng từ hủy/sửa trực tiếp giải thích mức lệch ${adjustment > 0 ? "+" : ""}${adjustment}.`;
+    // 4b. Kiểm tra lệch giao thời do mốc chốt snapshot (Timing Cut-off)
+    if (Math.abs(adjustment) > 0.000001) {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      const prevDateStr = new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10);
+      const nextDateStr = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
+      const prevCutoff = operationalDayStart(dateStr); // 17:00 VN ngày hôm trước
+      const currCutoff = operationalDayEnd(dateStr);   // 17:00 VN ngày hôm nay
+
+      // Tìm các chứng từ xuất/nhập phát sinh gần mốc 17:00 (trong khoảng +- 2 giờ)
+      const boundaryMovements = await prisma.inventoryMovement.findMany({
+        where: {
+          productId,
+          branchId,
+          isActive: true,
+          OR: [
+            {
+              occurredAt: {
+                gte: new Date(prevCutoff.getTime() - 2 * 60 * 60 * 1000),
+                lte: new Date(prevCutoff.getTime() + 2 * 60 * 60 * 1000)
+              }
+            },
+            {
+              occurredAt: {
+                gte: new Date(currCutoff.getTime() - 2 * 60 * 60 * 1000),
+                lte: new Date(currCutoff.getTime() + 2 * 60 * 60 * 1000)
+              }
+            }
+          ]
+        },
+        orderBy: { occurredAt: "asc" }
+      });
+
+      for (const move of boundaryMovements) {
+        const moveDelta = Number(move.quantityDelta);
+        if (Math.abs(Math.abs(moveDelta) - Math.abs(adjustment)) < 0.001) {
+          const isNearPrev = Math.abs(move.occurredAt.getTime() - prevCutoff.getTime()) <= Math.abs(move.occurredAt.getTime() - currCutoff.getTime());
+          const targetCutoff = isNearPrev ? prevCutoff : currCutoff;
+          const targetDateLabel = isNearPrev ? prevDateStr : dateStr;
+          const otherDateLabel = isNearPrev ? dateStr : nextDateStr;
+
+          // Tìm snapshot cuối cùng trước targetCutoff
+          const lastSnapshotBeforeCutoff = await prisma.inventorySnapshot.findFirst({
+            where: {
+              productId,
+              branchId,
+              createdAt: {
+                gte: new Date(targetCutoff.getTime() - 3 * 60 * 60 * 1000),
+                lte: new Date(targetCutoff.getTime() + 1 * 60 * 60 * 1000)
+              }
+            },
+            orderBy: { createdAt: "desc" }
+          });
+
+          if (lastSnapshotBeforeCutoff) {
+            const snapshotTime = lastSnapshotBeforeCutoff.createdAt;
+            if (move.occurredAt.getTime() > snapshotTime.getTime() && move.occurredAt.getTime() <= targetCutoff.getTime()) {
+              let url: string | undefined;
+              if (move.documentCode?.startsWith("PN")) {
+                url = kiotVietPurchaseOrderUrl(move.documentCode);
+              } else if (move.documentCode?.startsWith("HD")) {
+                url = kiotVietInvoiceUrl(move.documentCode);
+              }
+
+              validSuspects.push({
+                documentType: move.sourceType === "PURCHASE" ? "PURCHASE_ORDER" : "INVOICE",
+                code: move.documentCode || "Chứng từ",
+                action: "CREATED",
+                actionTime: move.occurredAt.toISOString(),
+                branchName: branch?.name,
+                quantityDelta: moveDelta,
+                note: `Lệch mốc chốt snapshot: Chứng từ tạo lúc ${formatDateTimeVN(move.occurredAt)}, nhưng đợt chụp snapshot cuối cùng ngày ${targetDateLabel} lại chạy lúc ${formatDateTimeVN(snapshotTime)} (trước khi chứng từ phát sinh). Do đó tồn kho ngày ${targetDateLabel} chưa kịp ghi nhận số lượng này, tạo nên mức lệch bù trừ giữa ngày ${targetDateLabel} và ngày ${otherDateLabel}.`,
+                kiotVietUrl: url
+              });
+
+              found = true;
+              summary = `Đã tìm thấy nguyên nhân chính xác: Lệch giao thời do mốc chụp snapshot (Timing Cut-off). Chứng từ ${move.documentCode || ""} (${moveDelta > 0 ? "+" : ""}${moveDelta}) được tạo lúc ${formatDateTimeVN(move.occurredAt)}, nhưng đợt snapshot cuối cùng ngày ${targetDateLabel} lại chạy lúc ${formatDateTimeVN(snapshotTime)} (trước khi chứng từ phát sinh). Do đó ngày ${targetDateLabel} và ngày ${otherDateLabel} bị lệch bù trừ nhau (${adjustment > 0 ? "+" : ""}${adjustment}). Tồn kho thực tế hoàn toàn khớp và không bị thất thoát.`;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!found) {
+      summary = `Chưa tìm thấy chứng từ hủy/sửa trực tiếp giải thích mức lệch ${adjustment > 0 ? "+" : ""}${adjustment}.`;
+    }
   }
 
   // 5. Nếu có bước nhảy snapshot, phân tích các giao dịch phát sinh trong cùng khung giờ để giải thích rõ nét

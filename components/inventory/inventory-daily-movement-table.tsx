@@ -680,10 +680,16 @@ function AdjustmentContent({
                             className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
                               doc.action === "CANCELLED"
                                 ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                                : doc.action === "CREATED"
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                                 : "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
                             }`}
                           >
-                            {doc.action === "CANCELLED" ? "ĐÃ HỦY" : "CHỈNH SỬA"}
+                            {doc.action === "CANCELLED"
+                              ? "ĐÃ HỦY"
+                              : doc.action === "CREATED"
+                              ? "LỆCH GIAO THỜI"
+                              : "CHỈNH SỬA"}
                           </span>
                           <span className="font-bold text-slate-900 dark:text-white">
                             {doc.kiotVietUrl ? (
