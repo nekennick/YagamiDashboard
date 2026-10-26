@@ -122,11 +122,13 @@ export async function investigateDiscrepancy({
   const kvBranchId = branch?.kvBranchId ? Number(branch.kvBranchId) : null;
 
   // 2. Tra cứu phiếu kiểm kho bị hủy trong cơ sở dữ liệu
+  // KiotViet Stocktake: Status 0 = Phiếu tạm (Draft - không ảnh hưởng kho), Status 1 = Đã cân bằng, Status 2 = Đã hủy
   const cancelledStocktakes = await prisma.stocktakeLine.findMany({
     where: {
       productId,
+      adjustmentValue: { not: 0 },
       stocktakeDocument: {
-        status: 0,
+        status: 2, // Chỉ lấy phiếu ĐÃ HỦY (status 2), tuyệt đối không lấy phiếu tạm (status 0)
         branchId,
         OR: [
           { sourceModifiedAt: { gte: operationalStart, lt: operationalEnd } },
@@ -141,6 +143,8 @@ export async function investigateDiscrepancy({
 
   for (const st of cancelledStocktakes) {
     const delta = Number(st.adjustmentValue);
+    if (!delta || Math.abs(delta) < 0.000001) continue;
+
     suspectDocuments.push({
       documentType: "STOCKTAKE",
       code: st.stocktakeDocument.code,
@@ -271,16 +275,21 @@ export async function investigateDiscrepancy({
     console.error("Lỗi khi quét KiotViet API để điều tra:", err);
   }
 
-  // 4. Tổng kết nguyên nhân
-  const totalSuspectDelta = suspectDocuments.reduce((sum, doc) => sum + doc.quantityDelta, 0);
-  const found = suspectDocuments.length > 0;
+  // 4. Tổng kết nguyên nhân (chỉ giữ lại chứng từ thực sự gây biến động số tồn)
+  const validSuspects = suspectDocuments.filter((doc) => Math.abs(doc.quantityDelta) > 0.000001);
+  const totalSuspectDelta = validSuspects.reduce((sum, doc) => sum + doc.quantityDelta, 0);
+  const found = validSuspects.length > 0;
 
   let summary = "";
   if (found) {
     if (Math.abs(totalSuspectDelta - adjustment) < 0.0001) {
-      summary = `Đã tìm thấy nguyên nhân chính xác 100%: Phát sinh từ ${suspectDocuments.length} chứng từ bị hủy/sửa trên KiotViet làm ảnh hưởng tồn ${totalSuspectDelta > 0 ? "+" : ""}${totalSuspectDelta}.`;
+      if (validSuspects.length === 1) {
+        summary = `Đã tìm thấy nguyên nhân chính xác 100%: Phát sinh từ chứng từ ${validSuspects[0].code} bị hủy/sửa trên KiotViet làm ảnh hưởng tồn ${totalSuspectDelta > 0 ? "+" : ""}${totalSuspectDelta}.`;
+      } else {
+        summary = `Đã tìm thấy nguyên nhân chính xác 100%: Phát sinh từ ${validSuspects.length} chứng từ bị hủy/sửa trên KiotViet làm ảnh hưởng tồn ${totalSuspectDelta > 0 ? "+" : ""}${totalSuspectDelta}.`;
+      }
     } else {
-      summary = `Đã phát hiện ${suspectDocuments.length} chứng từ bị hủy/sửa tác động ${totalSuspectDelta > 0 ? "+" : ""}${totalSuspectDelta} vào số tồn kho.`;
+      summary = `Đã phát hiện ${validSuspects.length} chứng từ bị hủy/sửa tác động ${totalSuspectDelta > 0 ? "+" : ""}${totalSuspectDelta} vào số tồn kho.`;
     }
   } else {
     summary = `Chưa tìm thấy chứng từ hủy/sửa trực tiếp giải thích mức lệch ${adjustment > 0 ? "+" : ""}${adjustment}.`;
@@ -289,7 +298,7 @@ export async function investigateDiscrepancy({
   return {
     found,
     summary,
-    suspectDocuments,
+    suspectDocuments: validSuspects,
     snapshotJump,
     productName: product.name,
     productCode: product.code || "",

@@ -144,7 +144,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             adjustmentValue: { not: 0 },
             stocktakeDocument: {
               branchId: { in: selectedBranchIds },
-              status: 0,
+              status: 2,
               OR: [
                 { sourceModifiedAt: { gte: operationalStart, lt: operationalEnd } },
                 { sourceModifiedAt: null, sourceCreatedAt: { gte: operationalStart, lt: operationalEnd } }
@@ -236,7 +236,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
         : null;
       const rawCancelledStocktakes = cancelledStocktakesByProductBranch.get(key) ?? [];
       const cancelledStocktakes = adjustment !== null && Math.abs(adjustment) > 0.000001
-        ? rawCancelledStocktakes
+        ? rawCancelledStocktakes.filter((line) => Math.abs(line.quantityDelta) > 0.000001)
         : [];
       const rawInvoiceChanges = invoiceChangesByProductBranch.get(key) ?? [];
       const invoiceChanges = adjustment !== null && Math.abs(adjustment) > 0.000001

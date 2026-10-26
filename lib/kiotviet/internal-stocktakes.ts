@@ -175,8 +175,8 @@ export async function syncInternalStocktakes(fromDate: Date): Promise<StocktakeS
 }
 
 export function isBalancedStocktakeStatus(status: number | null) {
-  // Status 1 is the completed/balanced stocktake. Status 2 is a temporary
-  // document and must not affect the inventory ledger (status 0 is cancelled).
+  // KiotViet Stocktake: Status 0 = Phiếu tạm (Draft), Status 1 = Đã cân bằng (Balanced), Status 2 = Đã hủy (Cancelled).
+  // Chỉ phiếu đã cân bằng (Status 1) mới ảnh hưởng đến sổ kho / thẻ kho.
   return status === 1;
 }
 
