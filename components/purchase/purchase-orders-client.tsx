@@ -13,9 +13,11 @@ import {
   Pencil,
   Trash2,
   AlertCircle,
-  X
+  X,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { kiotVietPurchaseOrderUrl } from "@/lib/kiotviet/links";
 import { PurchaseOrderForm, ProductItem, BranchItem } from "./purchase-order-form";
 import { PurchaseOrderPrint, PurchaseOrderPrintData, PrintTemplateConfig } from "./purchase-order-print";
 import { PurchasePrintSettings } from "./purchase-print-settings";
@@ -471,8 +473,21 @@ export const PurchaseOrdersClient: React.FC<Props> = ({
                         key={o.id}
                         className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                       >
-                        <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                          {o.code}
+                        <td className="py-3 px-4 font-mono font-bold">
+                          {o.code ? (
+                            <a
+                              href={kiotVietPurchaseOrderUrl(o.code)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300 group transition-colors"
+                              title={`Mở phiếu nhập ${o.code} trên KiotViet`}
+                            >
+                              <span>{o.code}</span>
+                              <ExternalLink className="h-3 w-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                            </a>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
                           {formatDateTime(o.purchaseDate)}

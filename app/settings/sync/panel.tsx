@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { KiotvietSessionCard } from "@/components/settings/kiotviet-session-card";
 
 type SyncType =
   | "products"
@@ -99,7 +100,9 @@ export function SyncPanel() {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
+    <div className="space-y-6">
+      <KiotvietSessionCard />
+      <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
       <Card>
         <CardHeader>
           <CardTitle>Lệnh đồng bộ</CardTitle>
@@ -200,6 +203,7 @@ export function SyncPanel() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

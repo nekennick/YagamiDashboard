@@ -654,11 +654,49 @@ export const PurchaseOrderForm: React.FC<Props> = ({
     }
   };
 
+  const renderActionButtons = () => (
+    <div className="flex flex-wrap items-center gap-2.5 sm:justify-end shrink-0">
+      {onCancel && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={submitting}
+          className="h-9 px-3.5 text-xs font-semibold"
+        >
+          Hủy bỏ
+        </Button>
+      )}
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => handleSubmit(true)}
+        disabled={submitting || lineItems.length === 0}
+        className="h-9 px-4 text-xs font-semibold flex items-center gap-1.5 border-amber-300 bg-amber-50/50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+        title="Lưu lại dưới dạng phiếu tạm nội bộ (chưa trừ kho hay đồng bộ lên KiotViet)"
+      >
+        <Save className="h-3.5 w-3.5" />
+        {submitting ? "Đang lưu..." : isEditing ? "Lưu cập nhật phiếu tạm" : "Lưu phiếu tạm"}
+      </Button>
+
+      <Button
+        type="button"
+        onClick={handleOpenReview}
+        disabled={submitting || lineItems.length === 0}
+        className="h-9 px-5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-1.5"
+      >
+        <Eye className="h-3.5 w-3.5" />
+        Xem lại &amp; Đẩy lên KiotViet
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-8">
       {/* Top Banner / Form Header */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
@@ -675,6 +713,9 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                 : "Nhập số lượng hàng thực nhận. Đơn giá bán sẽ tự động được điền theo giá niêm yết KiotViet."}
             </p>
           </div>
+
+          {/* Action Buttons */}
+          {renderActionButtons()}
         </div>
 
         {errorMessage && (
@@ -980,6 +1021,16 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                         min="0"
                         step="any"
                         value={item.quantity || ""}
+                        onFocus={(e) => {
+                          try {
+                            e.currentTarget.select();
+                          } catch {}
+                        }}
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.select();
+                          } catch {}
+                        }}
                         onChange={(e) =>
                           updateLineItem(idx, "quantity", parseFloat(e.target.value) || 0)
                         }
@@ -992,6 +1043,16 @@ export const PurchaseOrderForm: React.FC<Props> = ({
                         min="0"
                         step="1000"
                         value={item.price}
+                        onFocus={(e) => {
+                          try {
+                            e.currentTarget.select();
+                          } catch {}
+                        }}
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.select();
+                          } catch {}
+                        }}
                         onChange={(e) =>
                           updateLineItem(idx, "price", parseFloat(e.target.value) || 0)
                         }
@@ -1045,42 +1106,6 @@ export const PurchaseOrderForm: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pb-8">
-        {onCancel && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={submitting}
-            className="h-10 px-5 text-xs font-semibold"
-          >
-            Hủy bỏ
-          </Button>
-        )}
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => handleSubmit(true)}
-          disabled={submitting || lineItems.length === 0}
-          className="h-10 px-5 text-xs font-semibold flex items-center gap-2 border-amber-300 bg-amber-50/50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-          title="Lưu lại dưới dạng phiếu tạm nội bộ (chưa trừ kho hay đồng bộ lên KiotViet)"
-        >
-          <Save className="h-4 w-4" />
-          {submitting ? "Đang lưu..." : isEditing ? "Lưu cập nhật phiếu tạm" : "Lưu phiếu tạm"}
-        </Button>
-
-        <Button
-          type="button"
-          onClick={handleOpenReview}
-          disabled={submitting || lineItems.length === 0}
-          className="h-10 px-6 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md flex items-center gap-2"
-        >
-          <Eye className="h-4 w-4" />
-          Xem lại &amp; Đẩy lên KiotViet
-        </Button>
-      </div>
 
       {/* Review Modal before pushing to KiotViet */}
       {showReviewModal && (

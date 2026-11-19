@@ -98,8 +98,8 @@ function isPathAllowedForMember(pathname: string, allowedSet: Set<string>): bool
 }
 
 function isMemberApiAllowed(pathname: string, allowedSet: Set<string>): boolean {
-  // Cho phép lấy thông tin cập nhật hệ thống
-  if (pathname === "/api/changelog") return true;
+  // Cho phép lấy thông tin cập nhật hệ thống & trạng thái phiên KiotViet
+  if (pathname === "/api/changelog" || pathname === "/api/settings/internal-session") return true;
 
   // API phân hệ Nhập hàng & Xuất kho
   if (
@@ -131,6 +131,7 @@ function isMemberApiAllowed(pathname: string, allowedSet: Set<string>): boolean 
   if (pathname === "/api/export/inventory") return allowedSet.has("/inventory");
   if (pathname === "/api/export/invoices") return allowedSet.has("/");
   if (pathname === "/api/export/customers") return allowedSet.has("/");
+  if (pathname === "/api/export/users") return allowedSet.has("/settings/users");
   if (pathname.startsWith("/api/export/analytics/product-frequency")) return allowedSet.has("/analytics/product-frequency");
 
   return false;

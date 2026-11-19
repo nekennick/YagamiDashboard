@@ -553,7 +553,7 @@ function AdjustmentContent({
   const [error, setError] = useState<string | null>(null);
   const [ackLoading, setAckLoading] = useState(false);
 
-  const handleInvestigate = async () => {
+  const handleInvestigate = async (forceRefresh = false) => {
     setInvestigating(true);
     setError(null);
     try {
@@ -564,7 +564,8 @@ function AdjustmentContent({
           productId: row.productId,
           branchId: row.branchId,
           operationalDate,
-          adjustment: total
+          adjustment: total,
+          forceRefresh
         })
       });
       const data = await res.json();
@@ -662,9 +663,16 @@ function AdjustmentContent({
                 <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
               )}
               <div className="flex-1">
-                <p className="font-bold text-slate-900 dark:text-white text-base">
-                  {investigation.found ? "KẾT QUẢ ĐIỀU TRA KIOTVIET THỜI GIAN THỰC" : "KẾT QUẢ ĐIỀU TRA"}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-slate-900 dark:text-white text-base">
+                    {investigation.found ? "KẾT QUẢ ĐIỀU TRA KIOTVIET THỜI GIAN THỰC" : "KẾT QUẢ ĐIỀU TRA"}
+                  </p>
+                  {investigation.fromCache && (
+                    <span className="rounded-md bg-emerald-100/80 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      ⚡ Đã lưu đệm
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{investigation.summary}</p>
               </div>
             </div>
@@ -704,6 +712,8 @@ function AdjustmentContent({
                             className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
                               doc.action === "CANCELLED"
                                 ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                                : doc.action === "BACKDATED"
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                                 : doc.action === "CREATED"
                                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                                 : "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
@@ -711,6 +721,8 @@ function AdjustmentContent({
                           >
                             {doc.action === "CANCELLED"
                               ? "ĐÃ HỦY"
+                              : doc.action === "BACKDATED"
+                              ? "LẬP LÙI NGÀY"
                               : doc.action === "CREATED"
                               ? "LỆCH GIAO THỜI"
                               : "CHỈNH SỬA"}
@@ -744,13 +756,23 @@ function AdjustmentContent({
 
                       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-100 pt-2 dark:border-slate-800">
                         <div>
-                          <span className="font-medium text-slate-700 dark:text-slate-300">Thời điểm thao tác:</span>{" "}
+                          <span className="font-medium text-slate-700 dark:text-slate-300">
+                            {doc.action === "BACKDATED" ? "Thời điểm tạo thực tế:" : "Thời điểm thao tác:"}
+                          </span>{" "}
                           {formatMovementDateTime(doc.actionTime)}
                         </div>
                         <div>
                           <span className="font-medium text-slate-700 dark:text-slate-300">Người thực hiện:</span>{" "}
                           {doc.operatorName || "—"}
                         </div>
+                        {doc.originalDate ? (
+                          <div>
+                            <span className="font-medium text-slate-700 dark:text-slate-300">
+                              {doc.action === "BACKDATED" ? "Ngày chứng từ chọn lùi:" : "Ngày chứng từ gốc:"}
+                            </span>{" "}
+                            {formatMovementDateTime(doc.originalDate)}
+                          </div>
+                        ) : null}
                         <div>
                           <span className="font-medium text-slate-700 dark:text-slate-300">Khách hàng / Đối tác:</span>{" "}
                           {doc.partnerName || "—"}
@@ -847,7 +869,7 @@ function AdjustmentContent({
       {/* Thanh hành động chính */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
         <button
-          onClick={handleInvestigate}
+          onClick={() => handleInvestigate(true)}
           disabled={investigating}
           className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 active:scale-98 transition-all disabled:opacity-60 cursor-pointer"
           type="button"

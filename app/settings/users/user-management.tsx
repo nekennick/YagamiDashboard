@@ -3,18 +3,24 @@
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TabItem, TabGroup } from "@/lib/auth/permissions";
-import { Shield, CheckSquare, Square, RotateCcw, Save, Users as UsersIcon, PlusCircle } from "lucide-react";
-
-type User = {
-  id: number;
-  username: string;
-  displayName: string;
-  role: "ADMIN" | "MEMBER";
-  isActive: boolean;
-  canPurchaseOrder?: boolean;
-  createdAt: string;
-  countPermissions: Array<"COUNT_EXECUTE" | "COUNT_MANAGE" | "COUNT_BALANCE">;
-};
+import {
+  Shield,
+  CheckSquare,
+  Square,
+  RotateCcw,
+  Save,
+  Users as UsersIcon,
+  PlusCircle,
+  Pencil,
+  Trash2,
+  Lock,
+  Unlock,
+  CheckCircle2,
+  AlertCircle,
+  FileSpreadsheet
+} from "lucide-react";
+import { UserEditModal, type User } from "@/components/settings/user-edit-modal";
+import { UserDeleteModal } from "@/components/settings/user-delete-modal";
 
 const inventoryCountPermissionLabels = {
   COUNT_EXECUTE: "Nhập kiểm",
@@ -37,7 +43,10 @@ export function UserManagement({
   const [tabMessage, setTabMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [message, setMessage] = useState("");
+  const [createMessage, setCreateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   // Nhóm các tab theo category
   const groups: { key: TabGroup; label: string; tabs: TabItem[] }[] = [
@@ -93,8 +102,9 @@ export function UserManagement({
   async function createUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    setMessage("");
-    const form = new FormData(event.currentTarget);
+    setCreateMessage(null);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       const response = await fetch("/api/admin/users", {
         method: "POST",
@@ -112,10 +122,16 @@ export function UserManagement({
       setUsers((current) =>
         [...current, data.user!].sort((left, right) => left.username.localeCompare(right.username))
       );
-      event.currentTarget.reset();
-      setMessage(`Đã tạo user ${data.user.username}.`);
+      formElement.reset();
+      setCreateMessage({
+        type: "success",
+        text: `Đã tạo tài khoản "${data.user.displayName}" (${data.user.username}) thành công!`
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Không thể tạo user.");
+      setCreateMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Không thể tạo user."
+      });
     } finally {
       setSaving(false);
     }
@@ -319,15 +335,63 @@ export function UserManagement({
             {saving ? "Đang tạo..." : "Tạo user"}
           </Button>
         </form>
-        {message ? <p className="mt-4 text-sm text-slate-700 dark:text-gray-300">{message}</p> : null}
+        {createMessage && (
+          <div
+            className={`mt-4 flex items-center justify-between rounded-xl p-3.5 text-xs sm:text-sm border ${
+              createMessage.type === "success"
+                ? "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                : "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {createMessage.type === "success" ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+              )}
+              <span>{createMessage.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreateMessage(null)}
+              className="text-xs font-semibold opacity-70 hover:opacity-100 ml-3"
+            >
+              Đóng
+            </button>
+          </div>
+        )}
       </section>
 
       {/* SECTION 3: DANH SÁCH USER */}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-gray-800">
-          <UsersIcon className="h-5 w-5 text-slate-500 dark:text-gray-400" />
-          <h2 className="font-semibold text-slate-950 dark:text-white">Danh sách tài khoản ({users.length})</h2>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <UsersIcon className="h-5 w-5 text-slate-500 dark:text-gray-400" />
+            <h2 className="font-semibold text-slate-950 dark:text-white">Danh sách tài khoản ({users.length})</h2>
+          </div>
+          <a
+            href="/api/export/users"
+            download
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-emerald-700 hover:border-emerald-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-emerald-400 transition-colors"
+            title="Xuất danh sách nhân viên ra file Excel"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Xuất Excel</span>
+          </a>
         </div>
+
+        {message && (
+          <div className="mx-6 mt-4 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300">
+            <span>{message}</span>
+            <button
+              type="button"
+              onClick={() => setMessage("")}
+              className="font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400"
+            >
+              Đóng
+            </button>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-gray-800/60 dark:text-gray-400">
@@ -413,24 +477,45 @@ export function UserManagement({
                     )}
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
-                        className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium hover:bg-slate-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-blue-950/40 dark:hover:text-blue-300 dark:hover:border-blue-800 transition-colors"
+                        onClick={() => setEditingUser(user)}
+                        type="button"
+                        title="Chỉnh sửa tên và thông tin tài khoản"
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        <span>Sửa</span>
+                      </button>
+                      <button
+                        className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                          user.isActive
+                            ? "border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-amber-950/40 dark:hover:text-amber-300"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        }`}
                         onClick={() => void updateUser(user, { isActive: !user.isActive })}
                         type="button"
+                        disabled={user.username === "admin"}
+                        title={user.username === "admin" ? "Không thể khóa tài khoản admin gốc" : user.isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}
                       >
-                        {user.isActive ? "Khóa" : "Mở khóa"}
+                        {user.isActive ? (
+                          <Lock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        ) : (
+                          <Unlock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                        )}
+                        <span>{user.isActive ? "Khóa" : "Mở"}</span>
                       </button>
-                      <button
-                        className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium hover:bg-slate-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                        onClick={() => {
-                          const password = window.prompt(`Mật khẩu mới cho ${user.username}`);
-                          if (password) void updateUser(user, { password });
-                        }}
-                        type="button"
-                      >
-                        Đổi mật khẩu
-                      </button>
+                      {user.username !== "admin" ? (
+                        <button
+                          className="inline-flex items-center gap-1 rounded-md border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 hover:border-rose-300 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/40 transition-colors"
+                          onClick={() => setDeletingUser(user)}
+                          type="button"
+                          title="Xóa tài khoản người dùng"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Xóa</span>
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -439,6 +524,35 @@ export function UserManagement({
           </table>
         </div>
       </section>
+
+      {/* Modal chỉnh sửa tài khoản */}
+      <UserEditModal
+        isOpen={Boolean(editingUser)}
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
+        onSuccess={(updatedUser) => {
+          setUsers((prev) =>
+            prev
+              .map((u) => (u.id === updatedUser.id ? updatedUser : u))
+              .sort((a, b) => a.username.localeCompare(b.username))
+          );
+          setMessage(`Đã cập nhật thông tin tài khoản "${updatedUser.displayName}" (${updatedUser.username}) thành công.`);
+        }}
+      />
+
+      {/* Modal xóa tài khoản */}
+      <UserDeleteModal
+        isOpen={Boolean(deletingUser)}
+        user={deletingUser}
+        onClose={() => setDeletingUser(null)}
+        onSuccess={(deletedId, msg) => {
+          setUsers((prev) => prev.filter((u) => u.id !== deletedId));
+          setMessage(msg);
+        }}
+        onLockUser={async (user) => {
+          await updateUser(user, { isActive: false });
+        }}
+      />
     </div>
   );
 }

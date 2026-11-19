@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { productId, branchId, operationalDate, adjustment } = body;
+    const { productId, branchId, operationalDate, adjustment, forceRefresh } = body;
 
     if (!productId || !branchId || adjustment === undefined) {
       return NextResponse.json(
@@ -19,7 +19,8 @@ export async function POST(request: Request) {
       productId: Number(productId),
       branchId: Number(branchId),
       operationalDate: operationalDate ? String(operationalDate) : undefined,
-      adjustment: Number(adjustment)
+      adjustment: Number(adjustment),
+      forceRefresh: Boolean(forceRefresh)
     });
 
     return NextResponse.json(result);

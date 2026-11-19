@@ -1,8 +1,7 @@
-import { readFile } from "node:fs/promises";
 import { prisma } from "@/lib/prisma";
+import { loadInternalSession as loadSharedInternalSession, type InternalSession } from "./internal-session";
 
 type ObjectRecord = Record<string, unknown>;
-type InternalSession = { baseUrl: string; headers: Record<string, string> };
 
 const pageSize = 100;
 const allowedHeaderNames = new Set([
@@ -181,14 +180,7 @@ export function isBalancedStocktakeStatus(status: number | null) {
 }
 
 async function loadInternalSession() {
-  const path = process.env.KIOTVIET_INTERNAL_REQUEST_FILE ?? "/run/secrets/kiotviet_internal_requests";
-  let raw: string;
-  try {
-    raw = await readFile(path, "utf8");
-  } catch {
-    throw new Error("Chưa cấu hình secret phiên quản trị KiotViet cho đồng bộ kiểm kho.");
-  }
-  return parseInternalStocktakeRequestSecret(raw);
+  return loadSharedInternalSession();
 }
 
 async function fetchStocktakeDocuments(session: InternalSession) {

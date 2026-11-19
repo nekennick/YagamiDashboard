@@ -1,25 +1,10 @@
-import { readFile } from "node:fs/promises";
 import { prisma } from "@/lib/prisma";
 import { parseKiotVietDate } from "@/lib/kiotviet/datetime";
+import { loadInternalSession, type InternalSession } from "./internal-session";
 
 type ObjectRecord = Record<string, unknown>;
-type InternalSession = { baseUrl: string; headers: Record<string, string> };
 
 const pageSize = 100;
-const allowedHeaderNames = new Set([
-  "accept",
-  "authorization",
-  "branchid",
-  "content-type",
-  "fingerprintkey",
-  "isusekvclient",
-  "origin",
-  "referer",
-  "retailer",
-  "x-group-id",
-  "x-language",
-  "x-retailer-code"
-]);
 
 export type DamagedGoodsSyncStats = {
   totalRecords: number;
@@ -117,27 +102,6 @@ export async function syncDamagedGoods(fromDate: Date): Promise<DamagedGoodsSync
 
 export function isCompletedDamagedGoodsStatus(status: number | null) {
   return status === 2;
-}
-
-async function loadInternalSession(): Promise<InternalSession> {
-  const path = process.env.KIOTVIET_INTERNAL_REQUEST_FILE ?? "/run/secrets/kiotviet_internal_requests";
-  const raw = await readFile(path, "utf8");
-  const cleaned = raw.replace(/\^\r?\n/g, " ").replace(/\^/g, "");
-  const block = cleaned.split(/(?:^|\r?\n)\s*curl\s+/i).find((item) => item.includes("/api/stocktakes/list"));
-  const source = block ?? cleaned;
-  const urlMatch = source.match(/"(https:\/\/[^"\s]+)\/api\/stocktakes\/list"/i);
-  if (!urlMatch) throw new Error("Không đọc được phiên quản trị KiotViet để đồng bộ xuất hủy.");
-  const url = new URL(urlMatch[1]);
-  if (url.protocol !== "https:" || !url.hostname.endsWith(".kiotviet.vn")) {
-    throw new Error("Host API nội bộ KiotViet không hợp lệ.");
-  }
-  const headers: Record<string, string> = {};
-  for (const match of source.matchAll(/-H\s+"([^:"]+):\s*([^"]*)"/gi)) {
-    const name = match[1].trim().toLowerCase();
-    if (allowedHeaderNames.has(name)) headers[name] = match[2].trim();
-  }
-  if (!headers.authorization) throw new Error("Phiên quản trị KiotViet thiếu Authorization.");
-  return { baseUrl: url.origin, headers };
 }
 
 async function fetchDamagedGoodsDocuments(session: InternalSession) {
